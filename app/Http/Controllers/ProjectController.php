@@ -39,11 +39,35 @@ class ProjectController extends Controller
     /**
      * The Kanban Board tab.
      */
+    /**
+     * The Kanban Board tab.
+     */
     public function board(Workspace $workspace, Project $project)
     {
+        // Load everything the board needs for editing and optimistic updates.
+        $workspace->loadMissing(["owner", "members"]);
+        $project->load([
+            "workspace",
+            "tasks.assignee",
+            "tasks.labels",
+            "tasks.blockedBy",
+        ]);
+
+        $members = collect([$workspace->owner])
+            ->merge($workspace->members)
+            ->filter()
+            ->unique("id")
+            ->values()
+            ->map(fn ($member) => [
+                "id" => $member->id,
+                "name" => $member->name,
+                "email" => $member->email,
+            ]);
+
         return Inertia::render("Project/Board", [
             "workspace" => $workspace,
             "project" => $project,
+            "members" => $members,
         ]);
     }
 

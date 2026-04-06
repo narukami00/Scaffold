@@ -32,4 +32,12 @@ class Project extends Model
     {
         return $this->belongsTo(Workspace::class);
     }
+
+    /**
+     * A project contains many tasks.
+     */
+    public function tasks()
+    {
+        return $this->hasMany(Task::class)->orderBy("position");
+    }
 }

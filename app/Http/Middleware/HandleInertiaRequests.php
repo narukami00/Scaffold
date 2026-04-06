@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Workspace;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -36,15 +37,24 @@ class HandleInertiaRequests extends Middleware
 
     public function share(Request $request): array
     {
-        // Try to find if we're currently inside a workspace route
         $workspace = $request->route("workspace");
+
+        if (is_string($workspace)) {
+            $workspace = Workspace::with("projects")
+                ->where("slug", $workspace)
+                ->first();
+        } elseif ($workspace instanceof Workspace) {
+            $workspace->loadMissing("projects");
+        } else {
+            $workspace = null;
+        }
 
         return [
             ...parent::share($request),
             "auth" => [
                 "user" => $request->user(),
             ],
-            // This pulls the projects for the CURRENT workspace automatically for the sidebar
+            // Share sidebar projects only when the route actually resolved a workspace.
             "workspaceProjects" => $workspace ? $workspace->projects : [],
         ];
     }

@@ -33,6 +33,13 @@ class WorkspaceController extends Controller
             "owner_id" => Auth::id(),
         ]);
 
+        $workspace->members()->syncWithoutDetaching([
+            Auth::id() => [
+                "role" => "owner",
+                "joined_at" => now(),
+            ],
+        ]);
+
         return redirect()->route("workspaces.index");
     }
 

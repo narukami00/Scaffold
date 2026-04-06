@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\WorkspaceController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\TaskController;
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -88,6 +89,15 @@ Route::middleware("auth")->group(function () {
                 ProjectController::class,
                 "activity",
             ])->name("projects.activity");
+            // Task Operations
+            Route::post("/projects/{project}/tasks", [
+                TaskController::class,
+                "store",
+            ])->name("tasks.store");
+            Route::patch("/projects/{project}/tasks/{task}", [
+                TaskController::class,
+                "update",
+            ])->name("tasks.update");
         });
     });
 });

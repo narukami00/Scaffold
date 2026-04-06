@@ -12,6 +12,10 @@ class AuthController extends Controller
 {
     public function showRegister()
     {
+        if (Auth::check()) {
+            return redirect()->route("workspaces.index");
+        }
+
         return Inertia::render("Auth/Register");
     }
 
@@ -26,12 +30,17 @@ class AuthController extends Controller
         $user = User::create($validated);
 
         Auth::login($user);
+        $request->session()->regenerate();
 
         return redirect()->route("workspaces.index");
     }
 
     public function showLogin()
     {
+        if (Auth::check()) {
+            return redirect()->route("workspaces.index");
+        }
+
         return Inertia::render("Auth/Login");
     }
 
@@ -45,7 +54,7 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $request->boolean("remember"))) {
             $request->session()->regenerate();
 
-            return redirect()->intended(route("workspaces.index"));
+            return redirect()->route("workspaces.index");
         }
 
         return back()->withErrors([
