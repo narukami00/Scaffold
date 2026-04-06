@@ -14,7 +14,7 @@ class HandleInertiaRequests extends Middleware
      *
      * @var string
      */
-    protected $rootView = 'app';
+    protected $rootView = "app";
 
     /**
      * Determines the current asset version.
@@ -33,11 +33,19 @@ class HandleInertiaRequests extends Middleware
      *
      * @return array<string, mixed>
      */
+
     public function share(Request $request): array
     {
+        // Try to find if we're currently inside a workspace route
+        $workspace = $request->route("workspace");
+
         return [
             ...parent::share($request),
-            //
+            "auth" => [
+                "user" => $request->user(),
+            ],
+            // This pulls the projects for the CURRENT workspace automatically for the sidebar
+            "workspaceProjects" => $workspace ? $workspace->projects : [],
         ];
     }
 }

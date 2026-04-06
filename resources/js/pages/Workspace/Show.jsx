@@ -1,46 +1,34 @@
-import AppLayout from "@/layouts/AppLayout";
+import WorkspaceLayout from "@/layouts/WorkspaceLayout";
 import { Head, Link } from "@inertiajs/react";
 
 export default function Show({ workspace }) {
     return (
-        <div className="max-w-5xl mx-auto space-y-8">
-            <Head title={workspace.name} />
+        <div className="space-y-8">
+            <Head title={`${workspace.name} Dashboard`} />
 
-            {/* Header Area */}
-            <div className="flex items-center justify-between border-b border-border pb-6">
-                <div>
-                    <h1 className="text-3xl font-display font-black text-white">
-                        {workspace.name}
-                    </h1>
-                    <p className="text-muted text-sm mt-1">
-                        Workspace Dashboard
-                    </p>
-                </div>
-
-                {/* build this settings page next! */}
-                <Link
-                    href={`/workspaces/${workspace.slug}/settings`}
-                    className="px-4 py-2 bg-surface hover:bg-surface2 border border-border rounded-lg text-sm text-white font-medium transition-colors"
-                >
-                    Workspace Settings
-                </Link>
+            <div className="space-y-2">
+                <h1 className="text-4xl font-display font-black text-white uppercase tracking-tighter">
+                    Workspace Overview
+                </h1>
+                <p className="text-muted">
+                    Welcome back to {workspace.name}. Your central command
+                    center.
+                </p>
             </div>
 
-            {/* Placeholder for future features */}
-            <div className="py-24 bg-surface2/30 border-2 border-dashed border-border rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
-                <div className="text-accent text-5xl hover:scale-110 transition-transform cursor-pointer">
-                    🚀
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Stats or shortcut cards can go here later */}
+                <div className="bg-surface2 border border-border p-6 rounded-2xl space-y-2">
+                    <p className="text-[10px] font-black text-accent uppercase tracking-widest">
+                        Active Projects
+                    </p>
+                    <p className="text-3xl font-bold text-white">
+                        READY FOR WORK
+                    </p>
                 </div>
-                <h3 className="text-2xl font-bold text-white">
-                    Welcome to {workspace.name}
-                </h3>
-                <p className="text-muted max-w-md">
-                    This is your workspace internal dashboard. In the next
-                    future, this area will be filled with many features.
-                </p>
             </div>
         </div>
     );
 }
 
-Show.layout = (page) => <AppLayout children={page} />;
+Show.layout = (page) => <WorkspaceLayout children={page} />;

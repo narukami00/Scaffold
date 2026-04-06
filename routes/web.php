@@ -3,6 +3,8 @@
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\WorkspaceController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\ProjectController;
+
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -61,4 +63,31 @@ Route::middleware("auth")->group(function () {
         InvitationController::class,
         "accept",
     ])->name("invitations.accept");
+
+    // Projects (Nested under Workspaces)
+    Route::prefix("/workspaces/{workspace:slug}")->group(function () {
+        Route::post("/projects", [ProjectController::class, "store"])->name(
+            "workspaces.projects.store",
+        );
+
+        // Scope bindings ensure the project actually belongs to the workspace
+        Route::scopeBindings()->group(function () {
+            Route::get("/projects/{project}", [
+                ProjectController::class,
+                "show",
+            ])->name("workspaces.projects.show");
+            Route::get("/projects/{project}/board", [
+                ProjectController::class,
+                "board",
+            ])->name("projects.board");
+            Route::get("/projects/{project}/docs", [
+                ProjectController::class,
+                "docs",
+            ])->name("projects.docs");
+            Route::get("/projects/{project}/activity", [
+                ProjectController::class,
+                "activity",
+            ])->name("projects.activity");
+        });
+    });
 });

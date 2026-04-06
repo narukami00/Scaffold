@@ -52,4 +52,12 @@ class Workspace extends Model
             ->withPivot("role", "joined_at")
             ->withTimestamps();
     }
+
+    /**
+     * A workspace can host many projects.
+     */
+    public function projects()
+    {
+        return $this->hasMany(Project::class)->latest();
+    }
 }
