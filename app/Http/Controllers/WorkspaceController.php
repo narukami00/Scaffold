@@ -60,6 +60,9 @@ class WorkspaceController extends Controller
             abort(403);
         }
 
+        // Load the members list before sending it to the frontend
+        $workspace->load("members");
+
         return Inertia::render("Workspace/Settings", [
             "workspace" => $workspace,
         ]);

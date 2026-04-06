@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\WorkspaceController;
+use App\Http\Controllers\InvitationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -46,4 +47,18 @@ Route::middleware("auth")->group(function () {
         WorkspaceController::class,
         "destroy",
     ])->name("workspaces.destroy");
+
+    // Invitations
+    Route::post("/workspaces/{workspace}/invitations", [
+        InvitationController::class,
+        "store",
+    ])->name("workspaces.invitations.store");
+    Route::get("/invitations/accept/{token}", [
+        InvitationController::class,
+        "show",
+    ])->name("invitations.show");
+    Route::post("/invitations/accept/{token}", [
+        InvitationController::class,
+        "accept",
+    ])->name("invitations.accept");
 });

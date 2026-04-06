@@ -42,4 +42,14 @@ class Workspace extends Model
     {
         return "slug";
     }
+
+    /**
+     * The members that belong to the workspace.
+     */
+    public function members()
+    {
+        return $this->belongsToMany(User::class, "workspace_members")
+            ->withPivot("role", "joined_at")
+            ->withTimestamps();
+    }
 }
