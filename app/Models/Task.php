@@ -12,7 +12,6 @@ class Task extends Model
     protected $fillable = [
         "project_id",
         "assignee_id",
-        "blocked_by_id",
         "title",
         "description",
         "status",
@@ -40,14 +39,6 @@ class Task extends Model
     }
 
     /**
-     * The task that blocks THIS task (The "Parent" dependency).
-     */
-    public function blockedBy()
-    {
-        return $this->belongsTo(Task::class, "blocked_by_id");
-    }
-
-    /**
      * The labels associated with this task.
      */
     public function labels()
@@ -61,5 +52,30 @@ class Task extends Model
     public function comments()
     {
         return $this->hasMany(TaskComment::class)->latest();
+    }
+    /**
+     * Tasks that THIS task depends on (The Parents).
+     */
+    public function dependencies()
+    {
+        return $this->belongsToMany(
+            Task::class,
+            "task_dependencies",
+            "task_id",
+            "depends_on_id",
+        );
+    }
+
+    /**
+     * Tasks that depend on THIS task (The Children).
+     */
+    public function dependents()
+    {
+        return $this->belongsToMany(
+            Task::class,
+            "task_dependencies",
+            "depends_on_id",
+            "task_id",
+        );
     }
 }

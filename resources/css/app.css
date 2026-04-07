@@ -25,3 +25,56 @@
     --font-sans: "JetBrains Mono", monospace;
     --font-display: "Syne", sans-serif;
 }
+
+/* ─── React Flow dark-theme overrides ────────────────────────────────────────
+   These override the light defaults that ship with @xyflow/react/dist/style.css
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Controls panel buttons */
+.react-flow__controls-button {
+    background: #111113;
+    border-color: #252528;
+    color: #6b6b7a;
+    fill: #6b6b7a;
+}
+.react-flow__controls-button:hover {
+    background: #18181c;
+    color: #e8e8f0;
+    fill: #e8e8f0;
+}
+
+/* Edge / connection line */
+.react-flow__edge-path,
+.react-flow__connection-path {
+    stroke-width: 2;
+}
+
+/* Selected edge highlight */
+.react-flow__edge.selected .react-flow__edge-path {
+    stroke: #7c6aff;
+    filter: drop-shadow(0 0 6px rgba(124, 106, 255, 0.6));
+}
+
+/* Node selection ring */
+.react-flow__node.selected > div {
+    outline: 2px solid #7c6aff;
+    outline-offset: 3px;
+}
+
+/* Handle hover glow */
+.react-flow__handle:hover {
+    background: #9d8fff !important;
+    box-shadow: 0 0 8px rgba(124, 106, 255, 0.8);
+}
+
+/* Hide the React Flow attribution badge (we pass proOptions={{ hideAttribution: true }}) */
+.react-flow__attribution {
+    display: none;
+}
+
+/* Mini-map node fill */
+.react-flow__minimap-node {
+    fill: #252528;
+    stroke: #7c6aff;
+    stroke-width: 1px;
+}

@@ -73,7 +73,7 @@ class TaskTest extends TestCase
                     "title" => "Ship polished UI",
                     "priority" => "urgent",
                     "due_date" => "2026-04-30",
-                    "blocked_by_id" => $dependency->id,
+                    "dependencies" => [$dependency->id],
                     "assignee_id" => $user->id,
                 ],
             );
@@ -84,8 +84,41 @@ class TaskTest extends TestCase
             "title" => "Ship polished UI",
             "priority" => "urgent",
             "due_date" => "2026-04-30",
-            "blocked_by_id" => $dependency->id,
             "assignee_id" => $user->id,
+        ]);
+        $this->assertDatabaseHas("task_dependencies", [
+            "task_id" => $task->id,
+            "depends_on_id" => $dependency->id,
+        ]);
+    }
+
+    public function test_workspace_owner_can_delete_a_task(): void
+    {
+        $user = User::factory()->create();
+        $workspace = Workspace::create([
+            "name" => "Alpha Team",
+            "owner_id" => $user->id,
+        ]);
+        $project = Project::create([
+            "name" => "Launch Board",
+            "workspace_id" => $workspace->id,
+        ]);
+        $task = Task::create([
+            "project_id" => $project->id,
+            "title" => "Retire old flow",
+            "status" => "done",
+            "position" => 0,
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->delete(
+                route("tasks.destroy", [$workspace->slug, $project->slug, $task->id]),
+            );
+
+        $response->assertRedirect();
+        $this->assertDatabaseMissing("tasks", [
+            "id" => $task->id,
         ]);
     }
 }

@@ -4,6 +4,7 @@ import { Head } from "@inertiajs/react";
 import { LayoutGrid, Share2, Sliders } from "lucide-react";
 import ColumnView from "@/components/kanban/ColumnView";
 import TaskSlideOver from "@/components/kanban/TaskSlideOver";
+import FlowView from "@/components/flow/FlowView";
 
 const sortTasks = (items) =>
     [...items].sort((a, b) => {
@@ -82,7 +83,9 @@ export default function Board({ workspace, project, members = [] }) {
     };
 
     const handleTaskMove = (taskId, status, position) => {
-        setTasks((currentTasks) => moveTask(currentTasks, taskId, status, position));
+        setTasks((currentTasks) =>
+            moveTask(currentTasks, taskId, status, position),
+        );
     };
 
     const handleTaskUpdated = (taskId, changes) => {
@@ -100,6 +103,14 @@ export default function Board({ workspace, project, members = [] }) {
         );
     };
 
+    const handleTaskDeleted = (taskId) => {
+        setTasks((currentTasks) =>
+            sortTasks(currentTasks.filter((task) => task.id !== taskId)),
+        );
+        setIsSlideOverOpen(false);
+        setSelectedTaskId(null);
+    };
+
     const closeSlideOver = () => {
         setIsSlideOverOpen(false);
         setSelectedTaskId(null);
@@ -115,7 +126,8 @@ export default function Board({ workspace, project, members = [] }) {
                         {project.name}
                     </h1>
                     <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted">
-                        Project ID: <span className="text-accent">{project.slug}</span>
+                        Project ID:{" "}
+                        <span className="text-accent">{project.slug}</span>
                     </p>
                 </div>
 
@@ -164,9 +176,12 @@ export default function Board({ workspace, project, members = [] }) {
                         density={density}
                     />
                 ) : (
-                    <div className="flex h-full items-center justify-center font-black uppercase tracking-[0.2em] text-muted animate-pulse">
-                        Flow Canvas Initializing...
-                    </div>
+                    <FlowView
+                        workspace={workspace}
+                        project={project}
+                        tasks={tasks}
+                        onTaskClick={handleTaskClick}
+                    />
                 )}
             </div>
 
@@ -179,6 +194,7 @@ export default function Board({ workspace, project, members = [] }) {
                 isOpen={isSlideOverOpen}
                 onClose={closeSlideOver}
                 onTaskUpdated={handleTaskUpdated}
+                onTaskDeleted={handleTaskDeleted}
             />
         </div>
     );

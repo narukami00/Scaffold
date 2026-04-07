@@ -49,8 +49,8 @@ class ProjectController extends Controller
         $project->load([
             "workspace",
             "tasks.assignee",
+            "tasks.dependencies",
             "tasks.labels",
-            "tasks.blockedBy",
         ]);
 
         $members = collect([$workspace->owner])

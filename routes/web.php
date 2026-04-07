@@ -98,6 +98,10 @@ Route::middleware("auth")->group(function () {
                 TaskController::class,
                 "update",
             ])->name("tasks.update");
+            Route::delete("/projects/{project}/tasks/{task}", [
+                TaskController::class,
+                "destroy",
+            ])->name("tasks.destroy");
         });
     });
 });

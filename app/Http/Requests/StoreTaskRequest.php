@@ -24,6 +24,8 @@ class StoreTaskRequest extends FormRequest
         return [
             "title" => "required|string|max:255",
             "status" => "required|in:backlog,in_progress,in_review,done",
+            "x_pos" => "sometimes|integer",
+            "y_pos" => "sometimes|integer",
         ];
     }
 }

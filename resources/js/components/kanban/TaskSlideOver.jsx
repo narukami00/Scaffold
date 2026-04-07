@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { X, Calendar, User, MessageSquare, Lock, Trash2 } from "lucide-react";
 import Button from "@/components/ui/Button";
-import { useForm } from "@inertiajs/react";
+import { router, useForm } from "@inertiajs/react";
+import { wouldCreateCycle } from "@/utils/cycleDetection";
 
 const statuses = [
     { value: "backlog", label: "Backlog" },
@@ -29,14 +30,15 @@ export default function TaskSlideOver({
     isOpen,
     onClose,
     onTaskUpdated,
+    onTaskDeleted,
 }) {
-    const { data, setData, patch, processing, errors } = useForm({
+    const { data, setData, patch, processing, errors, setError } = useForm({
         title: task?.title || "",
         description: task?.description || "",
         status: task?.status || "backlog",
         priority: task?.priority || "medium",
         due_date: task?.due_date || "",
-        blocked_by_id: task?.blocked_by_id || "",
+        dependencies: task?.dependencies?.map((d) => d.id) || [],
         assignee_id: task?.assignee_id || "",
     });
 
@@ -51,42 +53,59 @@ export default function TaskSlideOver({
             status: task.status || "backlog",
             priority: task.priority || "medium",
             due_date: task.due_date || "",
-            blocked_by_id: task.blocked_by_id || "",
+            dependencies: task.dependencies?.map((d) => d.id) || [],
             assignee_id: task.assignee_id || "",
         });
     }, [task, setData]);
 
     if (!isOpen || !task) return null;
 
-    const dependencyOptions = tasks.filter((candidate) => candidate.id !== task.id);
+    const dependencyOptions = tasks.filter(
+        (candidate) => candidate.id !== task.id,
+    );
 
     const handleSubmit = (e) => {
         e.preventDefault();
 
+        // Front-end cycle guard — catches the most common mistakes immediately
+        const cyclicDepId = data.dependencies.find((depId) =>
+            wouldCreateCycle(tasks, task.id, depId),
+        );
+        if (cyclicDepId !== null && cyclicDepId !== undefined) {
+            const badTask = tasks.find((t) => t.id === cyclicDepId);
+            setError(
+                "dependencies",
+                `Circular dependency: "${badTask?.title ?? `#${cyclicDepId}`}" already depends on this task. Linking them would create a deadlock.`,
+            );
+            return;
+        }
+
         const payload = {
             ...data,
             assignee_id: data.assignee_id ? Number(data.assignee_id) : null,
-            blocked_by_id: data.blocked_by_id ? Number(data.blocked_by_id) : null,
         };
 
-        patch(`/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.id}`, {
-            data: payload,
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => {
-                onTaskUpdated(task.id, {
-                    ...payload,
-                    assignee:
-                        members.find((member) => member.id === payload.assignee_id) ||
-                        null,
-                    blocked_by:
-                        tasks.find(
-                            (candidate) => candidate.id === payload.blocked_by_id,
-                        ) || null,
-                });
-                onClose();
+        patch(
+            `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.id}`,
+            {
+                data: payload,
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    onTaskUpdated(task.id, {
+                        ...payload,
+                        assignee:
+                            members.find(
+                                (member) => member.id === payload.assignee_id,
+                            ) || null,
+                        dependencies: tasks.filter((t) =>
+                            payload.dependencies.includes(t.id),
+                        ),
+                    });
+                    onClose();
+                },
             },
-        });
+        );
     };
 
     return (
@@ -112,7 +131,8 @@ export default function TaskSlideOver({
                                 Refine Task Details
                             </h2>
                             <p className="mt-2 max-w-sm text-sm text-muted">
-                                Update the brief, assignment, timing, and blockers without leaving the board.
+                                Update the brief, assignment, timing, and
+                                blockers without leaving the board.
                             </p>
                         </div>
                     </div>
@@ -133,7 +153,8 @@ export default function TaskSlideOver({
                                     Overview
                                 </p>
                                 <p className="mt-1 text-sm text-muted">
-                                    Give the task a clear name and define where it sits in the workflow.
+                                    Give the task a clear name and define where
+                                    it sits in the workflow.
                                 </p>
                             </div>
                             <span className="rounded-full border border-border px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-muted">
@@ -148,7 +169,9 @@ export default function TaskSlideOver({
                                 </label>
                                 <input
                                     value={data.title}
-                                    onChange={(e) => setData("title", e.target.value)}
+                                    onChange={(e) =>
+                                        setData("title", e.target.value)
+                                    }
                                     className="w-full border-none bg-transparent p-0 text-3xl font-black tracking-tight text-white outline-none placeholder:text-muted/30"
                                     placeholder="Task Title"
                                 />
@@ -166,11 +189,16 @@ export default function TaskSlideOver({
                                     </label>
                                     <select
                                         value={data.status}
-                                        onChange={(e) => setData("status", e.target.value)}
+                                        onChange={(e) =>
+                                            setData("status", e.target.value)
+                                        }
                                         className={fieldClassName}
                                     >
                                         {statuses.map((status) => (
-                                            <option key={status.value} value={status.value}>
+                                            <option
+                                                key={status.value}
+                                                value={status.value}
+                                            >
                                                 {status.label}
                                             </option>
                                         ))}
@@ -188,7 +216,10 @@ export default function TaskSlideOver({
                                         className={fieldClassName}
                                     >
                                         {priorities.map((priority) => (
-                                            <option key={priority.value} value={priority.value}>
+                                            <option
+                                                key={priority.value}
+                                                value={priority.value}
+                                            >
                                                 {priority.label}
                                             </option>
                                         ))}
@@ -206,7 +237,9 @@ export default function TaskSlideOver({
                             </div>
                             <select
                                 value={data.assignee_id}
-                                onChange={(e) => setData("assignee_id", e.target.value)}
+                                onChange={(e) =>
+                                    setData("assignee_id", e.target.value)
+                                }
                                 className={fieldClassName}
                             >
                                 <option value="">Unassigned</option>
@@ -217,7 +250,8 @@ export default function TaskSlideOver({
                                 ))}
                             </select>
                             <p className="mt-3 text-xs text-muted">
-                                Workspace members will appear here as your team grows.
+                                Workspace members will appear here as your team
+                                grows.
                             </p>
                         </div>
 
@@ -229,7 +263,9 @@ export default function TaskSlideOver({
                             <input
                                 type="date"
                                 value={data.due_date || ""}
-                                onChange={(e) => setData("due_date", e.target.value)}
+                                onChange={(e) =>
+                                    setData("due_date", e.target.value)
+                                }
                                 className={fieldClassName}
                             />
                             {errors.due_date && (
@@ -245,31 +281,72 @@ export default function TaskSlideOver({
                             <Lock
                                 size={14}
                                 className={
-                                    data.blocked_by_id ? "text-red-400" : "text-accent"
+                                    data.dependencies.length > 0
+                                        ? "text-red-400"
+                                        : "text-accent"
                                 }
                             />
-                            Dependency
+                            Dependencies
                         </div>
-                        <select
-                            value={data.blocked_by_id}
-                            onChange={(e) => setData("blocked_by_id", e.target.value)}
-                            className={fieldClassName}
-                        >
-                            <option value="">No dependency</option>
-                            {dependencyOptions.map((candidate) => (
-                                <option key={candidate.id} value={candidate.id}>
-                                    #{candidate.id} {candidate.title}
-                                </option>
-                            ))}
-                        </select>
-                        <p className="mt-3 text-xs text-muted">
-                            Mark this task as blocked by an existing task when it cannot move forward independently.
-                        </p>
-                        {errors.blocked_by_id && (
-                            <p className="mt-3 text-xs italic text-red-400">
-                                {errors.blocked_by_id}
+                        <div className="max-h-48 overflow-y-auto space-y-2 rounded-2xl border border-border/50 bg-surface/30 p-4 custom-scrollbar">
+                            {dependencyOptions.length > 0 ? (
+                                dependencyOptions.map((candidate) => (
+                                    <label
+                                        key={candidate.id}
+                                        className="group flex cursor-pointer items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={data.dependencies.includes(
+                                                candidate.id,
+                                            )}
+                                            onChange={() => {
+                                                const newDeps =
+                                                    data.dependencies.includes(
+                                                        candidate.id,
+                                                    )
+                                                        ? data.dependencies.filter(
+                                                              (id) =>
+                                                                  id !==
+                                                                  candidate.id,
+                                                          )
+                                                        : [
+                                                              ...data.dependencies,
+                                                              candidate.id,
+                                                          ];
+                                                setData(
+                                                    "dependencies",
+                                                    newDeps,
+                                                );
+                                            }}
+                                            className="rounded border-border bg-surface text-accent focus:ring-accent"
+                                        />
+                                        <span className="flex-1 text-xs font-bold text-muted transition-colors group-hover:text-white">
+                                            #{candidate.id} {candidate.title}
+                                        </span>
+                                        <span
+                                            className={`rounded px-2 py-0.5 text-[8px] font-black uppercase ${candidate.status === "done" ? "bg-green-500/20 text-green-400" : "bg-accent/10 text-accent/60"}`}
+                                        >
+                                            {candidate.status}
+                                        </span>
+                                    </label>
+                                ))
+                            ) : (
+                                <p className="text-[10px] italic text-muted">
+                                    No other tasks to link.
+                                </p>
+                            )}
+                        </div>
+                        {errors.dependencies && (
+                            <p className="mt-3 flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-400">
+                                <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
+                                {errors.dependencies}
                             </p>
                         )}
+                        <p className="mt-3 text-xs text-muted">
+                            Select all tasks that must be completed before this
+                            one can reach the "Done" phase.
+                        </p>
                     </section>
 
                     <section className="rounded-[24px] border border-border bg-surface/40 p-5">
@@ -279,7 +356,9 @@ export default function TaskSlideOver({
                         </div>
                         <textarea
                             value={data.description}
-                            onChange={(e) => setData("description", e.target.value)}
+                            onChange={(e) =>
+                                setData("description", e.target.value)
+                            }
                             className="h-44 w-full rounded-2xl border border-border bg-surface p-4 text-sm text-white transition-colors placeholder:text-muted/30 focus:border-accent"
                             placeholder="Add implementation notes, acceptance criteria, or context for the team..."
                         />
@@ -296,6 +375,16 @@ export default function TaskSlideOver({
                         </Button>
                         <Button
                             type="button"
+                            onClick={() => {
+                                router.delete(
+                                    `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.id}`,
+                                    {
+                                        preserveScroll: true,
+                                        preserveState: true,
+                                        onSuccess: () => onTaskDeleted(task.id),
+                                    },
+                                );
+                            }}
                             className="border-red-500/20 bg-red-500/10 px-3 text-red-500 hover:bg-red-500 hover:text-white"
                         >
                             <Trash2 size={18} />

@@ -1,5 +1,5 @@
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Plus, MoreHorizontal, Lock } from "lucide-react";
+import { Plus, MoreHorizontal, Lock, Calendar } from "lucide-react";
 import { router } from "@inertiajs/react";
 
 export default function ColumnView({
@@ -34,6 +34,25 @@ export default function ColumnView({
         )
             return;
 
+        const task = tasks.find((t) => t.id.toString() === draggableId);
+
+        // --- THE "DONE" LOGIC ---
+        // 1. You cannot drag OUT of "Done"
+        if (source.droppableId === "done") return;
+
+        // 2. You cannot move TO "Done" if dependencies are not finished
+        if (destination.droppableId === "done") {
+            const unfinishedDeps = task.dependencies?.filter(
+                (dep) => dep.status !== "done",
+            );
+            if (unfinishedDeps?.length > 0) {
+                alert(
+                    `Cannot move to Done! Waiting for: ${unfinishedDeps.map((d) => d.title).join(", ")}`,
+                );
+                return;
+            }
+        }
+
         onTaskMove(draggableId, destination.droppableId, destination.index);
 
         router.patch(
@@ -42,10 +61,7 @@ export default function ColumnView({
                 status: destination.droppableId,
                 position: destination.index,
             },
-            {
-                preserveScroll: true,
-                preserveState: true,
-            },
+            { preserveScroll: true, preserveState: true },
         );
     };
 
@@ -81,7 +97,10 @@ export default function ColumnView({
                                     {tasksByStatus[column.id].length}
                                 </span>
                             </div>
-                            <button type="button" className="text-muted hover:text-white">
+                            <button
+                                type="button"
+                                className="text-muted hover:text-white"
+                            >
                                 <MoreHorizontal size={16} />
                             </button>
                         </div>
@@ -100,47 +119,128 @@ export default function ColumnView({
                                                 key={task.id.toString()}
                                                 draggableId={task.id.toString()}
                                                 index={index}
+                                                isDragDisabled={
+                                                    task.status === "done"
+                                                }
                                             >
                                                 {(provided) => (
                                                     <div
                                                         ref={provided.innerRef}
                                                         {...provided.draggableProps}
                                                         {...provided.dragHandleProps}
-                                                        onClick={() => onTaskClick(task.id)}
-                                                        className={`group bg-surface border border-border p-4 rounded-3xl shadow-lg hover:border-accent/50 transition-all cursor-pointer ${task.blocked_by_id ? "opacity-40 grayscale hover:grayscale-0 hover:opacity-100" : ""}`}
+                                                        onClick={() =>
+                                                            onTaskClick(task.id)
+                                                        }
+                                                        className={`group cursor-pointer rounded-3xl border p-4 shadow-lg transition-all ${
+                                                            task.status ===
+                                                            "done"
+                                                                ? "border-emerald-500/20 bg-emerald-500/[0.05] shadow-[0_12px_30px_rgba(16,185,129,0.08)]"
+                                                                : "border-border bg-surface hover:border-accent/50"
+                                                        } ${
+                                                            task.dependencies?.some(
+                                                                (d) =>
+                                                                    d.status !==
+                                                                    "done",
+                                                            )
+                                                                ? "opacity-40 grayscale hover:grayscale-0 hover:opacity-100"
+                                                                : ""
+                                                        }`}
                                                     >
                                                         <div className="space-y-4">
-                                                            <div className="flex justify-between items-start gap-4">
-                                                                <h4 className="text-sm font-bold text-white group-hover:text-accent transition-colors leading-tight">
+                                                            <div className="flex items-start justify-between gap-4">
+                                                                <h4
+                                                                    className={`line-clamp-2 text-sm font-bold leading-tight transition-colors ${
+                                                                        task.status ===
+                                                                        "done"
+                                                                            ? "text-white/75"
+                                                                            : "text-white group-hover:text-accent"
+                                                                    }`}
+                                                                >
                                                                     {task.title}
                                                                 </h4>
-                                                                {task.blocked_by_id && (
-                                                                    <Lock
-                                                                        size={
-                                                                            12
-                                                                        }
-                                                                        className="text-red-400 shrink-0 mt-1"
-                                                                    />
-                                                                )}
+                                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                                    {task.dependencies?.some(
+                                                                        (d) =>
+                                                                            d.status !==
+                                                                            "done",
+                                                                    ) && (
+                                                                        <Lock
+                                                                            size={
+                                                                                12
+                                                                            }
+                                                                            className="text-red-400/80"
+                                                                        />
+                                                                    )}
+                                                                    {task.status ===
+                                                                    "done" ? (
+                                                                        <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.2em] text-emerald-300">
+                                                                            Done
+                                                                        </span>
+                                                                    ) : (
+                                                                        <div
+                                                                            className={`h-6 w-1.5 rounded-full ${
+                                                                                task.priority ===
+                                                                                "urgent"
+                                                                                    ? "bg-red-500"
+                                                                                    : task.priority ===
+                                                                                        "high"
+                                                                                      ? "bg-orange-500"
+                                                                                      : task.priority ===
+                                                                                          "medium"
+                                                                                        ? "bg-yellow-500"
+                                                                                        : "bg-blue-500"
+                                                                            }`}
+                                                                        />
+                                                                    )}
+                                                                </div>
                                                             </div>
 
-                                                            {density ===
-                                                                "informed" && (
-                                                                <div className="flex items-center justify-between">
-                                                                    <div className="flex -space-x-2">
-                                                                        <div className="w-6 h-6 rounded-full bg-accent border-2 border-surface flex items-center justify-center text-[10px] font-black text-black uppercase">
-                                                                            {task.assignee?.name?.substring(
-                                                                                0,
-                                                                                2,
-                                                                            ) ||
-                                                                                "UN"}
+                                                            {density === "informed" && (
+                                                                <div
+                                                                    className={`flex items-center justify-between border-t pt-3 ${
+                                                                        task.status ===
+                                                                        "done"
+                                                                            ? "border-emerald-400/10"
+                                                                            : "border-border/30"
+                                                                    }`}
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div
+                                                                            className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-[10px] font-black uppercase shadow-sm ${
+                                                                                task.status ===
+                                                                                "done"
+                                                                                    ? "border-emerald-900 bg-emerald-300 text-emerald-950"
+                                                                                    : "border-surface bg-accent text-black"
+                                                                            }`}
+                                                                        >
+                                                                            {task.assignee?.name?.substring(0, 2) || "??"}
                                                                         </div>
+                                                                        {task.due_date && (
+                                                                            <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-muted">
+                                                                                <Calendar
+                                                                                    size={
+                                                                                        10
+                                                                                    }
+                                                                                    className={
+                                                                                        task.status ===
+                                                                                        "done"
+                                                                                            ? "text-emerald-300"
+                                                                                            : "text-accent"
+                                                                                    }
+                                                                                />
+                                                                                {new Date(task.due_date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                                                            </div>
+                                                                        )}
                                                                     </div>
-                                                                    <div className="text-[10px] text-muted font-black uppercase tracking-widest">
-                                                                        #
-                                                                        {
-                                                                            task.id
-                                                                        }
+                                                                    <div
+                                                                        className={`text-[10px] font-black uppercase tracking-[0.2em] ${
+                                                                            task.status ===
+                                                                            "done"
+                                                                                ? "text-emerald-200/60"
+                                                                                : "text-muted"
+                                                                        }`}
+                                                                    >
+                                                                        #{task.id}
                                                                     </div>
                                                                 </div>
                                                             )}
