@@ -15,8 +15,8 @@ class ProjectController extends Controller
      */
     public function store(StoreProjectRequest $request, Workspace $workspace)
     {
-        // Simple security: only the owner of the workspace can create projects
-        if ($workspace->owner_id !== Auth::id()) {
+        // Security check: must be a member of the workspace
+        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
             abort(403);
         }
 
@@ -44,6 +44,10 @@ class ProjectController extends Controller
      */
     public function board(Workspace $workspace, Project $project)
     {
+        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
+            abort(403);
+        }
+
         // Load everything the board needs for editing and optimistic updates.
         $workspace->loadMissing(["owner", "members"]);
         $project->load([
@@ -51,6 +55,7 @@ class ProjectController extends Controller
             "tasks.assignee",
             "tasks.dependencies",
             "tasks.labels",
+            "tasks.comments.user",
         ]);
 
         $members = collect([$workspace->owner])
@@ -62,6 +67,7 @@ class ProjectController extends Controller
                 "id" => $member->id,
                 "name" => $member->name,
                 "email" => $member->email,
+                "color" => $member->pivot?->color ?? '#3b82f6',
             ]);
 
         return Inertia::render("Project/Board", [
@@ -76,6 +82,10 @@ class ProjectController extends Controller
      */
     public function docs(Workspace $workspace, Project $project)
     {
+        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
+            abort(403);
+        }
+
         return Inertia::render("Project/Docs", [
             "workspace" => $workspace,
             "project" => $project,
@@ -87,6 +97,10 @@ class ProjectController extends Controller
      */
     public function activity(Workspace $workspace, Project $project)
     {
+        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
+            abort(403);
+        }
+
         return Inertia::render("Project/Activity", [
             "workspace" => $workspace,
             "project" => $project,

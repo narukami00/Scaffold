@@ -1,5 +1,5 @@
 import AppLayout from "@/layouts/AppLayout";
-import { Head, useForm, Link, router } from "@inertiajs/react";
+import { Head, usePage, useForm, Link, router } from "@inertiajs/react";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useState } from "react";
@@ -61,6 +61,39 @@ export default function Settings({ workspace }) {
                 </p>
             </div>
 
+            {/* SECTION 0: Your Identity */}
+            <section className="bg-surface border border-border p-8 rounded-3xl space-y-6">
+                <div>
+                    <h3 className="text-xl font-bold text-white">
+                        Your Identity
+                    </h3>
+                    <p className="text-sm text-muted">
+                        Pick your signature color for this workspace.
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-3">
+                    {[
+                        "#FF4D4D", "#FF8C42", "#FFD166", "#06D6A0", "#118AB2", "#7400B8",
+                        "#5e60ce", "#4ea8de", "#48bfe3", "#56cfe1", "#64dfdf", "#72efdd",
+                        "#80ffdb", "#ff006e", "#8338ec", "#3a86ff", "#fb5607", "#ffbe0b",
+                        "#e0e1dd", "#778da9", "#415a77", "#1b263b", "#ef4444", "#3b82f6"
+                    ].map((color) => {
+                        const isSelected = workspace.members.find(m => m.id === usePage().props.auth.user.id)?.pivot?.color === color;
+                        
+                        return (
+                            <button
+                                key={color}
+                                onClick={() => router.patch(`/workspaces/${workspace.slug}/preferences/color`, { color })}
+                                className={`w-10 h-10 rounded-full border-2 transition-all hover:scale-110 ${isSelected ? 'border-white scale-110 shadow-[0_0_15px_rgba(255,255,255,0.5)]' : 'border-transparent'}`}
+                                style={{ backgroundColor: color }}
+                                title={color}
+                            />
+                        );
+                    })}
+                </div>
+            </section>
+
             {/* SECTION 1: General Settings */}
             <section className="bg-surface border border-border p-8 rounded-3xl space-y-6">
                 <div>
@@ -109,7 +142,10 @@ export default function Settings({ workspace }) {
                             className="flex items-center justify-between p-4 bg-surface2/50 rounded-2xl border border-border"
                         >
                             <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold">
+                                <div 
+                                    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm"
+                                    style={{ backgroundColor: member.pivot?.color || '#3b82f6' }}
+                                >
                                     {member.name.charAt(0)}
                                 </div>
                                 <div>

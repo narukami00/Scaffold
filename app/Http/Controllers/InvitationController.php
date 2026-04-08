@@ -66,10 +66,18 @@ class InvitationController extends Controller
 
         $workspace = Workspace::findOrFail($invitation->workspace_id);
 
+        // Predefined premium palette
+        $colors = [
+            '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', 
+            '#06b6d4', '#f97316', '#14b8a6', '#6366f1', '#d946ef', '#84cc16'
+        ];
+        $randomColor = $colors[array_rand($colors)];
+
         // Add the user to the workspace members
         $workspace->members()->attach(Auth::id(), [
             "role" => $invitation->role,
             "joined_at" => now(),
+            "color" => $randomColor,
         ]);
 
         // Delete the invitation now that it's used

@@ -9,6 +9,8 @@ use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Events\TaskUpdated;
+use App\Events\TaskDeleted;
 
 class TaskController extends Controller
 {
@@ -20,12 +22,12 @@ class TaskController extends Controller
         Workspace $workspace,
         Project $project,
     ) {
-        // Simple security: You must be the owner (for now)
-        if ($workspace->owner_id !== Auth::id()) {
+        // Security check: Must be a member of the workspace
+        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
             abort(403);
         }
 
-        $project->tasks()->create([
+        $task = $project->tasks()->create([
             "title" => $request->title,
             "status" => $request->status,
             "x_pos" => $request->x_pos ?? 0,
@@ -35,6 +37,16 @@ class TaskController extends Controller
                 ->where("status", $request->status)
                 ->count(),
         ]);
+
+        broadcast(new TaskUpdated($task))->toOthers();
+
+        if ($request->expectsJson() || $request->ajax()) {
+            $task->load(['assignee', 'dependencies']);
+
+            return response()->json([
+                'task' => $task,
+            ], 201);
+        }
 
         return back();
     }
@@ -48,7 +60,7 @@ class TaskController extends Controller
         Project $project,
         Task $task,
     ) {
-        if ($workspace->owner_id !== Auth::id()) {
+        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
             abort(403);
         }
 
@@ -74,6 +86,16 @@ class TaskController extends Controller
             $task->dependencies()->sync($request->dependencies);
         }
 
+        // Load relations and broadcast the update to others
+        $task->load(['assignee', 'dependencies']);
+        broadcast(new TaskUpdated($task))->toOthers();
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'task' => $task,
+            ]);
+        }
+
         return back();
     }
 
@@ -82,11 +104,23 @@ class TaskController extends Controller
      */
     public function destroy(Workspace $workspace, Project $project, Task $task)
     {
-        if ($workspace->owner_id !== Auth::id()) {
+        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
             abort(403);
         }
 
+        $taskId = $task->id;
+        $projectId = $project->id;
+        
         $task->delete();
+
+        broadcast(new TaskDeleted($taskId, $projectId))->toOthers();
+
+        if (request()->expectsJson() || request()->ajax()) {
+            return response()->json([
+                'taskId' => $taskId,
+                'projectId' => $projectId,
+            ]);
+        }
 
         return back();
     }
@@ -143,5 +177,33 @@ class TaskController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Lock a task for the authenticated user.
+     */
+    public function lock(Workspace $workspace, Project $project, Task $task)
+    {
+        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
+            abort(403);
+        }
+
+        broadcast(new \App\Events\TaskLocked($task->id, $project->id, Auth::id()))->toOthers();
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Unlock a task.
+     */
+    public function unlock(Workspace $workspace, Project $project, Task $task)
+    {
+        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
+            abort(403);
+        }
+
+        broadcast(new \App\Events\TaskUnlocked($task->id, $project->id))->toOthers();
+
+        return response()->json(['success' => true]);
     }
 }

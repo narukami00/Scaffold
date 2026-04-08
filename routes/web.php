@@ -5,6 +5,7 @@ use App\Http\Controllers\WorkspaceController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TaskCommentController;
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -71,6 +72,11 @@ Route::middleware("auth")->group(function () {
             "workspaces.projects.store",
         );
 
+        Route::patch("/preferences/color", [
+            WorkspaceController::class,
+            "updateMemberColor",
+        ])->name("workspaces.preferences.color");
+
         // Scope bindings ensure the project actually belongs to the workspace
         Route::scopeBindings()->group(function () {
             Route::get("/projects/{project}", [
@@ -102,6 +108,22 @@ Route::middleware("auth")->group(function () {
                 TaskController::class,
                 "destroy",
             ])->name("tasks.destroy");
+
+            // Comment Operations
+            Route::post("/tasks/{task}/comments", [
+                TaskCommentController::class,
+                "store",
+            ])->name("tasks.comments.store");
+
+            // Locking Operations
+            Route::post("/projects/{project}/tasks/{task}/lock", [
+                TaskController::class,
+                "lock",
+            ])->name("tasks.lock");
+            Route::post("/projects/{project}/tasks/{task}/unlock", [
+                TaskController::class,
+                "unlock",
+            ])->name("tasks.unlock");
         });
     });
 });

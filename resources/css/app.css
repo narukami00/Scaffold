@@ -26,9 +26,51 @@
     --font-display: "Syne", sans-serif;
 }
 
+@keyframes task-pop-in {
+    0% {
+        opacity: 0;
+        transform: scale(0.94);
+    }
+    60% {
+        opacity: 1;
+        transform: scale(1.03);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes task-pop-out {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.94);
+    }
+}
+
+.task-pop-in {
+    animation: task-pop-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.task-pop-out {
+    animation: task-pop-out 180ms ease forwards;
+}
+
 /* ─── React Flow dark-theme overrides ────────────────────────────────────────
    These override the light defaults that ship with @xyflow/react/dist/style.css
    ─────────────────────────────────────────────────────────────────────────── */
+
+.react-flow__node > div {
+    transition:
+        border-color 180ms ease,
+        box-shadow 180ms ease,
+        opacity 180ms ease,
+        filter 180ms ease;
+}
 
 /* Controls panel buttons */
 .react-flow__controls-button {

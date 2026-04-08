@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { X, Calendar, User, MessageSquare, Lock, Trash2 } from "lucide-react";
 import Button from "@/components/ui/Button";
-import { router, useForm } from "@inertiajs/react";
+import axios from "axios";
 import { wouldCreateCycle } from "@/utils/cycleDetection";
 
 const statuses = [
@@ -32,7 +32,7 @@ export default function TaskSlideOver({
     onTaskUpdated,
     onTaskDeleted,
 }) {
-    const { data, setData, patch, processing, errors, setError } = useForm({
+    const [data, setDataState] = useState({
         title: task?.title || "",
         description: task?.description || "",
         status: task?.status || "backlog",
@@ -41,13 +41,31 @@ export default function TaskSlideOver({
         dependencies: task?.dependencies?.map((d) => d.id) || [],
         assignee_id: task?.assignee_id || "",
     });
+    const [errors, setErrors] = useState({});
+    const [processing, setProcessing] = useState(false);
+
+    const setData = (key, value) => {
+        setDataState((prev) => ({
+            ...prev,
+            [key]: value,
+        }));
+    };
+
+    const setError = (key, value) => {
+        setErrors((prev) => ({
+            ...prev,
+            [key]: value,
+        }));
+    };
+
+    const clearErrors = () => setErrors({});
 
     useEffect(() => {
         if (!task) {
             return;
         }
 
-        setData({
+        setDataState({
             title: task.title,
             description: task.description || "",
             status: task.status || "backlog",
@@ -56,7 +74,8 @@ export default function TaskSlideOver({
             dependencies: task.dependencies?.map((d) => d.id) || [],
             assignee_id: task.assignee_id || "",
         });
-    }, [task, setData]);
+        clearErrors();
+    }, [task]);
 
     if (!isOpen || !task) return null;
 
@@ -66,6 +85,7 @@ export default function TaskSlideOver({
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        clearErrors();
 
         // Front-end cycle guard — catches the most common mistakes immediately
         const cyclicDepId = data.dependencies.find((depId) =>
@@ -85,13 +105,25 @@ export default function TaskSlideOver({
             assignee_id: data.assignee_id ? Number(data.assignee_id) : null,
         };
 
-        patch(
-            `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.id}`,
-            {
-                data: payload,
-                preserveScroll: true,
-                preserveState: true,
-                onSuccess: () => {
+        setProcessing(true);
+
+        axios
+            .patch(
+                `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.id}`,
+                payload,
+                {
+                    headers: {
+                        Accept: "application/json",
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                },
+            )
+            .then(({ data: response }) => {
+                if (response?.task) {
+                    onTaskUpdated(task.id, {
+                        ...response.task,
+                    });
+                } else {
                     onTaskUpdated(task.id, {
                         ...payload,
                         assignee:
@@ -102,10 +134,28 @@ export default function TaskSlideOver({
                             payload.dependencies.includes(t.id),
                         ),
                     });
-                    onClose();
-                },
-            },
-        );
+                }
+                onClose();
+            })
+            .catch((error) => {
+                const responseErrors = error.response?.data?.errors;
+
+                if (responseErrors) {
+                    setErrors(
+                        Object.fromEntries(
+                            Object.entries(responseErrors).map(
+                                ([key, value]) => [key, value?.[0] ?? value],
+                            ),
+                        ),
+                    );
+                    return;
+                }
+
+                console.error("Failed to update task", error);
+            })
+            .finally(() => {
+                setProcessing(false);
+            });
     };
 
     return (
@@ -359,14 +409,78 @@ export default function TaskSlideOver({
                             onChange={(e) =>
                                 setData("description", e.target.value)
                             }
-                            className="h-44 w-full rounded-2xl border border-border bg-surface p-4 text-sm text-white transition-colors placeholder:text-muted/30 focus:border-accent"
-                            placeholder="Add implementation notes, acceptance criteria, or context for the team..."
+                            className="h-32 w-full rounded-2xl border border-border bg-surface p-4 text-sm text-white transition-colors placeholder:text-muted/30 focus:border-accent"
+                            placeholder="Add implementation notes, acceptance criteria, or context..."
                         />
-                        {errors.description && (
-                            <p className="mt-3 text-xs italic text-red-400">
-                                {errors.description}
+                    </section>
+
+                    <section className="rounded-[24px] border border-border bg-surface/40 p-5">
+                        <div className="mb-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-muted">
+                            <MessageSquare size={14} className="text-accent" />
+                            Conversation
+                        </div>
+
+                        {/* Comment Feed */}
+                        <div className="mb-4 max-h-64 overflow-y-auto space-y-4 rounded-2xl border border-border/50 bg-surface/30 p-4 custom-scrollbar">
+                            {task.comments?.length > 0 ? (
+                                task.comments.map((comment) => (
+                                    <div
+                                        key={comment.id}
+                                        className="flex flex-col gap-1"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-black uppercase text-accent">
+                                                {comment.user?.name}
+                                            </span>
+                                            <span className="text-[9px] text-muted">
+                                                {new Date(
+                                                    comment.created_at,
+                                                ).toLocaleTimeString([], {
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                })}
+                                            </span>
+                                        </div>
+                                        <div className="rounded-2xl border border-border/30 bg-surface/50 px-4 py-2 text-sm text-white">
+                                            {comment.body}
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-center py-4 text-[10px] italic text-muted">
+                                    No messages yet. Start the conversation!
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Post Comment Form */}
+                        <div className="relative">
+                            <textarea
+                                id="comment-body"
+                                className="w-full rounded-2xl border border-border bg-surface px-4 py-3 pb-12 text-sm text-white outline-none transition-colors focus:border-accent"
+                                placeholder="Write a message..."
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                        e.preventDefault();
+                                        const body = e.target.value;
+                                        if (!body.trim()) return;
+
+                                        axios
+                                            .post(
+                                                `/tasks/${task.id}/comments`,
+                                                { body },
+                                            )
+                                            .then(() => {
+                                                e.target.value = "";
+                                                // Note: Real-time update is handled by Board.jsx listener
+                                            });
+                                    }
+                                }}
+                            />
+                            <p className="absolute bottom-3 right-4 text-[9px] font-black uppercase tracking-widest text-muted">
+                                Press Enter to send
                             </p>
-                        )}
+                        </div>
                     </section>
 
                     <div className="flex items-center gap-3 border-t border-border pt-4">
@@ -376,14 +490,26 @@ export default function TaskSlideOver({
                         <Button
                             type="button"
                             onClick={() => {
-                                router.delete(
-                                    `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.id}`,
-                                    {
-                                        preserveScroll: true,
-                                        preserveState: true,
-                                        onSuccess: () => onTaskDeleted(task.id),
-                                    },
-                                );
+                                axios
+                                    .delete(
+                                        `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.id}`,
+                                        {
+                                            headers: {
+                                                Accept: "application/json",
+                                                "X-Requested-With":
+                                                    "XMLHttpRequest",
+                                            },
+                                        },
+                                    )
+                                    .then(() => {
+                                        onTaskDeleted(task.id);
+                                    })
+                                    .catch((error) => {
+                                        console.error(
+                                            "Failed to delete task",
+                                            error,
+                                        );
+                                    });
                             }}
                             className="border-red-500/20 bg-red-500/10 px-3 text-red-500 hover:bg-red-500 hover:text-white"
                         >

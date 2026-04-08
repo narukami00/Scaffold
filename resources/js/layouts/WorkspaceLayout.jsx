@@ -2,12 +2,14 @@ import { Link, usePage, useForm } from "@inertiajs/react";
 import AppLayout from "@/layouts/AppLayout";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { ChevronLeft, ChevronRight, FolderKanban, Plus, Settings } from "lucide-react";
 import { useState } from "react";
 
 export default function WorkspaceLayout({ children }) {
     // Get the shared data from our Middleware
     const { workspace, workspaceProjects, auth } = usePage().props;
     const [showingNewProject, setShowingNewProject] = useState(false);
+    const [isWorkspaceSidebarOpen, setIsWorkspaceSidebarOpen] = useState(true);
 
     const projectForm = useForm({
         name: "",
@@ -25,94 +27,101 @@ export default function WorkspaceLayout({ children }) {
 
     return (
         <AppLayout>
-            <div className="flex h-[calc(100vh-64px)] overflow-hidden">
+            <div className="flex h-auto flex-col overflow-hidden lg:h-[calc(100vh-64px)] lg:flex-row">
                 {/* 1. Sidebar */}
-                <aside className="w-72 bg-surface2/30 border-r border-border flex flex-col">
-                    <div className="p-6 border-b border-border">
-                        <h2 className="text-sm font-black text-white uppercase tracking-widest">
-                            {workspace.name}
-                        </h2>
-                        <p className="text-[10px] text-muted uppercase mt-1">
-                            Workspace Level
-                        </p>
+                <aside
+                    className={`w-full border-b border-border bg-surface2/30 transition-all lg:border-b-0 lg:border-r lg:flex lg:flex-col ${
+                        isWorkspaceSidebarOpen ? "lg:w-72" : "lg:w-[92px]"
+                    }`}
+                >
+                    <div className="flex items-center justify-between border-b border-border p-4 sm:p-6">
+                        <div
+                            className={`overflow-hidden transition-all ${
+                                isWorkspaceSidebarOpen ? "max-w-[220px]" : "max-w-[32px]"
+                            }`}
+                        >
+                            <h2 className="text-sm font-black uppercase tracking-widest text-white">
+                                {isWorkspaceSidebarOpen ? workspace.name : "WS"}
+                            </h2>
+                            {isWorkspaceSidebarOpen && (
+                                <p className="mt-1 text-[10px] uppercase text-muted">
+                                    Workspace Level
+                                </p>
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setIsWorkspaceSidebarOpen((current) => !current)
+                            }
+                            className="rounded-xl border border-border bg-surface2 p-2 text-muted transition-colors hover:border-accent/40 hover:text-accent"
+                        >
+                            {isWorkspaceSidebarOpen ? (
+                                <ChevronLeft size={16} />
+                            ) : (
+                                <ChevronRight size={16} />
+                            )}
+                        </button>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-8">
+                    <div className="overflow-x-auto p-4 lg:flex-1 lg:overflow-y-auto lg:space-y-8">
                         {/* Projects List */}
-                        <div className="space-y-4">
+                        <div className="space-y-4 lg:space-y-4">
                             <div className="flex items-center justify-between px-2">
-                                <h3 className="text-[10px] font-black text-muted uppercase tracking-widest">
-                                    Projects
-                                </h3>
+                                {isWorkspaceSidebarOpen ? (
+                                    <h3 className="text-[10px] font-black uppercase tracking-widest text-muted">
+                                        Projects
+                                    </h3>
+                                ) : (
+                                    <FolderKanban size={14} className="text-muted" />
+                                )}
                                 <button
                                     onClick={() => setShowingNewProject(true)}
                                     className="p-1 hover:bg-surface2 rounded text-accent transition-colors"
                                 >
-                                    <svg
-                                        className="w-4 h-4"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                        />
-                                    </svg>
+                                    <Plus className="h-4 w-4" />
                                 </button>
                             </div>
 
-                            <div className="space-y-1">
+                            <div className="flex gap-2 lg:block lg:space-y-1">
                                 {workspaceProjects.map((project) => (
                                     <Link
                                         key={project.id}
                                         href={`/workspaces/${workspace.slug}/projects/${project.slug}/board`}
-                                        className="block px-3 py-2 rounded-xl text-sm text-muted hover:text-white hover:bg-surface2 transition-all font-medium"
+                                        className="block shrink-0 rounded-xl px-3 py-2 text-sm font-medium text-muted transition-all hover:bg-surface2 hover:text-white lg:mb-1"
                                     >
-                                        <span className="opacity-50 mr-2">
-                                            #
-                                        </span>
-                                        {project.name}
+                                        {isWorkspaceSidebarOpen ? (
+                                            <>
+                                                <span className="mr-2 opacity-50">
+                                                    #
+                                                </span>
+                                                {project.name}
+                                            </>
+                                        ) : (
+                                            <span className="block text-center">
+                                                #
+                                            </span>
+                                        )}
                                     </Link>
                                 ))}
                             </div>
                         </div>
 
                         {/* Settings Link */}
-                        <div className="pt-4 border-t border-border">
+                        <div className="mt-4 border-t border-border pt-4">
                             <Link
                                 href={`/workspaces/${workspace.slug}/settings`}
                                 className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted hover:text-white hover:bg-surface2 transition-all font-medium"
                             >
-                                <svg
-                                    className="w-4 h-4 opacity-50"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                                    />
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                    />
-                                </svg>
-                                Settings
+                                <Settings className="h-4 w-4 opacity-50" />
+                                {isWorkspaceSidebarOpen ? "Settings" : null}
                             </Link>
                         </div>
                     </div>
                 </aside>
 
                 {/* 2. Content Area */}
-                <main className="flex-1 overflow-y-auto bg-surface p-8">
+                <main className="min-h-[70vh] flex-1 overflow-y-auto bg-surface p-4 sm:p-6 lg:min-h-0 lg:p-8">
                     {children}
                 </main>
             </div>

@@ -48,8 +48,8 @@ class WorkspaceController extends Controller
      */
     public function show(Workspace $workspace)
     {
-        // Security check: Only the owner should see this workspace (for now)
-        if ($workspace->owner_id !== Auth::id()) {
+        // Security check: must be a member of the workspace
+        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
             abort(403, "Unauthorized access to this workspace.");
         }
 
@@ -63,7 +63,8 @@ class WorkspaceController extends Controller
      */
     public function edit(Workspace $workspace)
     {
-        if ($workspace->owner_id !== Auth::id()) {
+        // Settings page is visible to all members (for identity updates)
+        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
             abort(403);
         }
 
@@ -105,5 +106,25 @@ class WorkspaceController extends Controller
         $workspace->delete();
 
         return redirect()->route("workspaces.index");
+    }
+
+    /**
+     * Update the authenticated user's color in this workspace.
+     */
+    public function updateMemberColor(Request $request, Workspace $workspace)
+    {
+        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
+            abort(403);
+        }
+
+        $request->validate([
+            "color" => "required|string",
+        ]);
+
+        $workspace->members()->updateExistingPivot(Auth::id(), [
+            "color" => $request->color,
+        ]);
+
+        return back();
     }
 }

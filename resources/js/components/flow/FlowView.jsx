@@ -12,7 +12,7 @@ import {
     MarkerType,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { router } from "@inertiajs/react";
+import axios from "axios";
 import { Plus, LayoutGrid, Zap } from "lucide-react";
 import TaskNode from "@/components/flow/TaskNode";
 import { wouldCreateCycle } from "@/utils/cycleDetection";
@@ -43,7 +43,14 @@ function getAutoPosition(task, indexInColumn) {
     };
 }
 
-function buildNodes(tasks, onTaskClick) {
+function buildNodes(
+    tasks,
+    onTaskClick,
+    locks = {},
+    workspace = null,
+    recentTaskIds = [],
+    deletingTaskIds = [],
+) {
     const colIndex = {};
 
     return tasks.map((task) => {
@@ -56,11 +63,22 @@ function buildNodes(tasks, onTaskClick) {
             ? { x: task.x_pos, y: task.y_pos }
             : getAutoPosition(task, idx);
 
+        const userId = locks[task.id];
+        const occupantMember = workspace?.members?.find((m) => m.id === userId);
+
         return {
             id: task.id.toString(),
             type: "customTaskNode",
             position,
-            data: { task, onTaskClick },
+            data: { 
+                task, 
+                onTaskClick,
+                isLocked: !!userId,
+                occupantName: occupantMember?.name || "Someone",
+                occupantColor: occupantMember?.pivot?.color || "#3b82f6",
+                isRecent: recentTaskIds.includes(task.id),
+                isDeleting: deletingTaskIds.includes(task.id),
+            },
         };
     });
 }
@@ -96,7 +114,17 @@ function buildEdges(tasks) {
 
 // ─── Inner canvas (must live inside ReactFlowProvider) ────────────────────────
 
-function FlowViewInner({ workspace, project, tasks, onTaskClick }) {
+function FlowViewInner({
+    workspace,
+    project,
+    tasks,
+    onTaskClick,
+    onTaskUpdated,
+    locks = {},
+    presenceMembers = [],
+    recentTaskIds = [],
+    deletingTaskIds = [],
+}) {
     const { screenToFlowPosition, fitView } = useReactFlow();
 
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -105,22 +133,20 @@ function FlowViewInner({ workspace, project, tasks, onTaskClick }) {
     const [isCreating, setIsCreating] = useState(false);
     const [errorToast, setErrorToast] = useState(null);
 
-    // Rebuild nodes/edges whenever the tasks prop changes
-    useEffect(() => {
-        setNodes(buildNodes(tasks, onTaskClick));
-        setEdges(buildEdges(tasks));
-    }, [tasks, onTaskClick, setNodes, setEdges]);
-
-    // ── Drag-stop: persist position silently via fetch (no Inertia re-render)
-    const onNodeDragStop = useCallback(
-        (_event, node) => {
-            const csrfToken = document.cookie
+    const getCsrfToken = useCallback(
+        () =>
+            document.cookie
                 .split("; ")
                 .find((row) => row.startsWith("XSRF-TOKEN="))
-                ?.split("=")[1];
+                ?.split("=")[1],
+        [],
+    );
 
-            fetch(
-                `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${node.id}`,
+    const patchTask = useCallback(
+        async (taskId, payload) => {
+            const csrfToken = getCsrfToken();
+            const response = await fetch(
+                `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${taskId}`,
                 {
                     method: "PATCH",
                     headers: {
@@ -128,17 +154,86 @@ function FlowViewInner({ workspace, project, tasks, onTaskClick }) {
                         Accept: "application/json",
                         "X-Requested-With": "XMLHttpRequest",
                         ...(csrfToken
-                            ? { "X-XSRF-TOKEN": decodeURIComponent(csrfToken) }
+                            ? {
+                                  "X-XSRF-TOKEN": decodeURIComponent(
+                                      csrfToken,
+                                  ),
+                              }
                             : {}),
                     },
-                    body: JSON.stringify({
-                        x_pos: Math.round(node.position.x),
-                        y_pos: Math.round(node.position.y),
-                    }),
+                    body: JSON.stringify(payload),
                 },
-            ).catch(console.error);
+            );
+
+            if (!response.ok) {
+                throw new Error(`Task update failed with status ${response.status}`);
+            }
+
+            return response.json();
+        },
+        [getCsrfToken, project.slug, workspace.slug],
+    );
+
+    // Rebuild nodes/edges whenever the tasks prop changes
+    useEffect(() => {
+        setNodes(
+            buildNodes(
+                tasks,
+                onTaskClick,
+                locks,
+                workspace,
+                recentTaskIds,
+                deletingTaskIds,
+            ),
+        );
+        setEdges(buildEdges(tasks));
+    }, [
+        tasks,
+        onTaskClick,
+        setNodes,
+        setEdges,
+        locks,
+        workspace,
+        recentTaskIds,
+        deletingTaskIds,
+    ]);
+
+    // ── Dragging Presence: Notify others we are touching the node
+    const onNodeDragStart = useCallback(
+        (_event, node) => {
+            axios.post(
+                `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${node.id}/lock`,
+            );
         },
         [workspace.slug, project.slug],
+    );
+
+    // ── Drag-stop: persist position and unlock
+    const onNodeDragStop = useCallback(
+        (_event, node) => {
+            const nextPosition = {
+                x_pos: Math.round(node.position.x),
+                y_pos: Math.round(node.position.y),
+            };
+
+            onTaskUpdated(Number(node.id), nextPosition);
+
+            patchTask(node.id, nextPosition)
+                .then(({ task }) => {
+                    if (task) {
+                        onTaskUpdated(task.id, task);
+                    }
+                })
+                .catch((error) => {
+                    console.error("Failed to persist node position", error);
+                })
+                .finally(() => {
+                    axios.post(
+                        `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${node.id}/unlock`,
+                    ).catch(console.error);
+                });
+        },
+        [onTaskUpdated, patchTask, workspace.slug, project.slug],
     );
 
     // ── Connect: drag from one handle to another → create dependency
@@ -175,13 +270,53 @@ function FlowViewInner({ workspace, project, tasks, onTaskClick }) {
                 return () => clearTimeout(timer);
             }
 
-            router.patch(
-                `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${target}`,
-                { dependencies: [...existingDepIds, sourceId] },
-                { preserveScroll: true, preserveState: true },
+            const nextDeps = [...existingDepIds, sourceId];
+            const dependencyTasks = tasks.filter((task) =>
+                nextDeps.includes(task.id),
             );
+
+            setEdges((currentEdges) => [
+                ...currentEdges,
+                {
+                    id: `e${source}-${target}`,
+                    source,
+                    target,
+                    type: "smoothstep",
+                    animated: true,
+                    style: {
+                        stroke: "#7c6aff",
+                        strokeWidth: 2,
+                    },
+                    markerEnd: {
+                        type: MarkerType.ArrowClosed,
+                        color: "#7c6aff",
+                        width: 16,
+                        height: 16,
+                    },
+                },
+            ]);
+
+            onTaskUpdated(parseInt(target, 10), {
+                dependencies: dependencyTasks,
+            });
+
+            patchTask(target, { dependencies: nextDeps })
+                .then(({ task }) => {
+                    if (task) {
+                        onTaskUpdated(task.id, task);
+                    }
+                })
+                .catch((error) => {
+                    console.error("Failed to create dependency", error);
+                    setEdges((currentEdges) =>
+                        currentEdges.filter((edge) => edge.id !== `e${source}-${target}`),
+                    );
+                    onTaskUpdated(parseInt(target, 10), {
+                        dependencies: targetTask.dependencies ?? [],
+                    });
+                });
         },
-        [tasks, workspace.slug, project.slug],
+        [tasks, onTaskUpdated, patchTask],
     );
 
     // ── Edge delete: remove the dependency from the database
@@ -198,14 +333,27 @@ function FlowViewInner({ workspace, project, tasks, onTaskClick }) {
                     .filter((d) => d.id !== sourceId)
                     .map((d) => d.id);
 
-                router.patch(
-                    `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${edge.target}`,
-                    { dependencies: newDeps },
-                    { preserveScroll: true, preserveState: true },
-                );
+                const previousDeps = targetTask.dependencies ?? [];
+
+                onTaskUpdated(parseInt(edge.target, 10), {
+                    dependencies: previousDeps.filter((d) => d.id !== sourceId),
+                });
+
+                patchTask(edge.target, { dependencies: newDeps })
+                    .then(({ task }) => {
+                        if (task) {
+                            onTaskUpdated(task.id, task);
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Failed to remove dependency", error);
+                        onTaskUpdated(parseInt(edge.target, 10), {
+                            dependencies: previousDeps,
+                        });
+                    });
             });
         },
-        [tasks, workspace.slug, project.slug],
+        [tasks, onTaskUpdated, patchTask],
     );
 
     // ── Right-click context menu
@@ -234,23 +382,36 @@ function FlowViewInner({ workspace, project, tasks, onTaskClick }) {
             if (!contextMenu || isCreating) return;
             setIsCreating(true);
 
-            router.post(
-                `/workspaces/${workspace.slug}/projects/${project.slug}/tasks`,
-                {
-                    title: "New Task",
-                    status,
-                    x_pos: contextMenu.flowX,
-                    y_pos: contextMenu.flowY,
-                },
-                {
-                    preserveScroll: true,
-                    preserveState: true,
-                    onFinish: () => setIsCreating(false),
-                },
-            );
+            axios
+                .post(
+                    `/workspaces/${workspace.slug}/projects/${project.slug}/tasks`,
+                    {
+                        title: "New Task",
+                        status,
+                        x_pos: contextMenu.flowX,
+                        y_pos: contextMenu.flowY,
+                    },
+                    {
+                        headers: {
+                            Accept: "application/json",
+                            "X-Requested-With": "XMLHttpRequest",
+                        },
+                    },
+                )
+                .then(({ data }) => {
+                    if (data?.task) {
+                        onTaskUpdated(data.task.id, data.task);
+                    }
+                })
+                .catch((error) => {
+                    console.error("Failed to create task in flow", error);
+                })
+                .finally(() => {
+                    setIsCreating(false);
+                });
             setContextMenu(null);
         },
-        [contextMenu, isCreating, workspace.slug, project.slug],
+        [contextMenu, isCreating, onTaskUpdated, workspace.slug, project.slug],
     );
 
     // ── Auto-layout (fit-to-screen shortcut)
@@ -278,6 +439,7 @@ function FlowViewInner({ workspace, project, tasks, onTaskClick }) {
                 edges={edges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
+                onNodeDragStart={onNodeDragStart}
                 onNodeDragStop={onNodeDragStop}
                 onConnect={onConnect}
                 onEdgesDelete={onEdgesDelete}
