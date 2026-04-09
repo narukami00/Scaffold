@@ -154,16 +154,60 @@ export default function TaskModal({
                         : [...prev, { id: e.id, name: e.user }],
                 );
             })
-            // Real-time comments posted by others (CommentPosted now also broadcasts on task channel)
-            .listen(".CommentPosted", (e) => {
-                if (e.comment.task_id === task.id) {
+            // Real-time task updates (for other users)
+            .listen(".TaskUpdated", (e) => {
+                // If I'm NOT the editor, I should update my local state with the latest broadcast
+                // If I AM the editor, I don't want to overwrite my unsaved changes (the broadcast came from me anyway)
+                if (
+                    Number(e.task.id) === Number(task.id) &&
+                    editorId !== auth.user.id
+                ) {
                     setDataState((prev) => {
                         if (!prev) return prev;
-                        // Deduplicate: replace any optimistic entry or just append
-                        const exists = prev.comments.some(
-                            (c) => c.id === e.comment.id,
+                        return {
+                            ...prev,
+                            title: e.task.title,
+                            description: e.task.description || "",
+                            status: e.task.status || "backlog",
+                            priority: e.task.priority || "medium",
+                            due_date: e.task.due_date || "",
+                            assignee_id: e.task.assignee_id || "",
+                            checklist: e.task.checklist || [],
+                            labels: e.task.labels || [],
+                            dependencies:
+                                e.task.dependencies?.map((d) => d.id) || [],
+                            attachments: e.task.attachments || [],
+                        };
+                    });
+                }
+            })
+            // Real-time comments posted by others (CommentPosted now also broadcasts on task channel)
+            .listen(".CommentPosted", (e) => {
+                if (Number(e.comment.task_id) === Number(task.id)) {
+                    setDataState((prev) => {
+                        if (!prev) return prev;
+
+                        // Deduplicate: replace any optimistic entry OR skip if real one already there
+                        const realExists = prev.comments.some(
+                            (c) => Number(c.id) === Number(e.comment.id),
                         );
-                        if (exists) return prev;
+                        if (realExists) return prev;
+
+                        // Also check for an optimistic matching entry to REPLACE it
+                        // (matches user, body and was added recently)
+                        const optimisticIndex = prev.comments.findIndex(
+                            (c) =>
+                                String(c.id).startsWith("temp-") &&
+                                c.user_id === e.comment.user_id &&
+                                c.body === e.comment.body,
+                        );
+
+                        if (optimisticIndex !== -1) {
+                            const next = [...prev.comments];
+                            next[optimisticIndex] = e.comment;
+                            return { ...prev, comments: next };
+                        }
+
                         return {
                             ...prev,
                             comments: [...prev.comments, e.comment],
@@ -212,6 +256,7 @@ export default function TaskModal({
                 .patch(
                     `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.id}`,
                     payload,
+                    { headers: { "X-Requested-With": "XMLHttpRequest" } },
                 )
                 .then(({ data: res }) => onTaskUpdated(task.id, res.task));
         }, 1000);
@@ -262,17 +307,52 @@ export default function TaskModal({
         setNewComment("");
 
         axios
-            .post(`/workspaces/${workspace.slug}/tasks/${task.id}/comments`, {
-                body,
-            })
+            .post(
+                `/workspaces/${workspace.slug}/tasks/${task.id}/comments`,
+                {
+                    body,
+                },
+                {
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                },
+            )
             .then(({ data: res }) => {
                 // Swap the optimistic entry for the real persisted comment
-                setDataState((prev) => ({
-                    ...prev,
-                    comments: prev.comments.map((c) =>
+                setDataState((prev) => {
+                    if (!prev) return prev;
+
+                    // If the comment was already added by a listener, just remove the temp one
+                    const alreadyAdded = prev.comments.some(
+                        (c) => Number(c.id) === Number(res.comment.id),
+                    );
+
+                    if (alreadyAdded) {
+                        return {
+                            ...prev,
+                            comments: prev.comments.filter(
+                                (c) => c.id !== optimisticId,
+                            ),
+                        };
+                    }
+
+                    // Replace the temp one
+                    const nextComments = prev.comments.map((c) =>
                         c.id === optimisticId ? res.comment : c,
-                    ),
-                }));
+                    );
+
+                    // Sync to parent Board immediately so closing/reopening works
+                    onTaskUpdated(task.id, {
+                        ...task,
+                        comments: nextComments,
+                    });
+
+                    return {
+                        ...prev,
+                        comments: nextComments,
+                    };
+                });
             })
             .catch(() => {
                 // Revert on failure
@@ -303,6 +383,7 @@ export default function TaskModal({
             .post(
                 `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.id}/transfer-control`,
                 { newEditorId: userId },
+                { headers: { "X-Requested-With": "XMLHttpRequest" } },
             )
             .then(() => setEditorId(userId));
     };
@@ -341,6 +422,7 @@ export default function TaskModal({
             .post(
                 `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.id}/attachments`,
                 formData,
+                { headers: { "X-Requested-With": "XMLHttpRequest" } },
             )
             .then(({ data: res }) => {
                 setDataState((prev) => ({

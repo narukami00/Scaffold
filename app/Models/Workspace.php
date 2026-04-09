@@ -60,4 +60,20 @@ class Workspace extends Model
     {
         return $this->hasMany(Project::class)->latest();
     }
+
+    /**
+     * A workspace can have many invitations.
+     */
+    public function invitations()
+    {
+        return $this->hasMany(WorkspaceInvitation::class);
+    }
+
+    /**
+     * Get all tasks in this workspace through its projects.
+     */
+    public function tasks()
+    {
+        return $this->hasManyThrough(Task::class, Project::class);
+    }
 }

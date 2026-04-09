@@ -7,6 +7,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskCommentController;
 use App\Http\Controllers\TaskAttachmentController;
+use App\Http\Controllers\NotificationController;
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -66,6 +67,15 @@ Route::middleware("auth")->group(function () {
         InvitationController::class,
         "accept",
     ])->name("invitations.accept");
+    Route::post("/invitations/decline/{token}", [
+        InvitationController::class,
+        "decline",
+    ])->name("invitations.decline");
+
+    // Notifications
+    Route::get("/notifications", [NotificationController::class, "index"])->name("notifications.index");
+    Route::post("/notifications/{id}/read", [NotificationController::class, "markRead"])->name("notifications.mark-read");
+    Route::post("/notifications/read-all", [NotificationController::class, "markAllRead"])->name("notifications.mark-all-read");
 
     // Projects (Nested under Workspaces)
     Route::prefix("/workspaces/{workspace:slug}")->group(function () {

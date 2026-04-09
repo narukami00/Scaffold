@@ -164,11 +164,58 @@ export default function Settings({ workspace }) {
                     ))}
                 </div>
 
+                {/* Pending Invitations */}
+                {(workspace.invitations || []).filter(invite => invite.status !== 'accepted').length > 0 && (
+                    <div className="space-y-4 pt-6">
+                        <h4 className="text-xs font-black uppercase tracking-[0.2em] text-muted">
+                            Pending & Recently Declined
+                        </h4>
+                        <div className="space-y-2">
+                            {(workspace.invitations || [])
+                                .filter(invite => invite.status !== 'accepted')
+                                .map((invite) => (
+                                    <div
+                                        key={invite.id}
+                                        className="flex items-center justify-between p-3 bg-surface2/30 rounded-xl border border-border/50"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center text-muted">
+                                                <Mail size={14} />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-white font-medium">
+                                                    {invite.email}
+                                                </p>
+                                                <p className="text-[10px] text-muted uppercase">
+                                                    Role: {invite.role}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${
+                                                invite.status === 'pending' 
+                                                    ? 'bg-accent/10 text-accent border-accent/20' 
+                                                    : 'bg-red-500/10 text-red-500 border-red-500/20'
+                                            }`}>
+                                                {invite.status}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Invite Form */}
                 <div className="pt-6 border-t border-border">
-                    <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">
-                        Invite New Member
-                    </h4>
+                    <div className="mb-6">
+                        <h4 className="text-sm font-bold text-white uppercase tracking-wider">
+                            Invite New Member
+                        </h4>
+                        <p className="text-xs text-muted mt-1">
+                            Team members will receive a notification instantly if they have a DevSpace account.
+                        </p>
+                    </div>
                     <form
                         onSubmit={submitInvite}
                         className="flex flex-wrap items-end gap-4"

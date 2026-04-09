@@ -169,19 +169,23 @@ export default function Board({ workspace, project, members = [] }) {
                 handleTaskDeleted(e.taskId);
             })
             .listen(".CommentPosted", (e) => {
-                // We find the task and add the comment to its array
+                // We find the task and add the comment to its array (with deduplication)
                 setTasks((currentTasks) =>
-                    currentTasks.map((task) =>
-                        task.id === e.comment.task_id
-                            ? {
-                                  ...task,
-                                  comments: [
-                                      ...(task.comments || []),
-                                      e.comment,
-                                  ],
-                              }
-                            : task,
-                    ),
+                    currentTasks.map((task) => {
+                        if (Number(task.id) === Number(e.comment.task_id)) {
+                            // Deduplicate: check if comment already exists in this task
+                            const exists = (task.comments || []).some(
+                                (c) => Number(c.id) === Number(e.comment.id),
+                            );
+                            if (exists) return task;
+
+                            return {
+                                ...task,
+                                comments: [...(task.comments || []), e.comment],
+                            };
+                        }
+                        return task;
+                    }),
                 );
             })
             .listen(".TaskLocked", (e) => {
