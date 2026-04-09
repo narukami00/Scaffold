@@ -6,6 +6,7 @@ use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskCommentController;
+use App\Http\Controllers\TaskAttachmentController;
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -115,15 +116,19 @@ Route::middleware("auth")->group(function () {
                 "store",
             ])->name("tasks.comments.store");
 
-            // Locking Operations
-            Route::post("/projects/{project}/tasks/{task}/lock", [
+            // Task Control & Attachments
+            Route::post("/projects/{project}/tasks/{task}/transfer-control", [
                 TaskController::class,
-                "lock",
-            ])->name("tasks.lock");
-            Route::post("/projects/{project}/tasks/{task}/unlock", [
-                TaskController::class,
-                "unlock",
-            ])->name("tasks.unlock");
+                "transferControl",
+            ])->name("tasks.transfer-control");
+            Route::post("/projects/{project}/tasks/{task}/attachments", [
+                TaskAttachmentController::class,
+                "store",
+            ])->name("tasks.attachments.store");
+            Route::delete("/projects/{project}/tasks/{task}/attachments/{attachment}", [
+                TaskAttachmentController::class,
+                "destroy",
+            ])->name("tasks.attachments.destroy");
         });
     });
 });

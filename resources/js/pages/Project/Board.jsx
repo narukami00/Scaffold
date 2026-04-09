@@ -3,7 +3,7 @@ import WorkspaceLayout from "@/layouts/WorkspaceLayout";
 import { Head, usePage } from "@inertiajs/react";
 import { LayoutGrid, Share2, Sliders } from "lucide-react";
 import ColumnView from "@/components/kanban/ColumnView";
-import TaskSlideOver from "@/components/kanban/TaskSlideOver";
+import TaskModal from "@/components/kanban/TaskModal";
 import FlowView from "@/components/flow/FlowView";
 
 const sortTasks = (items) =>
@@ -68,7 +68,7 @@ export default function Board({ workspace, project, members = [] }) {
     const [density, setDensity] = useState("informed");
     const [tasks, setTasks] = useState(sortTasks(project.tasks || []));
     const [selectedTaskId, setSelectedTaskId] = useState(null);
-    const [isSlideOverOpen, setIsSlideOverOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const [recentTaskIds, setRecentTaskIds] = useState([]);
     const [deletingTaskIds, setDeletingTaskIds] = useState([]);
 
@@ -92,15 +92,8 @@ export default function Board({ workspace, project, members = [] }) {
     );
 
     const handleTaskClick = (taskId) => {
-        if (locks[taskId] && locks[taskId] !== currentUserId) return;
-
         setSelectedTaskId(taskId);
-        setIsSlideOverOpen(true);
-
-        // Lock the task for us
-        axios.post(
-            `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${taskId}/lock`,
-        );
+        setIsModalOpen(true);
     };
 
     const handleTaskMove = (taskId, status, position) => {
@@ -114,49 +107,47 @@ export default function Board({ workspace, project, members = [] }) {
     const [presenceMembers, setPresenceMembers] = useState([]);
     const [lastActivity, setLastActivity] = useState(Date.now());
 
-    // --- HEARTBEAT / INACTIVITY CHECK ---
     useEffect(() => {
-        if (!isSlideOverOpen) return;
+        if (!isModalOpen) return;
 
         const interval = setInterval(() => {
             const now = Date.now();
-            if (now - lastActivity > 5 * 60 * 1000) { // 5 minutes
-                console.log("Inactivity timeout - Unlocking task");
-                closeSlideOver();
+            if (now - lastActivity > 5 * 60 * 1000) {
+                // 5 minutes
+                console.log("Inactivity timeout - Closing modal");
+                closeModal();
             }
         }, 10000); // Check every 10 seconds
 
         return () => clearInterval(interval);
-    }, [isSlideOverOpen, lastActivity]);
+    }, [isModalOpen, lastActivity]);
 
     // Track activity
     useEffect(() => {
         const handleInteraction = () => setLastActivity(Date.now());
-        window.addEventListener('mousemove', handleInteraction);
-        window.addEventListener('keydown', handleInteraction);
+        window.addEventListener("mousemove", handleInteraction);
+        window.addEventListener("keydown", handleInteraction);
         return () => {
-            window.removeEventListener('mousemove', handleInteraction);
-            window.removeEventListener('keydown', handleInteraction);
+            window.removeEventListener("mousemove", handleInteraction);
+            window.removeEventListener("keydown", handleInteraction);
         };
     }, []);
 
     // --- REAL-TIME LISTENERS ---
     useEffect(() => {
-        console.log("Joining presence channel", `project.${project.id}`);
         const channel = window.Echo.join(`project.${project.id}`);
 
         channel
             .here((users) => {
-                console.log("Presence here:", users);
                 setPresenceMembers(users);
             })
             .joining((user) => {
-                console.log("Presence joining:", user);
                 setPresenceMembers((prev) => [...prev, user]);
             })
             .leaving((user) => {
-                console.log("Presence leaving:", user);
-                setPresenceMembers((prev) => prev.filter((u) => u.id !== user.id));
+                setPresenceMembers((prev) =>
+                    prev.filter((u) => u.id !== user.id),
+                );
                 // Automatically release any locks held by the user who left
                 setLocks((prev) => {
                     const next = { ...prev };
@@ -172,15 +163,12 @@ export default function Board({ workspace, project, members = [] }) {
                 console.error("Presence channel error:", error);
             })
             .listen(".TaskUpdated", (e) => {
-                console.log("Real-time Update:", e.task);
                 handleTaskUpdated(e.task.id, e.task);
             })
             .listen(".TaskDeleted", (e) => {
-                console.log("Real-time Deletion:", e.taskId);
                 handleTaskDeleted(e.taskId);
             })
             .listen(".CommentPosted", (e) => {
-                console.log("Real-time Comment:", e.comment);
                 // We find the task and add the comment to its array
                 setTasks((currentTasks) =>
                     currentTasks.map((task) =>
@@ -200,11 +188,9 @@ export default function Board({ workspace, project, members = [] }) {
                 if (e.userId === currentUserId) {
                     return;
                 }
-                console.log("Task Locked:", e.taskId, "by", e.userId);
                 setLocks((prev) => ({ ...prev, [e.taskId]: e.userId }));
             })
             .listen(".TaskUnlocked", (e) => {
-                console.log("Task Unlocked:", e.taskId);
                 setLocks((prev) => {
                     const next = { ...prev };
                     delete next[e.taskId];
@@ -257,19 +243,14 @@ export default function Board({ workspace, project, members = [] }) {
             setDeletingTaskIds((prev) => prev.filter((id) => id !== taskId));
 
             if (selectedTaskId === taskId) {
-                setIsSlideOverOpen(false);
+                setIsModalOpen(false);
                 setSelectedTaskId(null);
             }
         }, 180);
     };
 
-    const closeSlideOver = () => {
-        if (selectedTaskId) {
-            axios.post(
-                `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${selectedTaskId}/unlock`,
-            );
-        }
-        setIsSlideOverOpen(false);
+    const closeModal = () => {
+        setIsModalOpen(false);
         setSelectedTaskId(null);
     };
 
@@ -352,16 +333,17 @@ export default function Board({ workspace, project, members = [] }) {
                 )}
             </div>
 
-            <TaskSlideOver
+            <TaskModal
                 workspace={workspace}
                 project={project}
                 task={selectedTask}
                 tasks={tasks}
                 members={members}
-                isOpen={isSlideOverOpen}
-                onClose={closeSlideOver}
+                isOpen={isModalOpen}
+                onClose={closeModal}
                 onTaskUpdated={handleTaskUpdated}
                 onTaskDeleted={handleTaskDeleted}
+                auth={auth}
             />
         </div>
     );

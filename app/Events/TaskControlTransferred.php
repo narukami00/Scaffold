@@ -2,25 +2,28 @@
 
 namespace App\Events;
 
-use App\Models\TaskComment;
+use App\Models\Task;
+use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class CommentPosted implements ShouldBroadcastNow
+class TaskControlTransferred implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $comment;
+    public $task;
+    public $newEditorId;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(TaskComment $comment)
+    public function __construct(Task $task, $newEditorId)
     {
-        $this->comment = $comment;
+        $this->task = $task;
+        $this->newEditorId = $newEditorId;
     }
 
     /**
@@ -31,29 +34,20 @@ class CommentPosted implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
-            new PresenceChannel("project." . $this->comment->task->project_id),
-            new PresenceChannel("task." . $this->comment->task_id),
+            new PresenceChannel("task." . $this->task->id),
         ];
     }
 
-    /**
-     * The event's broadcast name.
-     */
     public function broadcastAs(): string
     {
-        return "CommentPosted";
+        return "ControlTransferred";
     }
 
-    /**
-     * Data to broadcast.
-     */
     public function broadcastWith(): array
     {
-        // Load the author relationship
-        $this->comment->load("user");
-
         return [
-            "comment" => $this->comment,
+            "taskId" => $this->task->id,
+            "newEditorId" => $this->newEditorId,
         ];
     }
 }

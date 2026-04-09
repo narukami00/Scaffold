@@ -7,6 +7,7 @@ use App\Models\Task;
 use App\Models\Workspace;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Events\TaskUpdated;
@@ -22,8 +23,7 @@ class TaskController extends Controller
         Workspace $workspace,
         Project $project,
     ) {
-        // Security check: Must be a member of the workspace
-        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
+        if (!$workspace->members()->where("users.id", Auth::id())->exists()) {
             abort(403);
         }
 
@@ -41,11 +41,17 @@ class TaskController extends Controller
         broadcast(new TaskUpdated($task))->toOthers();
 
         if ($request->expectsJson() || $request->ajax()) {
-            $task->load(['assignee', 'dependencies']);
-
-            return response()->json([
-                'task' => $task,
-            ], 201);
+            return response()->json(
+                [
+                    "task" => $task->load([
+                        "assignee",
+                        "labels",
+                        "dependencies",
+                        "attachments",
+                    ]),
+                ],
+                201,
+            );
         }
 
         return back();
@@ -60,43 +66,83 @@ class TaskController extends Controller
         Project $project,
         Task $task,
     ) {
-        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
+        if (!$workspace->members()->where("users.id", Auth::id())->exists()) {
             abort(403);
         }
 
-        // Update basic task data (including priority and assignee)
         $task->update($request->validated());
 
-        // Guard against circular dependencies before syncing
-        if ($request->has("dependencies") && !empty($request->dependencies)) {
-            $cycleDepId = $this->findCyclicDependency(
-                $task->id,
-                $request->dependencies,
-            );
-            if ($cycleDepId !== null) {
-                $depTitle = Task::find($cycleDepId)?->title ?? "#$cycleDepId";
-                return back()->withErrors([
-                    "dependencies" => "Circular dependency detected: \"{$depTitle}\" already depends on this task (directly or transitively). Linking them would create a deadlock.",
-                ]);
-            }
-        }
-
-        // Sync multiple dependencies if provided
         if ($request->has("dependencies")) {
+            // Guard against circular dependencies
+            if (!empty($request->dependencies)) {
+                $cycleDepId = $this->findCyclicDependency(
+                    $task->id,
+                    $request->dependencies,
+                );
+                if ($cycleDepId !== null) {
+                    $depTitle =
+                        Task::find($cycleDepId)?->title ?? "#$cycleDepId";
+                    if ($request->expectsJson() || $request->ajax()) {
+                        return response()->json(
+                            [
+                                "errors" => [
+                                    "dependencies" => [
+                                        "Circular dependency detected: \"{$depTitle}\" already depends on this task.",
+                                    ],
+                                ],
+                            ],
+                            422,
+                        );
+                    }
+                    return back()->withErrors([
+                        "dependencies" => "Circular dependency detected: \"{$depTitle}\" already depends on this task.",
+                    ]);
+                }
+            }
             $task->dependencies()->sync($request->dependencies);
         }
 
-        // Load relations and broadcast the update to others
-        $task->load(['assignee', 'dependencies']);
+        if ($request->has("labels")) {
+            $task->labels()->sync($request->labels ?? []);
+        }
+
+        $task->load(["assignee", "labels", "dependencies", "attachments.user"]);
         broadcast(new TaskUpdated($task))->toOthers();
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
-                'task' => $task,
+                "task" => $task,
             ]);
         }
 
         return back();
+    }
+
+    /**
+     * Transfer edit control to another user.
+     */
+    public function transferControl(
+        Request $request,
+        Workspace $workspace,
+        Project $project,
+        Task $task,
+    ) {
+        if (!$workspace->members()->where("users.id", Auth::id())->exists()) {
+            abort(403);
+        }
+
+        $request->validate([
+            "newEditorId" => "required|exists:users,id",
+        ]);
+
+        broadcast(
+            new \App\Events\TaskControlTransferred(
+                $task,
+                $request->newEditorId,
+            ),
+        )->toOthers();
+
+        return response()->json(["success" => true]);
     }
 
     /**
@@ -104,21 +150,21 @@ class TaskController extends Controller
      */
     public function destroy(Workspace $workspace, Project $project, Task $task)
     {
-        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
+        if (!$workspace->members()->where("users.id", Auth::id())->exists()) {
             abort(403);
         }
 
         $taskId = $task->id;
         $projectId = $project->id;
-        
+
         $task->delete();
 
-        broadcast(new TaskDeleted($taskId, $projectId))->toOthers();
+        broadcast(new TaskDeleted($projectId, $taskId))->toOthers();
 
         if (request()->expectsJson() || request()->ajax()) {
             return response()->json([
-                'taskId' => $taskId,
-                'projectId' => $projectId,
+                "taskId" => $taskId,
+                "projectId" => $projectId,
             ]);
         }
 
@@ -126,8 +172,7 @@ class TaskController extends Controller
     }
 
     /**
-     * Returns the first dependency ID in $proposedDepIds that would introduce
-     * a cycle, or null if the proposed set is safe.
+     * Cycle detection logic...
      */
     private function findCyclicDependency(
         int $taskId,
@@ -141,23 +186,15 @@ class TaskController extends Controller
         return null;
     }
 
-    /**
-     * BFS through the task_dependencies table starting from $startId.
-     * Returns true if $targetId is reachable by following "depends_on_id" links,
-     * meaning $startId is a downstream descendant of $targetId in the graph.
-     */
     private function canReachTask(int $startId, int $targetId): bool
     {
         $visited = [];
         $queue = [$startId];
-
         while (!empty($queue)) {
             $currentId = (int) array_shift($queue);
-
             if ($currentId === $targetId) {
                 return true;
             }
-
             if (isset($visited[$currentId])) {
                 continue;
             }
@@ -175,35 +212,6 @@ class TaskController extends Controller
                 }
             }
         }
-
         return false;
-    }
-
-    /**
-     * Lock a task for the authenticated user.
-     */
-    public function lock(Workspace $workspace, Project $project, Task $task)
-    {
-        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
-            abort(403);
-        }
-
-        broadcast(new \App\Events\TaskLocked($task->id, $project->id, Auth::id()))->toOthers();
-
-        return response()->json(['success' => true]);
-    }
-
-    /**
-     * Unlock a task.
-     */
-    public function unlock(Workspace $workspace, Project $project, Task $task)
-    {
-        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
-            abort(403);
-        }
-
-        broadcast(new \App\Events\TaskUnlocked($task->id, $project->id))->toOthers();
-
-        return response()->json(['success' => true]);
     }
 }
