@@ -3,7 +3,6 @@
 namespace App\Events;
 
 use App\Models\ThreadReply;
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -20,10 +19,10 @@ class ReplyMarkedDefinitive implements ShouldBroadcastNow
     /**
      * Create a new event instance.
      */
-    public function __construct(ThreadReply $reply)
+    public function __construct(ThreadReply $reply, int $projectId)
     {
         $this->reply = $reply;
-        $this->projectId = $reply->thread->project_id;
+        $this->projectId = $projectId;
     }
 
     /**
@@ -36,5 +35,10 @@ class ReplyMarkedDefinitive implements ShouldBroadcastNow
         return [
             new PrivateChannel('project.' . $this->projectId),
         ];
+    }
+
+    public function broadcastAs(): string
+    {
+        return 'ReplyMarkedDefinitive';
     }
 }

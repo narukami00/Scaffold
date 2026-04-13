@@ -42,7 +42,7 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
     };
 
     const toggleThreadPin = () => {
-        post(route('workspaces.projects.threads.pin', [workspace.slug, project.id, thread.id]), {
+        router.post(route('workspaces.projects.threads.pin', [workspace.slug, project.id, thread.id]), {}, {
             preserveScroll: true,
         });
     };

@@ -17,7 +17,7 @@ class ThreadController extends Controller
     public function index(Workspace $workspace, Project $project)
     {
         $threads = $project->threads()
-            ->with(['user', 'replies'])
+            ->with(['user'])
             ->withCount('replies')
             ->orderBy('is_pinned', 'desc')
             ->latest()
@@ -41,7 +41,7 @@ class ThreadController extends Controller
         ]);
 
         $thread = $project->threads()->create([
-            'user_id' => request()->user()->id,
+            'user_id' => $request->user()->id,
             'title' => $request->title,
             'body' => $request->body,
         ]);

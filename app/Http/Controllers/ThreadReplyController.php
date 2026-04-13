@@ -9,6 +9,8 @@ use App\Models\Thread;
 use App\Models\ThreadReply;
 use App\Models\Workspace;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class ThreadReplyController extends Controller
 {
@@ -19,18 +21,23 @@ class ThreadReplyController extends Controller
     {
         $request->validate([
             'body' => 'required|string',
-            'parent_id' => 'nullable|exists:thread_replies,id',
+            'parent_id' => [
+                'nullable',
+                Rule::exists('thread_replies', 'id')->where(function ($query) use ($thread) {
+                    $query->where('thread_id', $thread->id);
+                }),
+            ],
         ]);
 
         $reply = $thread->replies()->create([
-            'user_id' => request()->user()->id,
+            'user_id' => $request->user()->id,
             'parent_id' => $request->parent_id,
             'body' => $request->body,
         ]);
 
         $reply->load('user', 'reactions.user');
 
-        ThreadReplyCreated::dispatch($reply);
+        ThreadReplyCreated::dispatch($reply, $project->id);
 
         // TODO: Notifier::send(...) logic here for @mentions or task author
 
@@ -47,18 +54,18 @@ class ThreadReplyController extends Controller
             abort(403);
         }
 
-        // If making this definitive, we might want to un-definitive other replies, or allow multiple.
-        // Stack overflow allows only 1 accepted answer per thread, let's enforce that.
-        if (!$reply->is_definitive) {
-            $thread->replies()->update(['is_definitive' => false]);
-            $reply->is_definitive = true;
-        } else {
-            $reply->is_definitive = false;
-        }
+        DB::transaction(function () use ($thread, $reply) {
+            if (!$reply->is_definitive) {
+                $thread->replies()->update(['is_definitive' => false]);
+                $reply->is_definitive = true;
+            } else {
+                $reply->is_definitive = false;
+            }
 
-        $reply->save();
+            $reply->save();
+        });
 
-        ReplyMarkedDefinitive::dispatch($reply);
+        ReplyMarkedDefinitive::dispatch($reply, $project->id);
 
         return back();
     }
@@ -72,19 +79,10 @@ class ThreadReplyController extends Controller
             abort(403);
         }
 
-        // Deleting a reply deletes its children automatically via Eloquent event (if defined) or cascading standard DB depending on setup.
-        // We removed cascade from DB, so manual cascading in model.
-        // For now, since it is standard delete, we will manually recursively delete or just delete this single record.
-        // Recursive Delete hack:
-        $this->deleteRecursive($reply);
+        // Deleting a reply triggers the booted() event on ThreadReply which
+        // automatically cascade deletes children, reactions, and media.
+        $reply->delete();
 
         return back();
-    }
-
-    private function deleteRecursive($reply) {
-        foreach($reply->children as $child) {
-            $this->deleteRecursive($child);
-        }
-        $reply->delete();
     }
 }

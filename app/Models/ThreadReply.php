@@ -9,6 +9,15 @@ class ThreadReply extends Model
 {
     use HasFactory;
 
+    protected static function booted()
+    {
+        static::deleting(function ($reply) {
+            $reply->children->each->delete();
+            $reply->reactions()->delete();
+            $reply->media()->delete();
+        });
+    }
+
     protected $fillable = [
         "thread_id",
         "user_id",

@@ -3,7 +3,6 @@
 namespace App\Events;
 
 use App\Models\Reaction;
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -38,5 +37,10 @@ class ReactionToggled implements ShouldBroadcastNow
         return [
             new PrivateChannel('project.' . $this->projectId),
         ];
+    }
+
+    public function broadcastAs(): string
+    {
+        return 'ReactionToggled';
     }
 }

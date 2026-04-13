@@ -13,8 +13,8 @@ class MediaController extends Controller
      */
     public function upload(Request $request, Workspace $workspace)
     {
-        // Security check, must be workspace member
-        if (!$request->user()->workspaces()->where('workspaces.id', $workspace->id)->exists()) {
+        // Security check, must be workspace member or owner
+        if ((int)$workspace->owner_id !== (int)$request->user()->id && !$request->user()->workspaces()->where('workspaces.id', $workspace->id)->exists()) {
             abort(403);
         }
 

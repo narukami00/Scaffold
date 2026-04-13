@@ -23,9 +23,15 @@ class ReactionController extends Controller
 
         $userId = $request->user()->id;
 
-        // Resolve model mapping (Thread, ThreadReply, etc)
-        // Ensure reactable_type is a valid class inside App\Models
-        $modelClass = "App\\Models\\" . class_basename($request->reactable_type);
+        // Resolve model mapping cleanly to avoid arbitrary class instantiations
+        $allowedModels = ['Thread', 'ThreadReply', 'TaskComment', 'Task'];
+        $baseName = class_basename($request->reactable_type);
+
+        if (!in_array($baseName, $allowedModels)) {
+            abort(400, 'Invalid reactable type');
+        }
+
+        $modelClass = "App\\Models\\" . $baseName;
 
         if (!class_exists($modelClass)) {
             abort(400, 'Invalid reactable type');

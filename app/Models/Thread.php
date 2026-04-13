@@ -9,6 +9,15 @@ class Thread extends Model
 {
     use HasFactory;
 
+    protected static function booted()
+    {
+        static::deleting(function ($thread) {
+            $thread->replies->each->delete();
+            $thread->reactions()->delete();
+            $thread->media()->delete();
+        });
+    }
+
     protected $fillable = [
         "project_id",
         "user_id",

@@ -77,7 +77,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
 
             <div className="flex-1 min-w-0">
                 <div className="pl-1">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 group">
                         <span className="font-semibold text-zinc-200 text-sm">{reply.user?.name}</span>
                         <span className="text-xs text-zinc-500">
                             {formatDistanceToNow(new Date(reply.created_at), { addSuffix: true })}
