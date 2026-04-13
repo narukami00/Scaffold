@@ -8,6 +8,7 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskCommentController;
 use App\Http\Controllers\TaskAttachmentController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\MediaController;
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -72,73 +73,4 @@ Route::middleware("auth")->group(function () {
         "decline",
     ])->name("invitations.decline");
 
-    // Notifications
-    Route::get("/notifications", [NotificationController::class, "index"])->name("notifications.index");
-    Route::post("/notifications/{id}/read", [NotificationController::class, "markRead"])->name("notifications.mark-read");
-    Route::post("/notifications/read-all", [NotificationController::class, "markAllRead"])->name("notifications.mark-all-read");
 
-    // Projects (Nested under Workspaces)
-    Route::prefix("/workspaces/{workspace:slug}")->group(function () {
-        Route::post("/projects", [ProjectController::class, "store"])->name(
-            "workspaces.projects.store",
-        );
-
-        Route::patch("/preferences/color", [
-            WorkspaceController::class,
-            "updateMemberColor",
-        ])->name("workspaces.preferences.color");
-
-        // Scope bindings ensure the project actually belongs to the workspace
-        Route::scopeBindings()->group(function () {
-            Route::get("/projects/{project}", [
-                ProjectController::class,
-                "show",
-            ])->name("workspaces.projects.show");
-            Route::get("/projects/{project}/board", [
-                ProjectController::class,
-                "board",
-            ])->name("projects.board");
-            Route::get("/projects/{project}/docs", [
-                ProjectController::class,
-                "docs",
-            ])->name("projects.docs");
-            Route::get("/projects/{project}/activity", [
-                ProjectController::class,
-                "activity",
-            ])->name("projects.activity");
-            // Task Operations
-            Route::post("/projects/{project}/tasks", [
-                TaskController::class,
-                "store",
-            ])->name("tasks.store");
-            Route::patch("/projects/{project}/tasks/{task}", [
-                TaskController::class,
-                "update",
-            ])->name("tasks.update");
-            Route::delete("/projects/{project}/tasks/{task}", [
-                TaskController::class,
-                "destroy",
-            ])->name("tasks.destroy");
-
-            // Comment Operations
-            Route::post("/tasks/{task}/comments", [
-                TaskCommentController::class,
-                "store",
-            ])->name("tasks.comments.store");
-
-            // Task Control & Attachments
-            Route::post("/projects/{project}/tasks/{task}/transfer-control", [
-                TaskController::class,
-                "transferControl",
-            ])->name("tasks.transfer-control");
-            Route::post("/projects/{project}/tasks/{task}/attachments", [
-                TaskAttachmentController::class,
-                "store",
-            ])->name("tasks.attachments.store");
-            Route::delete("/projects/{project}/tasks/{task}/attachments/{attachment}", [
-                TaskAttachmentController::class,
-                "destroy",
-            ])->name("tasks.attachments.destroy");
-        });
-    });
-});
