@@ -264,8 +264,12 @@ export default function Board({ workspace, project, members = [] }) {
 
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="space-y-1">
-                    <h1 className="text-2xl font-display font-black uppercase tracking-tighter text-white sm:text-3xl">
+                    <h1 className="text-2xl font-display font-black uppercase tracking-tighter text-white sm:text-3xl flex items-center gap-4">
                         {project.name}
+                        <div className="flex bg-surface2/50 rounded-lg p-1 border border-border mt-1">
+                            <span className="px-3 py-1 text-xs font-bold uppercase tracking-widest rounded bg-accent text-black shadow">Board</span>
+                            <a href={`/workspaces/${workspace.slug}/projects/${project.id}/threads`} className="px-3 py-1 text-xs font-bold uppercase tracking-widest rounded text-muted hover:text-white transition-colors">Threads</a>
+                        </div>
                     </h1>
                     <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted">
                         Project ID:{" "}
