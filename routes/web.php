@@ -113,6 +113,59 @@ Route::middleware("auth")->group(function () {
                 ProjectController::class,
                 "activity",
             ])->name("projects.activity");
+            // Thread Operations
+            Route::get("/projects/{project}/threads", [
+                \App\Http\Controllers\ThreadController::class,
+                "index",
+            ])->name("workspaces.projects.threads.index");
+            
+            Route::post("/projects/{project}/threads", [
+                \App\Http\Controllers\ThreadController::class,
+                "store",
+            ])->name("workspaces.projects.threads.store");
+            
+            Route::get("/projects/{project}/threads/{thread}", [
+                \App\Http\Controllers\ThreadController::class,
+                "show",
+            ])->name("workspaces.projects.threads.show");
+            
+            Route::patch("/projects/{project}/threads/{thread}", [
+                \App\Http\Controllers\ThreadController::class,
+                "update",
+            ])->name("workspaces.projects.threads.update");
+            
+            Route::delete("/projects/{project}/threads/{thread}", [
+                \App\Http\Controllers\ThreadController::class,
+                "destroy",
+            ])->name("workspaces.projects.threads.destroy");
+            
+            Route::post("/projects/{project}/threads/{thread}/pin", [
+                \App\Http\Controllers\ThreadController::class,
+                "pin",
+            ])->name("workspaces.projects.threads.pin");
+
+            // Thread Reply Operations
+            Route::post("/projects/{project}/threads/{thread}/replies", [
+                \App\Http\Controllers\ThreadReplyController::class,
+                "store",
+            ])->name("workspaces.projects.threads.replies.store");
+            
+            Route::post("/projects/{project}/threads/{thread}/replies/{reply}/definitive", [
+                \App\Http\Controllers\ThreadReplyController::class,
+                "markDefinitive",
+            ])->name("workspaces.projects.threads.replies.definitive");
+
+            Route::delete("/projects/{project}/threads/{thread}/replies/{reply}", [
+                \App\Http\Controllers\ThreadReplyController::class,
+                "destroy",
+            ])->name("workspaces.projects.threads.replies.destroy");
+
+            // Reactions Operation
+            Route::post("/projects/{project}/reactions/toggle", [
+                \App\Http\Controllers\ReactionController::class,
+                "toggle",
+            ])->name("workspaces.projects.reactions.toggle");
+
             // Task Operations
             Route::post("/projects/{project}/tasks", [
                 TaskController::class,
