@@ -16,6 +16,7 @@ import axios from "axios";
 import { Plus, LayoutGrid, Zap } from "lucide-react";
 import TaskNode from "@/components/flow/TaskNode";
 import { wouldCreateCycle } from "@/utils/cycleDetection";
+import { getResolvableDependencies } from "@/utils/taskDependencies";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ function getAutoPosition(task, indexInColumn) {
 function buildNodes(
     tasks,
     onTaskClick,
+    onTaskDelete,
     locks = {},
     workspace = null,
     recentTaskIds = [],
@@ -73,11 +75,15 @@ function buildNodes(
             data: { 
                 task, 
                 onTaskClick,
+                onTaskDelete,
                 isLocked: !!userId,
                 occupantName: occupantMember?.name || "Someone",
                 occupantColor: occupantMember?.pivot?.color || "#3b82f6",
                 isRecent: recentTaskIds.includes(task.id),
                 isDeleting: deletingTaskIds.includes(task.id),
+                isBlocked: getResolvableDependencies(task, tasks).some(
+                    (dep) => dep.status !== "done",
+                ),
             },
         };
     });
@@ -87,7 +93,7 @@ function buildEdges(tasks) {
     const edges = [];
 
     tasks.forEach((task) => {
-        (task.dependencies ?? []).forEach((dep) => {
+        getResolvableDependencies(task, tasks).forEach((dep) => {
             const isDone = dep.status === "done";
             edges.push({
                 id: `e${dep.id}-${task.id}`,
@@ -120,6 +126,7 @@ function FlowViewInner({
     tasks,
     onTaskClick,
     onTaskUpdated,
+    onTaskDelete,
     locks = {},
     presenceMembers = [],
     recentTaskIds = [],
@@ -180,6 +187,7 @@ function FlowViewInner({
             buildNodes(
                 tasks,
                 onTaskClick,
+                onTaskDelete,
                 locks,
                 workspace,
                 recentTaskIds,
@@ -190,6 +198,7 @@ function FlowViewInner({
     }, [
         tasks,
         onTaskClick,
+        onTaskDelete,
         setNodes,
         setEdges,
         locks,

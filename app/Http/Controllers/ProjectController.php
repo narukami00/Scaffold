@@ -106,4 +106,22 @@ class ProjectController extends Controller
             "project" => $project,
         ]);
     }
+
+    /**
+     * Permanently delete a project and all of its tasks.
+     */
+    public function destroy(Workspace $workspace, Project $project)
+    {
+        if ($workspace->owner_id !== Auth::id()) {
+            abort(403);
+        }
+
+        if ($project->workspace_id !== $workspace->id) {
+            abort(404);
+        }
+
+        $project->delete();
+
+        return redirect()->route("workspaces.show", $workspace->slug);
+    }
 }

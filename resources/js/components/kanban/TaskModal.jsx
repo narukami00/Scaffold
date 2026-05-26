@@ -8,17 +8,21 @@ import {
     Lock,
     Maximize2,
     PanelRightClose,
-    Paperclip,
     Plus,
     Send,
-    Smile,
     User,
     UserPlus,
+    Trash2,
     X,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import axios from "axios";
 import { format } from "date-fns";
+import { pruneDependencyIds } from "@/utils/taskDependencies";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 
 const statuses = [
     { value: "backlog", label: "Backlog" },
@@ -44,8 +48,23 @@ export default function TaskModal({
     onClose,
     onTaskUpdated,
     onTaskDeleted,
+    onTaskDelete,
     auth,
 }) {
+    const descriptionSanitizeSchema = {
+        ...defaultSchema,
+        tagNames: Array.from(
+            new Set([...(defaultSchema.tagNames || []), "u", "h1", "h2", "h3"]),
+        ),
+        attributes: {
+            ...(defaultSchema.attributes || {}),
+            u: [],
+            h1: [],
+            h2: [],
+            h3: [],
+        },
+    };
+
     // ── State & Refs ──────────────────────────────────────────────────────────
     const [data, setDataState] = useState(null);
     const [presence, setPresence] = useState([]);
@@ -58,14 +77,17 @@ export default function TaskModal({
     const [ghostChecklistItem, setGhostChecklistItem] = useState(null);
     const [isLightboxOpen, setIsLightboxOpen] = useState(null); // string URL | null
     const [isLabelPickerOpen, setIsLabelPickerOpen] = useState(false);
+    const [descriptionMode, setDescriptionMode] = useState("write");
     const [showDoneItems, setShowDoneItems] = useState(false);
     const [dependencySearch, setDependencySearch] = useState("");
     const [isDependencyListOpen, setIsDependencyListOpen] = useState(false);
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
 
     const channelRef = useRef(null);
     const autoSaveTimerRef = useRef(null);
     const ghostTimerRef = useRef(null);
     const labelPickerRef = useRef(null);
+    const descriptionRef = useRef(null);
 
     // ── Data Sync ─────────────────────────────────────────────────────────────
     // Only re-initialize when the *task ID* or open-state changes.
@@ -92,8 +114,28 @@ export default function TaskModal({
             setIsLabelPickerOpen(false);
             setNewChecklistItem("");
             setNewComment("");
+            setDescriptionMode("write");
         }
     }, [task?.id, isOpen]);
+
+    useEffect(() => {
+        if (!task || !isOpen) return;
+
+        const nextDepIds = (task.dependencies ?? []).map((d) => d.id);
+
+        setDataState((prev) => {
+            if (!prev) return prev;
+
+            const current = prev.dependencies ?? [];
+            const unchanged =
+                current.length === nextDepIds.length &&
+                current.every((id, index) => id === nextDepIds[index]);
+
+            if (unchanged) return prev;
+
+            return { ...prev, dependencies: nextDepIds };
+        });
+    }, [task?.dependencies, task?.id, isOpen]);
 
     // ── Presence Channel & Baton Relay ────────────────────────────────────────
     useEffect(() => {
@@ -246,6 +288,10 @@ export default function TaskModal({
             // Labels are stored as full objects locally; server expects IDs
             const payload = {
                 ...newData,
+                dependencies: pruneDependencyIds(
+                    newData.dependencies,
+                    tasks,
+                ),
                 ...(Array.isArray(newData.labels) && {
                     labels: newData.labels.map((l) =>
                         typeof l === "object" ? l.id : l,
@@ -266,6 +312,97 @@ export default function TaskModal({
         const newData = { ...data, [field]: value };
         setDataState(newData);
         autoSave(newData);
+    };
+
+    const updateDescription = (nextDescription) => {
+        handleFieldChange("description", nextDescription);
+    };
+
+    const wrapDescriptionSelection = (before, after = before) => {
+        if (!isEditor) return;
+        const textarea = descriptionRef.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selected = data.description.slice(start, end);
+        const next =
+            data.description.slice(0, start) +
+            before +
+            selected +
+            after +
+            data.description.slice(end);
+
+        updateDescription(next);
+
+        requestAnimationFrame(() => {
+            textarea.focus();
+            textarea.setSelectionRange(
+                start + before.length,
+                end + before.length,
+            );
+        });
+    };
+
+    const insertHeadingPrefix = (level) => {
+        if (!isEditor) return;
+        const textarea = descriptionRef.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const raw = data.description;
+        const lineStart = raw.lastIndexOf("\n", start - 1) + 1;
+        const lineEnd = raw.indexOf("\n", end);
+        const safeLineEnd = lineEnd === -1 ? raw.length : lineEnd;
+        const selectedBlock = raw.slice(lineStart, safeLineEnd);
+        const prefix = `${"#".repeat(level)} `;
+        const nextBlock = selectedBlock
+            .split("\n")
+            .map((line) => `${prefix}${line.replace(/^#{1,3}\s*/, "")}`)
+            .join("\n");
+        const next =
+            raw.slice(0, lineStart) + nextBlock + raw.slice(safeLineEnd);
+
+        updateDescription(next);
+
+        requestAnimationFrame(() => {
+            textarea.focus();
+            textarea.setSelectionRange(start, start + nextBlock.length);
+        });
+    };
+
+    const handleDescriptionShortcut = (e) => {
+        if (!isEditor) return;
+
+        const key = e.key.toLowerCase();
+
+        if ((e.ctrlKey || e.metaKey) && key === "b") {
+            e.preventDefault();
+            wrapDescriptionSelection("**");
+            return;
+        }
+
+        if ((e.ctrlKey || e.metaKey) && key === "i") {
+            e.preventDefault();
+            wrapDescriptionSelection("*");
+            return;
+        }
+
+        if ((e.ctrlKey || e.metaKey) && key === "u") {
+            e.preventDefault();
+            wrapDescriptionSelection("<u>", "</u>");
+            return;
+        }
+
+        // Headings: avoid Ctrl+1/2/3 (usually browser tab switching).
+        // Use Ctrl/Cmd+Alt+1/2/3 instead.
+        if ((e.ctrlKey || e.metaKey) && e.altKey) {
+            if (key === "1" || key === "2" || key === "3") {
+                e.preventDefault();
+                insertHeadingPrefix(Number(key));
+            }
+        }
     };
 
     // ── Labels ────────────────────────────────────────────────────────────────
@@ -389,9 +526,9 @@ export default function TaskModal({
     };
 
     // ── Dependencies ──────────────────────────────────────────────────────────
-    const activeDeps = (tasks || []).filter((t) =>
-        data?.dependencies?.includes(t.id),
-    );
+    const activeDeps = pruneDependencyIds(data?.dependencies, tasks)
+        .map((id) => (tasks || []).find((t) => t.id === id))
+        .filter(Boolean);
 
     const filteredTasks = (tasks || []).filter(
         (t) =>
@@ -410,27 +547,6 @@ export default function TaskModal({
             ? data.dependencies.filter((id) => id !== depId)
             : [...(data.dependencies || []), depId];
         handleFieldChange("dependencies", newDeps);
-    };
-
-    // ── Attachments ───────────────────────────────────────────────────────────
-    const handleImageUpload = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const formData = new FormData();
-        formData.append("file", file);
-        axios
-            .post(
-                `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.id}/attachments`,
-                formData,
-                { headers: { "X-Requested-With": "XMLHttpRequest" } },
-            )
-            .then(({ data: res }) => {
-                setDataState((prev) => ({
-                    ...prev,
-                    attachments: [...(prev.attachments || []), res.attachment],
-                }));
-            });
-        e.target.value = ""; // Reset so the same file can be re-selected
     };
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -545,6 +661,41 @@ export default function TaskModal({
                             >
                                 <PanelRightClose size={18} />
                             </button>
+                        )}
+
+                        {onTaskDelete && (
+                            confirmingDelete ? (
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            onTaskDelete(task.id);
+                                            setConfirmingDelete(false);
+                                        }}
+                                        className="rounded-2xl border border-accent-red/30 bg-accent-red px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-accent-red/80"
+                                    >
+                                        Confirm delete
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setConfirmingDelete(false)
+                                        }
+                                        className="rounded-2xl border border-border bg-surface px-4 py-2 text-[10px] font-black uppercase tracking-widest text-muted transition-all hover:text-white"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setConfirmingDelete(true)}
+                                    className="rounded-2xl border border-accent-red/20 bg-accent-red/10 p-3 text-accent-red transition-all hover:scale-110 hover:bg-accent-red hover:text-white active:scale-95"
+                                    title="Delete task"
+                                >
+                                    <Trash2 size={20} />
+                                </button>
+                            )
                         )}
 
                         {/* Close */}
@@ -770,25 +921,139 @@ export default function TaskModal({
 
                             {/* ▸ Description */}
                             <section className="space-y-4">
-                                <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.24em] text-muted">
-                                    <ChevronRight
-                                        size={14}
-                                        className="text-accent"
-                                    />
-                                    Description
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.24em] text-muted">
+                                        <ChevronRight
+                                            size={14}
+                                            className="text-accent"
+                                        />
+                                        Description
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setDescriptionMode("write")
+                                            }
+                                            className={`rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-wider ${
+                                                descriptionMode === "write"
+                                                    ? "border-accent/40 bg-accent/10 text-accent"
+                                                    : "border-border/60 text-muted hover:text-white"
+                                            }`}
+                                        >
+                                            Write
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setDescriptionMode("preview")
+                                            }
+                                            className={`rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-wider ${
+                                                descriptionMode === "preview"
+                                                    ? "border-accent/40 bg-accent/10 text-accent"
+                                                    : "border-border/60 text-muted hover:text-white"
+                                            }`}
+                                        >
+                                            Preview
+                                        </button>
+                                    </div>
                                 </div>
-                                <textarea
-                                    className={`min-h-[200px] w-full resize-none rounded-3xl border border-border bg-surface/50 p-6 text-base leading-relaxed text-white outline-none transition-all focus:border-accent focus:bg-surface ${!isEditor ? "pointer-events-none opacity-80" : ""}`}
-                                    value={data.description}
-                                    onChange={(e) =>
-                                        handleFieldChange(
-                                            "description",
-                                            e.target.value,
-                                        )
-                                    }
-                                    placeholder="Describe the mission details here…"
-                                    readOnly={!isEditor}
-                                />
+                                {descriptionMode === "write" ? (
+                                    <div className="space-y-3">
+                                        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-surface/30 px-3 py-2">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    wrapDescriptionSelection(
+                                                        "**",
+                                                    )
+                                                }
+                                                disabled={!isEditor}
+                                                className="rounded-md border border-border/60 px-2 py-1 text-[10px] font-black text-white hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                B
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    wrapDescriptionSelection("*")
+                                                }
+                                                disabled={!isEditor}
+                                                className="rounded-md border border-border/60 px-2 py-1 text-[10px] italic font-black text-white hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                I
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    wrapDescriptionSelection(
+                                                        "<u>",
+                                                        "</u>",
+                                                    )
+                                                }
+                                                disabled={!isEditor}
+                                                className="rounded-md border border-border/60 px-2 py-1 text-[10px] underline font-black text-white hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                U
+                                            </button>
+                                            <span className="mx-1 h-4 w-px bg-border/60" />
+                                            {[1, 2, 3].map((level) => (
+                                                <button
+                                                    key={level}
+                                                    type="button"
+                                                    onClick={() =>
+                                                        insertHeadingPrefix(
+                                                            level,
+                                                        )
+                                                    }
+                                                    disabled={!isEditor}
+                                                    className="rounded-md border border-border/60 px-2 py-1 text-[10px] font-black text-white hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    H{level}
+                                                </button>
+                                            ))}
+                                            <span className="ml-auto text-[10px] text-muted">
+                                                Ctrl/Cmd+B, I, U · Ctrl/Cmd+Alt+1/2/3
+                                            </span>
+                                        </div>
+                                        <textarea
+                                            ref={descriptionRef}
+                                            className={`min-h-[200px] w-full resize-none rounded-3xl border border-border bg-surface/50 p-6 text-base leading-relaxed text-white outline-none transition-all focus:border-accent focus:bg-surface ${!isEditor ? "pointer-events-none opacity-80" : ""}`}
+                                            value={data.description}
+                                            onChange={(e) =>
+                                                updateDescription(
+                                                    e.target.value,
+                                                )
+                                            }
+                                            onKeyDown={
+                                                handleDescriptionShortcut
+                                            }
+                                            placeholder="Describe the mission details here…"
+                                            readOnly={!isEditor}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="min-h-[200px] rounded-3xl border border-border bg-surface/30 p-6">
+                                        <div className="task-description-preview max-w-none whitespace-pre-wrap break-words text-white/90">
+                                            {data.description?.trim() ? (
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm]}
+                                                    rehypePlugins={[
+                                                        rehypeRaw,
+                                                        [
+                                                            rehypeSanitize,
+                                                            descriptionSanitizeSchema,
+                                                        ],
+                                                    ]}
+                                                >
+                                                    {data.description}
+                                                </ReactMarkdown>
+                                            ) : (
+                                                "Nothing to preview yet."
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </section>
 
                             {/* ▸ Checklist */}
@@ -1249,7 +1514,14 @@ export default function TaskModal({
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="rounded-2xl border border-border/50 bg-surface/30 px-4 py-3 text-xs leading-relaxed text-white/70 shadow-sm">
+                                        <div
+                                            className={`rounded-2xl border px-4 py-3 text-xs leading-relaxed shadow-sm ${
+                                                Number(comment.user_id) ===
+                                                Number(auth.user.id)
+                                                    ? "border-accent/60 bg-accent/10 text-white shadow-[0_0_18px_rgba(124,106,255,0.22)]"
+                                                    : "border-border/50 bg-surface/30 text-white/70"
+                                            }`}
+                                        >
                                             {comment.body}
                                         </div>
                                     </div>
@@ -1277,20 +1549,6 @@ export default function TaskModal({
                                             }
                                         }}
                                     />
-                                    <div className="absolute bottom-4 left-4 flex items-center gap-2">
-                                        <label className="cursor-pointer text-muted transition-colors hover:text-accent">
-                                            <Paperclip size={16} />
-                                            <input
-                                                type="file"
-                                                className="hidden"
-                                                accept="image/*"
-                                                onChange={handleImageUpload}
-                                            />
-                                        </label>
-                                        <button className="text-muted transition-colors hover:text-accent">
-                                            <Smile size={16} />
-                                        </button>
-                                    </div>
                                     <button
                                         onClick={handleCommentSubmit}
                                         disabled={!newComment.trim()}

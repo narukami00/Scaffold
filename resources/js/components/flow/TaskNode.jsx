@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
-import { Lock, Calendar, ExternalLink } from "lucide-react";
+import { Lock, Calendar, ExternalLink, Trash2 } from "lucide-react";
 
 const PRIORITY_COLORS = {
     urgent: "bg-red-500",
@@ -37,9 +37,10 @@ export default memo(function TaskNode({ data }) {
         occupantColor,
         isRecent,
         isDeleting,
+        onTaskDelete,
     } = data;
 
-    const isBlocked = task.dependencies?.some((d) => d.status !== "done");
+    const isBlocked = data.isBlocked ?? false;
     const isDone = task.status === "done";
     const statusCfg = STATUS_CONFIG[task.status] ?? STATUS_CONFIG.backlog;
 
@@ -73,6 +74,20 @@ export default memo(function TaskNode({ data }) {
                     <Lock size={10} strokeWidth={3} />
                     {occupantName}
                 </div>
+            )}
+
+            {!isLocked && onTaskDelete && (
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onTaskDelete(task.id);
+                    }}
+                    className="absolute -right-2 -top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-accent-red/30 bg-surface text-accent-red opacity-0 shadow-lg transition-all hover:bg-accent-red hover:text-white group-hover:opacity-100"
+                    title="Delete task"
+                >
+                    <Trash2 size={14} />
+                </button>
             )}
 
             {/* Incoming dependency handle — top centre */}

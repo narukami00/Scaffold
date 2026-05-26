@@ -60,6 +60,47 @@
     animation: task-pop-out 180ms ease forwards;
 }
 
+.task-description-preview {
+    font-size: 0.95rem;
+    line-height: 1.75;
+}
+
+.task-description-preview :where(h1, h2, h3) {
+    margin: 1.25rem 0 0.65rem;
+    color: #ffffff;
+    font-family: var(--font-display);
+    font-weight: 900;
+    line-height: 1.15;
+}
+
+.task-description-preview :where(h1:first-child, h2:first-child, h3:first-child) {
+    margin-top: 0;
+}
+
+.task-description-preview h1 {
+    font-size: 1.875rem;
+}
+
+.task-description-preview h2 {
+    font-size: 1.5rem;
+}
+
+.task-description-preview h3 {
+    font-size: 1.25rem;
+}
+
+.task-description-preview :where(p, ul, ol, blockquote, pre) {
+    margin: 0.75rem 0;
+}
+
+.task-description-preview :where(strong, b) {
+    font-weight: 800;
+}
+
+.task-description-preview u {
+    text-underline-offset: 0.18em;
+}
+
 /* ─── React Flow dark-theme overrides ────────────────────────────────────────
    These override the light defaults that ship with @xyflow/react/dist/style.css
    ─────────────────────────────────────────────────────────────────────────── */

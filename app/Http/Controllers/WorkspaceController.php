@@ -69,7 +69,11 @@ class WorkspaceController extends Controller
         }
 
         // Load members and invitations before sending it to the frontend
-        $workspace->load(["members", "invitations"]);
+        $workspace->load([
+            "members",
+            "invitations",
+            "projects" => fn ($query) => $query->orderBy("name"),
+        ]);
 
         return Inertia::render("Workspace/Settings", [
             "workspace" => $workspace,

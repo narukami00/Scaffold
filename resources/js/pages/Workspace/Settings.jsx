@@ -3,8 +3,14 @@ import { Head, usePage, useForm, Link, router } from "@inertiajs/react";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useState } from "react";
+import { Mail } from "lucide-react";
 
 export default function Settings({ workspace }) {
+    const { auth } = usePage().props;
+    const isOwner = workspace.owner_id === auth.user.id;
+    const currentMemberColor = workspace.members.find(
+        (m) => m.id === auth.user.id,
+    )?.pivot?.color;
     // 1. Form for Updating Workspace Name
     const updateForm = useForm({
         name: workspace.name,
@@ -19,6 +25,8 @@ export default function Settings({ workspace }) {
     // 3. Form for Deletion
     const deleteForm = useForm({});
     const [confirmingDelete, setConfirmingDelete] = useState(false);
+    const [confirmingProjectId, setConfirmingProjectId] = useState(null);
+    const [deletingProjectId, setDeletingProjectId] = useState(null);
 
     const submitUpdate = (e) => {
         e.preventDefault();
@@ -36,6 +44,20 @@ export default function Settings({ workspace }) {
         deleteForm.delete(`/workspaces/${workspace.slug}`, {
             onSuccess: () => router.visit("/workspaces"),
         });
+    };
+
+    const submitProjectDelete = (project) => {
+        setDeletingProjectId(project.id);
+        router.delete(
+            `/workspaces/${workspace.slug}/projects/${project.slug}`,
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setDeletingProjectId(null);
+                    setConfirmingProjectId(null);
+                },
+            },
+        );
     };
 
     return (
@@ -79,7 +101,7 @@ export default function Settings({ workspace }) {
                         "#80ffdb", "#ff006e", "#8338ec", "#3a86ff", "#fb5607", "#ffbe0b",
                         "#e0e1dd", "#778da9", "#415a77", "#1b263b", "#ef4444", "#3b82f6"
                     ].map((color) => {
-                        const isSelected = workspace.members.find(m => m.id === usePage().props.auth.user.id)?.pivot?.color === color;
+                        const isSelected = currentMemberColor === color;
                         
                         return (
                             <button
@@ -250,12 +272,94 @@ export default function Settings({ workspace }) {
                     </h3>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-8">
+                    {isOwner && (workspace.projects || []).length > 0 && (
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="text-sm font-bold text-white uppercase tracking-wider">
+                                    Delete a project
+                                </h4>
+                                <p className="text-xs text-muted mt-1">
+                                    Permanently removes the project and every
+                                    task inside it.
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                {(workspace.projects || []).map((project) => (
+                                    <div
+                                        key={project.id}
+                                        className="flex flex-col gap-3 rounded-2xl border border-accent-red/20 bg-surface2/30 p-4 sm:flex-row sm:items-center sm:justify-between"
+                                    >
+                                        <div>
+                                            <p className="text-sm font-bold text-white">
+                                                {project.name}
+                                            </p>
+                                            <p className="text-[10px] font-mono text-muted">
+                                                {project.slug}
+                                            </p>
+                                        </div>
+                                        {confirmingProjectId === project.id ? (
+                                            <div className="flex flex-wrap gap-2">
+                                                <Button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        submitProjectDelete(
+                                                            project,
+                                                        )
+                                                    }
+                                                    loading={
+                                                        deletingProjectId ===
+                                                        project.id
+                                                    }
+                                                    disabled={
+                                                        deletingProjectId ===
+                                                        project.id
+                                                    }
+                                                    className="w-auto px-5 bg-accent-red hover:bg-accent-red/80 border-accent-red/20 text-xs"
+                                                >
+                                                    Confirm
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setConfirmingProjectId(
+                                                            null,
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        deletingProjectId ===
+                                                        project.id
+                                                    }
+                                                    className="w-auto px-5 bg-surface hover:bg-surface2 border-border text-xs"
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <Button
+                                                type="button"
+                                                onClick={() =>
+                                                    setConfirmingProjectId(
+                                                        project.id,
+                                                    )
+                                                }
+                                                className="w-auto px-5 bg-accent-red/10 hover:bg-accent-red border-accent-red/30 text-accent-red text-xs"
+                                            >
+                                                Delete project
+                                            </Button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-4 border-t border-accent-red/20 pt-6">
                     <p className="text-sm text-muted">
                         Once you delete a workspace, there is no going back.
                         Please be certain.
                     </p>
-                    {confirmingDelete ? (
+                    {isOwner && (confirmingDelete ? (
                         <div className="space-y-4 rounded-2xl border border-accent-red/25 bg-accent-red/10 p-5">
                             <p className="text-sm text-white">
                                 Delete{" "}
@@ -292,7 +396,14 @@ export default function Settings({ workspace }) {
                         >
                             Delete Workspace
                         </Button>
+                    ))}
+                    {!isOwner && (
+                        <p className="text-xs text-muted italic">
+                            Only the workspace owner can delete projects or the
+                            workspace.
+                        </p>
                     )}
+                    </div>
                 </div>
             </section>
         </div>

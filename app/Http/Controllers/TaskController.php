@@ -157,9 +157,24 @@ class TaskController extends Controller
         $taskId = $task->id;
         $projectId = $project->id;
 
+        $dependentTaskIds = DB::table("task_dependencies")
+            ->where("depends_on_id", $taskId)
+            ->pluck("task_id");
+
         $task->delete();
 
-        broadcast(new TaskDeleted($projectId, $taskId))->toOthers();
+        broadcast(new TaskDeleted($taskId, $projectId))->toOthers();
+
+        if ($dependentTaskIds->isNotEmpty()) {
+            $affectedTasks = Task::query()
+                ->whereIn("id", $dependentTaskIds)
+                ->with(["assignee", "labels", "dependencies", "attachments.user"])
+                ->get();
+
+            foreach ($affectedTasks as $affected) {
+                broadcast(new TaskUpdated($affected))->toOthers();
+            }
+        }
 
         if (request()->expectsJson() || request()->ajax()) {
             return response()->json([

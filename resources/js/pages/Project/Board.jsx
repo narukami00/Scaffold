@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import WorkspaceLayout from "@/layouts/WorkspaceLayout";
 import { Head, usePage } from "@inertiajs/react";
 import { LayoutGrid, Share2, Sliders } from "lucide-react";
 import ColumnView from "@/components/kanban/ColumnView";
 import TaskModal from "@/components/kanban/TaskModal";
 import FlowView from "@/components/flow/FlowView";
+import {
+    pruneDependencyReferences,
+    removeTaskAndPruneDependencies,
+} from "@/utils/taskDependencies";
 
 const sortTasks = (items) =>
     [...items].sort((a, b) => {
@@ -76,7 +80,7 @@ export default function Board({ workspace, project, members = [] }) {
         setTasks(sortTasks(project.tasks || []));
     }, [project.tasks]);
 
-    const flashTask = (taskId) => {
+    const flashTask = useCallback((taskId) => {
         setRecentTaskIds((prev) =>
             prev.includes(taskId) ? prev : [...prev, taskId],
         );
@@ -84,35 +88,40 @@ export default function Board({ workspace, project, members = [] }) {
         window.setTimeout(() => {
             setRecentTaskIds((prev) => prev.filter((id) => id !== taskId));
         }, 320);
-    };
+    }, []);
 
     const selectedTask = useMemo(
         () => tasks.find((task) => task.id === selectedTaskId) || null,
         [selectedTaskId, tasks],
     );
 
-    const handleTaskClick = (taskId) => {
+    const handleTaskClick = useCallback((taskId) => {
         setSelectedTaskId(taskId);
         setIsModalOpen(true);
-    };
+    }, []);
 
-    const handleTaskMove = (taskId, status, position) => {
+    const handleTaskMove = useCallback((taskId, status, position) => {
         flashTask(Number(taskId));
         setTasks((currentTasks) =>
             moveTask(currentTasks, taskId, status, position),
         );
-    };
+    }, [flashTask]);
+
+    const closeModal = useCallback(() => {
+        setIsModalOpen(false);
+        setSelectedTaskId(null);
+    }, []);
 
     const [locks, setLocks] = useState({}); // { taskId: userId }
     const [presenceMembers, setPresenceMembers] = useState([]);
-    const [lastActivity, setLastActivity] = useState(Date.now());
+    const lastActivityRef = useRef(Date.now());
 
     useEffect(() => {
         if (!isModalOpen) return;
 
         const interval = setInterval(() => {
             const now = Date.now();
-            if (now - lastActivity > 5 * 60 * 1000) {
+            if (now - lastActivityRef.current > 5 * 60 * 1000) {
                 // 5 minutes
                 console.log("Inactivity timeout - Closing modal");
                 closeModal();
@@ -120,11 +129,13 @@ export default function Board({ workspace, project, members = [] }) {
         }, 10000); // Check every 10 seconds
 
         return () => clearInterval(interval);
-    }, [isModalOpen, lastActivity]);
+    }, [isModalOpen, closeModal]);
 
     // Track activity
     useEffect(() => {
-        const handleInteraction = () => setLastActivity(Date.now());
+        const handleInteraction = () => {
+            lastActivityRef.current = Date.now();
+        };
         window.addEventListener("mousemove", handleInteraction);
         window.addEventListener("keydown", handleInteraction);
         return () => {
@@ -212,7 +223,7 @@ export default function Board({ workspace, project, members = [] }) {
         };
     }, [project.id, currentUserId]);
 
-    const handleTaskUpdated = (taskId, changes) => {
+    const handleTaskUpdated = useCallback((taskId, changes) => {
         flashTask(taskId);
         setTasks((currentTasks) => {
             const exists = currentTasks.find((t) => t.id === taskId);
@@ -233,30 +244,106 @@ export default function Board({ workspace, project, members = [] }) {
                 ),
             );
         });
-    };
+    }, [flashTask]);
 
-    const handleTaskDeleted = (taskId) => {
-        setDeletingTaskIds((prev) =>
-            prev.includes(taskId) ? prev : [...prev, taskId],
-        );
+    const handleTaskDeleted = useCallback(
+        (taskId, { instant = false } = {}) => {
+            const normalizedId = Number(taskId);
 
-        window.setTimeout(() => {
-            setTasks((currentTasks) =>
-                sortTasks(currentTasks.filter((task) => task.id !== taskId)),
-            );
-            setDeletingTaskIds((prev) => prev.filter((id) => id !== taskId));
+            const removeFromBoard = (currentTasks) =>
+                sortTasks(
+                    removeTaskAndPruneDependencies(
+                        pruneDependencyReferences(
+                            currentTasks,
+                            normalizedId,
+                        ),
+                        normalizedId,
+                    ),
+                );
 
-            if (selectedTaskId === taskId) {
-                setIsModalOpen(false);
-                setSelectedTaskId(null);
+            if (instant) {
+                setTasks(removeFromBoard);
+                setDeletingTaskIds((prev) =>
+                    prev.filter((id) => id !== normalizedId),
+                );
+
+                if (selectedTaskId === normalizedId) {
+                    setIsModalOpen(false);
+                    setSelectedTaskId(null);
+                }
+                return;
             }
-        }, 180);
-    };
 
-    const closeModal = () => {
-        setIsModalOpen(false);
-        setSelectedTaskId(null);
-    };
+            setTasks((currentTasks) =>
+                sortTasks(
+                    pruneDependencyReferences(currentTasks, normalizedId),
+                ),
+            );
+
+            setDeletingTaskIds((prev) =>
+                prev.includes(normalizedId) ? prev : [...prev, normalizedId],
+            );
+
+            window.setTimeout(() => {
+                setTasks(removeFromBoard);
+                setDeletingTaskIds((prev) =>
+                    prev.filter((id) => id !== normalizedId),
+                );
+
+                if (selectedTaskId === normalizedId) {
+                    setIsModalOpen(false);
+                    setSelectedTaskId(null);
+                }
+            }, 180);
+        },
+        [selectedTaskId],
+    );
+
+    const deleteTask = useCallback(
+        async (taskId, { instant = false } = {}) => {
+            const normalizedId = Number(taskId);
+            const csrfToken = document.cookie
+                .split("; ")
+                .find((row) => row.startsWith("XSRF-TOKEN="))
+                ?.split("=")[1];
+
+            if (instant) {
+                handleTaskDeleted(normalizedId, { instant: true });
+            }
+
+            try {
+                const response = await fetch(
+                    `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${normalizedId}`,
+                    {
+                        method: "DELETE",
+                        headers: {
+                            Accept: "application/json",
+                            "X-Requested-With": "XMLHttpRequest",
+                            ...(csrfToken
+                                ? {
+                                      "X-XSRF-TOKEN":
+                                          decodeURIComponent(csrfToken),
+                                  }
+                                : {}),
+                        },
+                    },
+                );
+
+                if (!response.ok) {
+                    throw new Error(
+                        `Task delete failed with status ${response.status}`,
+                    );
+                }
+
+                if (!instant) {
+                    handleTaskDeleted(normalizedId);
+                }
+            } catch (error) {
+                console.error("Failed to delete task", error);
+            }
+        },
+        [handleTaskDeleted, project.slug, workspace.slug],
+    );
 
     return (
         <div className="flex min-h-[70vh] h-full flex-col space-y-4 sm:min-h-[75vh] sm:space-y-6 lg:min-h-0">
@@ -320,6 +407,7 @@ export default function Board({ workspace, project, members = [] }) {
                         onTaskClick={handleTaskClick}
                         onTaskMove={handleTaskMove}
                         onTaskUpdated={handleTaskUpdated}
+                        onTaskDelete={deleteTask}
                         density={density}
                         locks={locks}
                         presenceMembers={presenceMembers}
@@ -333,6 +421,7 @@ export default function Board({ workspace, project, members = [] }) {
                         tasks={tasks}
                         onTaskClick={handleTaskClick}
                         onTaskUpdated={handleTaskUpdated}
+                        onTaskDelete={deleteTask}
                         locks={locks}
                         presenceMembers={presenceMembers}
                         recentTaskIds={recentTaskIds}
@@ -351,6 +440,7 @@ export default function Board({ workspace, project, members = [] }) {
                 onClose={closeModal}
                 onTaskUpdated={handleTaskUpdated}
                 onTaskDeleted={handleTaskDeleted}
+                onTaskDelete={deleteTask}
                 auth={auth}
             />
         </div>
