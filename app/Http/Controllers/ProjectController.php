@@ -40,14 +40,15 @@ class ProjectController extends Controller
         }
 
         // Load project tasks and workspace members
+        $workspace->loadMissing("members");
+
         $project->load([
-            "workspace.members",
             "tasks.assignee",
             "tasks.dependencies",
         ]);
 
         $tasks = $project->tasks;
-        $members = $project->workspace->members;
+        $members = $workspace->members;
 
         // 1. Task counts by status
         $statusCounts = [

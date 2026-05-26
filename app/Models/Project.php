@@ -40,4 +40,12 @@ class Project extends Model
     {
         return $this->hasMany(Task::class)->orderBy("position");
     }
+
+    /**
+     * A project contains many threads.
+     */
+    public function threads()
+    {
+        return $this->hasMany(Thread::class);
+    }
 }
