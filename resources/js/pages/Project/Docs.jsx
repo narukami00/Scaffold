@@ -1,13 +1,12 @@
 import WorkspaceLayout from "@/layouts/WorkspaceLayout";
 import { Head } from "@inertiajs/react";
+import ProjectHeader from "@/components/project/ProjectHeader";
 
-export default function Docs({ project }) {
+export default function Docs({ workspace, project }) {
     return (
         <div className="space-y-6">
             <Head title={`${project.name} - Documents`} />
-            <h1 className="text-3xl font-display font-black text-white uppercase tracking-tighter">
-                Project Documents
-            </h1>
+            <ProjectHeader workspace={workspace} project={project} activeTab="docs" />
             <div className="h-96 border-2 border-dashed border-border rounded-3xl flex items-center justify-center text-muted uppercase font-black tracking-widest bg-surface2/20">
                 Document Editor Coming Soon
             </div>

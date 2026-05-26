@@ -5,6 +5,7 @@ import { LayoutGrid, Share2, Sliders } from "lucide-react";
 import ColumnView from "@/components/kanban/ColumnView";
 import TaskModal from "@/components/kanban/TaskModal";
 import FlowView from "@/components/flow/FlowView";
+import ProjectHeader from "@/components/project/ProjectHeader";
 import {
     pruneDependencyReferences,
     removeTaskAndPruneDependencies,
@@ -349,21 +350,9 @@ export default function Board({ workspace, project, members = [] }) {
         <div className="flex min-h-[70vh] h-full flex-col space-y-4 sm:min-h-[75vh] sm:space-y-6 lg:min-h-0">
             <Head title={`${project.name} - Board`} />
 
-            <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="space-y-1">
-                    <h1 className="text-2xl font-display font-black uppercase tracking-tighter text-white sm:text-3xl flex items-center gap-4">
-                        {project.name}
-                        <div className="flex bg-surface2/50 rounded-lg p-1 border border-border mt-1">
-                            <span className="px-3 py-1 text-xs font-bold uppercase tracking-widest rounded bg-accent text-black shadow">Board</span>
-                            <a href={`/workspaces/${workspace.slug}/projects/${project.id}/threads`} className="px-3 py-1 text-xs font-bold uppercase tracking-widest rounded text-muted hover:text-white transition-colors">Threads</a>
-                        </div>
-                    </h1>
-                    <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted">
-                        Project ID:{" "}
-                        <span className="text-accent">{project.slug}</span>
-                    </p>
-                </div>
+            <ProjectHeader workspace={workspace} project={project} activeTab="board" />
 
+            <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end">
                 <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface2/50 p-1.5">
                     <div className="flex flex-1 items-center rounded-xl border border-border/50 bg-surface p-1 shadow-inner lg:flex-none">
                         <button

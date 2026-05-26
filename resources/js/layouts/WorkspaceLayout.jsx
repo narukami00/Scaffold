@@ -89,7 +89,7 @@ export default function WorkspaceLayout({ children }) {
                                 {workspaceProjects.map((project) => (
                                     <Link
                                         key={project.id}
-                                        href={`/workspaces/${workspace.slug}/projects/${project.slug}/board`}
+                                        href={`/workspaces/${workspace.slug}/projects/${project.slug}`}
                                         className="block shrink-0 rounded-xl px-3 py-2 text-sm font-medium text-muted transition-all hover:bg-surface2 hover:text-white lg:mb-1"
                                     >
                                         {isWorkspaceSidebarOpen ? (

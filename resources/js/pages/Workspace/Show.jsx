@@ -43,6 +43,33 @@ export default function Show({ workspace, stats, defaultTab }) {
         }
     }, [defaultTab]);
 
+    // Real-time task modifications synchronization
+    useEffect(() => {
+        if (!workspace.projects || workspace.projects.length === 0) return;
+
+        const channels = workspace.projects.map((project) => {
+            const channel = window.Echo.join(`project.${project.id}`);
+
+            channel
+                .listen(".TaskUpdated", () => {
+                    router.reload({ preserveScroll: true });
+                })
+                .listen(".TaskDeleted", () => {
+                    router.reload({ preserveScroll: true });
+                });
+
+            return { id: project.id, channel };
+        });
+
+        return () => {
+            channels.forEach(({ id, channel }) => {
+                channel.stopListening(".TaskUpdated");
+                channel.stopListening(".TaskDeleted");
+                window.Echo.leave(`project.${id}`);
+            });
+        };
+    }, [workspace.projects]);
+
     // Modals & Project forms
     const [editingProject, setEditingProject] = useState(null);
     const [confirmingProjectId, setConfirmingProjectId] = useState(null);
