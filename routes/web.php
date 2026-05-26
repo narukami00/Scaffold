@@ -101,6 +101,10 @@ Route::middleware("auth")->group(function () {
                 ProjectController::class,
                 "show",
             ])->name("workspaces.projects.show");
+            Route::patch("/projects/{project}", [
+                ProjectController::class,
+                "update",
+            ])->name("workspaces.projects.update");
             Route::delete("/projects/{project}", [
                 ProjectController::class,
                 "destroy",

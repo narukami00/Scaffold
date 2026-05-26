@@ -40,9 +40,11 @@ export default function WorkspaceLayout({ children }) {
                                 isWorkspaceSidebarOpen ? "max-w-[220px]" : "max-w-[32px]"
                             }`}
                         >
-                            <h2 className="text-sm font-black uppercase tracking-widest text-white">
-                                {isWorkspaceSidebarOpen ? workspace.name : "WS"}
-                            </h2>
+                            <Link href={`/workspaces/${workspace.slug}`}>
+                                <h2 className="text-sm font-black uppercase tracking-widest text-white hover:text-accent transition-colors">
+                                    {isWorkspaceSidebarOpen ? workspace.name : "WS"}
+                                </h2>
+                            </Link>
                             {isWorkspaceSidebarOpen && (
                                 <p className="mt-1 text-[10px] uppercase text-muted">
                                     Workspace Level
@@ -110,7 +112,7 @@ export default function WorkspaceLayout({ children }) {
                         {/* Settings Link */}
                         <div className="mt-4 border-t border-border pt-4">
                             <Link
-                                href={`/workspaces/${workspace.slug}/settings`}
+                                href={`/workspaces/${workspace.slug}?tab=settings`}
                                 className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted hover:text-white hover:bg-surface2 transition-all font-medium"
                             >
                                 <Settings className="h-4 w-4 opacity-50" />

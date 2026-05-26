@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreWorkspaceRequest;
 use App\Http\Requests\UpdateWorkspaceRequest;
 use App\Models\Workspace;
+use App\Models\Project;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -53,8 +54,87 @@ class WorkspaceController extends Controller
             abort(403, "Unauthorized access to this workspace.");
         }
 
+        // Load members, invitations and projects with tasks
+        $workspace->load([
+            "members",
+            "invitations",
+            "projects" => fn ($query) => $query->orderBy("name")->with("tasks"),
+        ]);
+
+        $projects = $workspace->projects;
+
+        $statusCounts = [
+            'backlog' => 0,
+            'in_progress' => 0,
+            'in_review' => 0,
+            'done' => 0,
+        ];
+        
+        $priorityCounts = [
+            'urgent' => 0,
+            'high' => 0,
+            'medium' => 0,
+            'low' => 0,
+        ];
+
+        $projectStats = [];
+        $totalTasks = 0;
+
+        foreach ($projects as $project) {
+            $projStats = [
+                'id' => $project->id,
+                'name' => $project->name,
+                'slug' => $project->slug,
+                'backlog' => 0,
+                'in_progress' => 0,
+                'in_review' => 0,
+                'done' => 0,
+                'total' => $project->tasks->count(),
+                'status' => 'New',
+            ];
+
+            foreach ($project->tasks as $task) {
+                // Workspace-wide totals
+                if (isset($statusCounts[$task->status])) {
+                    $statusCounts[$task->status]++;
+                }
+                if (isset($priorityCounts[$task->priority])) {
+                    $priorityCounts[$task->priority]++;
+                }
+                
+                $totalTasks++;
+
+                // Project-specific counts
+                if (isset($projStats[$task->status])) {
+                    $projStats[$task->status]++;
+                }
+            }
+
+            // Determine Project Status
+            if ($projStats['total'] === 0) {
+                $projStats['status'] = 'New';
+            } elseif ($projStats['backlog'] === $projStats['total']) {
+                $projStats['status'] = 'Not Started';
+            } elseif ($projStats['done'] === $projStats['total']) {
+                $projStats['status'] = 'Completed';
+            } else {
+                $projStats['status'] = 'Ongoing';
+            }
+
+            $projectStats[] = $projStats;
+        }
+
+        $stats = [
+            'total_tasks' => $totalTasks,
+            'status_counts' => $statusCounts,
+            'priority_counts' => $priorityCounts,
+            'project_stats' => $projectStats,
+        ];
+
         return Inertia::render("Workspace/Show", [
             "workspace" => $workspace,
+            "stats" => $stats,
+            "defaultTab" => request()->query("tab", "insights"),
         ]);
     }
 
@@ -68,15 +148,9 @@ class WorkspaceController extends Controller
             abort(403);
         }
 
-        // Load members and invitations before sending it to the frontend
-        $workspace->load([
-            "members",
-            "invitations",
-            "projects" => fn ($query) => $query->orderBy("name"),
-        ]);
-
-        return Inertia::render("Workspace/Settings", [
-            "workspace" => $workspace,
+        return redirect()->route("workspaces.show", [
+            $workspace->slug,
+            "tab" => "settings",
         ]);
     }
 
@@ -95,7 +169,10 @@ class WorkspaceController extends Controller
             "name" => $request->name,
         ]);
 
-        return redirect()->route("workspaces.edit", $workspace->slug);
+        return redirect()->route("workspaces.show", [
+            $workspace->slug,
+            "tab" => "settings",
+        ]);
     }
 
     /**

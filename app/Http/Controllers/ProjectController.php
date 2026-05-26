@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreProjectRequest;
 use App\Models\Project;
 use App\Models\Workspace;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
@@ -123,5 +124,29 @@ class ProjectController extends Controller
         $project->delete();
 
         return redirect()->route("workspaces.show", $workspace->slug);
+    }
+
+    /**
+     * Update project details (rename).
+     */
+    public function update(Request $request, Workspace $workspace, Project $project)
+    {
+        if ($workspace->owner_id !== Auth::id()) {
+            abort(403);
+        }
+
+        if ($project->workspace_id !== $workspace->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            "name" => "required|string|max:255",
+        ]);
+
+        $project->update([
+            "name" => $validated["name"],
+        ]);
+
+        return back();
     }
 }
