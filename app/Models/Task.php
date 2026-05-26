@@ -20,6 +20,12 @@ class Task extends Model
         "x_pos",
         "y_pos",
         "due_date",
+        "checklist",
+    ];
+
+    protected $casts = [
+        "checklist" => "array",
+        "due_date" => "date",
     ];
 
     /**
@@ -28,6 +34,14 @@ class Task extends Model
     public function project()
     {
         return $this->belongsTo(Project::class);
+    }
+
+    /**
+     * The task attachments (images).
+     */
+    public function attachments()
+    {
+        return $this->hasMany(TaskAttachment::class);
     }
 
     /**

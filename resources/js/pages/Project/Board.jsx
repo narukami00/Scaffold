@@ -1,10 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import WorkspaceLayout from "@/layouts/WorkspaceLayout";
 import { Head, usePage } from "@inertiajs/react";
 import { LayoutGrid, Share2, Sliders } from "lucide-react";
 import ColumnView from "@/components/kanban/ColumnView";
-import TaskSlideOver from "@/components/kanban/TaskSlideOver";
+import TaskModal from "@/components/kanban/TaskModal";
 import FlowView from "@/components/flow/FlowView";
+import ProjectHeader from "@/components/project/ProjectHeader";
+import {
+    pruneDependencyReferences,
+    removeTaskAndPruneDependencies,
+} from "@/utils/taskDependencies";
 
 const sortTasks = (items) =>
     [...items].sort((a, b) => {
@@ -68,7 +73,7 @@ export default function Board({ workspace, project, members = [] }) {
     const [density, setDensity] = useState("informed");
     const [tasks, setTasks] = useState(sortTasks(project.tasks || []));
     const [selectedTaskId, setSelectedTaskId] = useState(null);
-    const [isSlideOverOpen, setIsSlideOverOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const [recentTaskIds, setRecentTaskIds] = useState([]);
     const [deletingTaskIds, setDeletingTaskIds] = useState([]);
 
@@ -76,7 +81,7 @@ export default function Board({ workspace, project, members = [] }) {
         setTasks(sortTasks(project.tasks || []));
     }, [project.tasks]);
 
-    const flashTask = (taskId) => {
+    const flashTask = useCallback((taskId) => {
         setRecentTaskIds((prev) =>
             prev.includes(taskId) ? prev : [...prev, taskId],
         );
@@ -84,79 +89,77 @@ export default function Board({ workspace, project, members = [] }) {
         window.setTimeout(() => {
             setRecentTaskIds((prev) => prev.filter((id) => id !== taskId));
         }, 320);
-    };
+    }, []);
 
     const selectedTask = useMemo(
         () => tasks.find((task) => task.id === selectedTaskId) || null,
         [selectedTaskId, tasks],
     );
 
-    const handleTaskClick = (taskId) => {
-        if (locks[taskId] && locks[taskId] !== currentUserId) return;
-
+    const handleTaskClick = useCallback((taskId) => {
         setSelectedTaskId(taskId);
-        setIsSlideOverOpen(true);
+        setIsModalOpen(true);
+    }, []);
 
-        // Lock the task for us
-        axios.post(
-            `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${taskId}/lock`,
-        );
-    };
-
-    const handleTaskMove = (taskId, status, position) => {
+    const handleTaskMove = useCallback((taskId, status, position) => {
         flashTask(Number(taskId));
         setTasks((currentTasks) =>
             moveTask(currentTasks, taskId, status, position),
         );
-    };
+    }, [flashTask]);
+
+    const closeModal = useCallback(() => {
+        setIsModalOpen(false);
+        setSelectedTaskId(null);
+    }, []);
 
     const [locks, setLocks] = useState({}); // { taskId: userId }
     const [presenceMembers, setPresenceMembers] = useState([]);
-    const [lastActivity, setLastActivity] = useState(Date.now());
+    const lastActivityRef = useRef(Date.now());
 
-    // --- HEARTBEAT / INACTIVITY CHECK ---
     useEffect(() => {
-        if (!isSlideOverOpen) return;
+        if (!isModalOpen) return;
 
         const interval = setInterval(() => {
             const now = Date.now();
-            if (now - lastActivity > 5 * 60 * 1000) { // 5 minutes
-                console.log("Inactivity timeout - Unlocking task");
-                closeSlideOver();
+            if (now - lastActivityRef.current > 5 * 60 * 1000) {
+                // 5 minutes
+                console.log("Inactivity timeout - Closing modal");
+                closeModal();
             }
         }, 10000); // Check every 10 seconds
 
         return () => clearInterval(interval);
-    }, [isSlideOverOpen, lastActivity]);
+    }, [isModalOpen, closeModal]);
 
     // Track activity
     useEffect(() => {
-        const handleInteraction = () => setLastActivity(Date.now());
-        window.addEventListener('mousemove', handleInteraction);
-        window.addEventListener('keydown', handleInteraction);
+        const handleInteraction = () => {
+            lastActivityRef.current = Date.now();
+        };
+        window.addEventListener("mousemove", handleInteraction);
+        window.addEventListener("keydown", handleInteraction);
         return () => {
-            window.removeEventListener('mousemove', handleInteraction);
-            window.removeEventListener('keydown', handleInteraction);
+            window.removeEventListener("mousemove", handleInteraction);
+            window.removeEventListener("keydown", handleInteraction);
         };
     }, []);
 
     // --- REAL-TIME LISTENERS ---
     useEffect(() => {
-        console.log("Joining presence channel", `project.${project.id}`);
         const channel = window.Echo.join(`project.${project.id}`);
 
         channel
             .here((users) => {
-                console.log("Presence here:", users);
                 setPresenceMembers(users);
             })
             .joining((user) => {
-                console.log("Presence joining:", user);
                 setPresenceMembers((prev) => [...prev, user]);
             })
             .leaving((user) => {
-                console.log("Presence leaving:", user);
-                setPresenceMembers((prev) => prev.filter((u) => u.id !== user.id));
+                setPresenceMembers((prev) =>
+                    prev.filter((u) => u.id !== user.id),
+                );
                 // Automatically release any locks held by the user who left
                 setLocks((prev) => {
                     const next = { ...prev };
@@ -172,39 +175,38 @@ export default function Board({ workspace, project, members = [] }) {
                 console.error("Presence channel error:", error);
             })
             .listen(".TaskUpdated", (e) => {
-                console.log("Real-time Update:", e.task);
                 handleTaskUpdated(e.task.id, e.task);
             })
             .listen(".TaskDeleted", (e) => {
-                console.log("Real-time Deletion:", e.taskId);
                 handleTaskDeleted(e.taskId);
             })
             .listen(".CommentPosted", (e) => {
-                console.log("Real-time Comment:", e.comment);
-                // We find the task and add the comment to its array
+                // We find the task and add the comment to its array (with deduplication)
                 setTasks((currentTasks) =>
-                    currentTasks.map((task) =>
-                        task.id === e.comment.task_id
-                            ? {
-                                  ...task,
-                                  comments: [
-                                      ...(task.comments || []),
-                                      e.comment,
-                                  ],
-                              }
-                            : task,
-                    ),
+                    currentTasks.map((task) => {
+                        if (Number(task.id) === Number(e.comment.task_id)) {
+                            // Deduplicate: check if comment already exists in this task
+                            const exists = (task.comments || []).some(
+                                (c) => Number(c.id) === Number(e.comment.id),
+                            );
+                            if (exists) return task;
+
+                            return {
+                                ...task,
+                                comments: [...(task.comments || []), e.comment],
+                            };
+                        }
+                        return task;
+                    }),
                 );
             })
             .listen(".TaskLocked", (e) => {
                 if (e.userId === currentUserId) {
                     return;
                 }
-                console.log("Task Locked:", e.taskId, "by", e.userId);
                 setLocks((prev) => ({ ...prev, [e.taskId]: e.userId }));
             })
             .listen(".TaskUnlocked", (e) => {
-                console.log("Task Unlocked:", e.taskId);
                 setLocks((prev) => {
                     const next = { ...prev };
                     delete next[e.taskId];
@@ -222,7 +224,7 @@ export default function Board({ workspace, project, members = [] }) {
         };
     }, [project.id, currentUserId]);
 
-    const handleTaskUpdated = (taskId, changes) => {
+    const handleTaskUpdated = useCallback((taskId, changes) => {
         flashTask(taskId);
         setTasks((currentTasks) => {
             const exists = currentTasks.find((t) => t.id === taskId);
@@ -243,51 +245,114 @@ export default function Board({ workspace, project, members = [] }) {
                 ),
             );
         });
-    };
+    }, [flashTask]);
 
-    const handleTaskDeleted = (taskId) => {
-        setDeletingTaskIds((prev) =>
-            prev.includes(taskId) ? prev : [...prev, taskId],
-        );
+    const handleTaskDeleted = useCallback(
+        (taskId, { instant = false } = {}) => {
+            const normalizedId = Number(taskId);
 
-        window.setTimeout(() => {
-            setTasks((currentTasks) =>
-                sortTasks(currentTasks.filter((task) => task.id !== taskId)),
-            );
-            setDeletingTaskIds((prev) => prev.filter((id) => id !== taskId));
+            const removeFromBoard = (currentTasks) =>
+                sortTasks(
+                    removeTaskAndPruneDependencies(
+                        pruneDependencyReferences(
+                            currentTasks,
+                            normalizedId,
+                        ),
+                        normalizedId,
+                    ),
+                );
 
-            if (selectedTaskId === taskId) {
-                setIsSlideOverOpen(false);
-                setSelectedTaskId(null);
+            if (instant) {
+                setTasks(removeFromBoard);
+                setDeletingTaskIds((prev) =>
+                    prev.filter((id) => id !== normalizedId),
+                );
+
+                if (selectedTaskId === normalizedId) {
+                    setIsModalOpen(false);
+                    setSelectedTaskId(null);
+                }
+                return;
             }
-        }, 180);
-    };
 
-    const closeSlideOver = () => {
-        if (selectedTaskId) {
-            axios.post(
-                `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${selectedTaskId}/unlock`,
+            setTasks((currentTasks) =>
+                sortTasks(
+                    pruneDependencyReferences(currentTasks, normalizedId),
+                ),
             );
-        }
-        setIsSlideOverOpen(false);
-        setSelectedTaskId(null);
-    };
+
+            setDeletingTaskIds((prev) =>
+                prev.includes(normalizedId) ? prev : [...prev, normalizedId],
+            );
+
+            window.setTimeout(() => {
+                setTasks(removeFromBoard);
+                setDeletingTaskIds((prev) =>
+                    prev.filter((id) => id !== normalizedId),
+                );
+
+                if (selectedTaskId === normalizedId) {
+                    setIsModalOpen(false);
+                    setSelectedTaskId(null);
+                }
+            }, 180);
+        },
+        [selectedTaskId],
+    );
+
+    const deleteTask = useCallback(
+        async (taskId, { instant = false } = {}) => {
+            const normalizedId = Number(taskId);
+            const csrfToken = document.cookie
+                .split("; ")
+                .find((row) => row.startsWith("XSRF-TOKEN="))
+                ?.split("=")[1];
+
+            if (instant) {
+                handleTaskDeleted(normalizedId, { instant: true });
+            }
+
+            try {
+                const response = await fetch(
+                    `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${normalizedId}`,
+                    {
+                        method: "DELETE",
+                        headers: {
+                            Accept: "application/json",
+                            "X-Requested-With": "XMLHttpRequest",
+                            ...(csrfToken
+                                ? {
+                                      "X-XSRF-TOKEN":
+                                          decodeURIComponent(csrfToken),
+                                  }
+                                : {}),
+                        },
+                    },
+                );
+
+                if (!response.ok) {
+                    throw new Error(
+                        `Task delete failed with status ${response.status}`,
+                    );
+                }
+
+                if (!instant) {
+                    handleTaskDeleted(normalizedId);
+                }
+            } catch (error) {
+                console.error("Failed to delete task", error);
+            }
+        },
+        [handleTaskDeleted, project.slug, workspace.slug],
+    );
 
     return (
         <div className="flex min-h-[70vh] h-full flex-col space-y-4 sm:min-h-[75vh] sm:space-y-6 lg:min-h-0">
             <Head title={`${project.name} - Board`} />
 
-            <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="space-y-1">
-                    <h1 className="text-2xl font-display font-black uppercase tracking-tighter text-white sm:text-3xl">
-                        {project.name}
-                    </h1>
-                    <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted">
-                        Project ID:{" "}
-                        <span className="text-accent">{project.slug}</span>
-                    </p>
-                </div>
+            <ProjectHeader workspace={workspace} project={project} activeTab="board" />
 
+            <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end">
                 <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface2/50 p-1.5">
                     <div className="flex flex-1 items-center rounded-xl border border-border/50 bg-surface p-1 shadow-inner lg:flex-none">
                         <button
@@ -331,6 +396,7 @@ export default function Board({ workspace, project, members = [] }) {
                         onTaskClick={handleTaskClick}
                         onTaskMove={handleTaskMove}
                         onTaskUpdated={handleTaskUpdated}
+                        onTaskDelete={deleteTask}
                         density={density}
                         locks={locks}
                         presenceMembers={presenceMembers}
@@ -344,6 +410,7 @@ export default function Board({ workspace, project, members = [] }) {
                         tasks={tasks}
                         onTaskClick={handleTaskClick}
                         onTaskUpdated={handleTaskUpdated}
+                        onTaskDelete={deleteTask}
                         locks={locks}
                         presenceMembers={presenceMembers}
                         recentTaskIds={recentTaskIds}
@@ -352,16 +419,18 @@ export default function Board({ workspace, project, members = [] }) {
                 )}
             </div>
 
-            <TaskSlideOver
+            <TaskModal
                 workspace={workspace}
                 project={project}
                 task={selectedTask}
                 tasks={tasks}
                 members={members}
-                isOpen={isSlideOverOpen}
-                onClose={closeSlideOver}
+                isOpen={isModalOpen}
+                onClose={closeModal}
                 onTaskUpdated={handleTaskUpdated}
                 onTaskDeleted={handleTaskDeleted}
+                onTaskDelete={deleteTask}
+                auth={auth}
             />
         </div>
     );

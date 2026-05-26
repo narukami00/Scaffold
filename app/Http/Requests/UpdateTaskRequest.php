@@ -27,14 +27,17 @@ class UpdateTaskRequest extends FormRequest
             "y_pos" => "sometimes|integer",
             "due_date" => "nullable|date",
             "assignee_id" => "nullable|exists:users,id",
+            "checklist" => "nullable|array",
             "dependencies" => "nullable|array",
             "dependencies.*" => [
                 "integer",
                 Rule::exists("tasks", "id")->where(
-                    fn ($query) => $query->where("project_id", $project?->id),
+                    fn($query) => $query->where("project_id", $project?->id),
                 ),
                 Rule::notIn([$task?->id]), // Prevent self-dependency
             ],
+            "labels" => "nullable|array",
+            "labels.*" => "integer|exists:labels,id",
         ];
     }
 }

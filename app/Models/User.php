@@ -47,4 +47,12 @@ class User extends Authenticatable
             ->withPivot("role", "joined_at", "color")
             ->withTimestamps();
     }
+
+    /**
+     * Get the notifications for the user.
+     */
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
 }

@@ -6,6 +6,9 @@ use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskCommentController;
+use App\Http\Controllers\TaskAttachmentController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\MediaController;
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -65,6 +68,21 @@ Route::middleware("auth")->group(function () {
         InvitationController::class,
         "accept",
     ])->name("invitations.accept");
+    Route::post("/invitations/decline/{token}", [
+        InvitationController::class,
+        "decline",
+    ])->name("invitations.decline");
+
+    // Media Upload
+    Route::post("/workspaces/{workspace:slug}/media/upload", [
+        MediaController::class,
+        "upload"
+    ])->name("workspaces.media.upload");
+
+    // Notifications
+    Route::get("/notifications", [NotificationController::class, "index"])->name("notifications.index");
+    Route::post("/notifications/{id}/read", [NotificationController::class, "markRead"])->name("notifications.mark-read");
+    Route::post("/notifications/read-all", [NotificationController::class, "markAllRead"])->name("notifications.mark-all-read");
 
     // Projects (Nested under Workspaces)
     Route::prefix("/workspaces/{workspace:slug}")->group(function () {
@@ -83,6 +101,14 @@ Route::middleware("auth")->group(function () {
                 ProjectController::class,
                 "show",
             ])->name("workspaces.projects.show");
+            Route::patch("/projects/{project}", [
+                ProjectController::class,
+                "update",
+            ])->name("workspaces.projects.update");
+            Route::delete("/projects/{project}", [
+                ProjectController::class,
+                "destroy",
+            ])->name("workspaces.projects.destroy");
             Route::get("/projects/{project}/board", [
                 ProjectController::class,
                 "board",
@@ -95,6 +121,59 @@ Route::middleware("auth")->group(function () {
                 ProjectController::class,
                 "activity",
             ])->name("projects.activity");
+            // Thread Operations
+            Route::get("/projects/{project}/threads", [
+                \App\Http\Controllers\ThreadController::class,
+                "index",
+            ])->name("workspaces.projects.threads.index");
+            
+            Route::post("/projects/{project}/threads", [
+                \App\Http\Controllers\ThreadController::class,
+                "store",
+            ])->name("workspaces.projects.threads.store");
+            
+            Route::get("/projects/{project}/threads/{thread}", [
+                \App\Http\Controllers\ThreadController::class,
+                "show",
+            ])->name("workspaces.projects.threads.show");
+            
+            Route::patch("/projects/{project}/threads/{thread}", [
+                \App\Http\Controllers\ThreadController::class,
+                "update",
+            ])->name("workspaces.projects.threads.update");
+            
+            Route::delete("/projects/{project}/threads/{thread}", [
+                \App\Http\Controllers\ThreadController::class,
+                "destroy",
+            ])->name("workspaces.projects.threads.destroy");
+            
+            Route::post("/projects/{project}/threads/{thread}/pin", [
+                \App\Http\Controllers\ThreadController::class,
+                "pin",
+            ])->name("workspaces.projects.threads.pin");
+
+            // Thread Reply Operations
+            Route::post("/projects/{project}/threads/{thread}/replies", [
+                \App\Http\Controllers\ThreadReplyController::class,
+                "store",
+            ])->name("workspaces.projects.threads.replies.store");
+            
+            Route::post("/projects/{project}/threads/{thread}/replies/{reply}/definitive", [
+                \App\Http\Controllers\ThreadReplyController::class,
+                "markDefinitive",
+            ])->name("workspaces.projects.threads.replies.definitive");
+
+            Route::delete("/projects/{project}/threads/{thread}/replies/{reply}", [
+                \App\Http\Controllers\ThreadReplyController::class,
+                "destroy",
+            ])->name("workspaces.projects.threads.replies.destroy");
+
+            // Reactions Operation
+            Route::post("/projects/{project}/reactions/toggle", [
+                \App\Http\Controllers\ReactionController::class,
+                "toggle",
+            ])->name("workspaces.projects.reactions.toggle");
+
             // Task Operations
             Route::post("/projects/{project}/tasks", [
                 TaskController::class,
@@ -115,15 +194,21 @@ Route::middleware("auth")->group(function () {
                 "store",
             ])->name("tasks.comments.store");
 
-            // Locking Operations
-            Route::post("/projects/{project}/tasks/{task}/lock", [
+            // Task Control & Attachments
+            Route::post("/projects/{project}/tasks/{task}/transfer-control", [
                 TaskController::class,
-                "lock",
-            ])->name("tasks.lock");
-            Route::post("/projects/{project}/tasks/{task}/unlock", [
-                TaskController::class,
-                "unlock",
-            ])->name("tasks.unlock");
+                "transferControl",
+            ])->name("tasks.transfer-control");
+            Route::post("/projects/{project}/tasks/{task}/attachments", [
+                TaskAttachmentController::class,
+                "store",
+            ])->name("tasks.attachments.store");
+            Route::delete("/projects/{project}/tasks/{task}/attachments/{attachment}", [
+                TaskAttachmentController::class,
+                "destroy",
+            ])->name("tasks.attachments.destroy");
         });
     });
 });
+
+

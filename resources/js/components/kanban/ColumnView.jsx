@@ -1,6 +1,8 @@
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Plus, MoreHorizontal, Lock, Calendar } from "lucide-react";
+import { Plus, MoreHorizontal, Lock, Calendar, Trash2 } from "lucide-react";
 import axios from "axios";
+import { flushSync } from "react-dom";
+import { isTaskBlocked } from "@/utils/taskDependencies";
 
 export default function ColumnView({
     workspace,
@@ -9,6 +11,7 @@ export default function ColumnView({
     onTaskClick,
     onTaskMove,
     onTaskUpdated,
+    onTaskDelete,
     density,
     locks = {},
     presenceMembers = [],
@@ -87,6 +90,16 @@ export default function ColumnView({
             return;
         }
 
+        if (destination.droppableId === "task-trash") {
+            if (!locks[draggableId] && onTaskDelete) {
+                flushSync(() => {
+                    onTaskDelete(Number(draggableId), { instant: true });
+                });
+            }
+            axios.post(unlockUrl(draggableId)).catch(() => {});
+            return;
+        }
+
         // Prevent moving locked tasks
         if (locks[draggableId]) {
             axios.post(unlockUrl(draggableId)).catch(() => {});
@@ -112,8 +125,10 @@ export default function ColumnView({
 
         // 2. You cannot move TO "Done" if dependencies are not finished
         if (destination.droppableId === "done") {
-            const unfinishedDeps = task.dependencies?.filter(
-                (dep) => dep.status !== "done",
+            const unfinishedDeps = (task.dependencies ?? []).filter(
+                (dep) =>
+                    tasks.some((t) => t.id === dep.id) &&
+                    dep.status !== "done",
             );
             if (unfinishedDeps?.length > 0) {
                 alert(
@@ -185,7 +200,8 @@ export default function ColumnView({
 
     return (
         <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-            <div className="flex h-full gap-4 overflow-x-auto p-3 select-none sm:gap-6 sm:p-6">
+            <div className="relative h-full">
+            <div className="flex h-full gap-4 overflow-x-auto p-3 select-none sm:gap-6 sm:p-6 pb-24">
                 {columns.map((column) => (
                     <div
                         key={column.id}
@@ -274,10 +290,9 @@ export default function ColumnView({
                                                                     ? "border-emerald-500/20 bg-emerald-500/[0.05] shadow-[0_12px_30px_rgba(16,185,129,0.08)]"
                                                                     : "border-border bg-surface hover:border-accent/50"
                                                             } ${
-                                                                task.dependencies?.some(
-                                                                    (d) =>
-                                                                        d.status !==
-                                                                        "done",
+                                                                isTaskBlocked(
+                                                                    task,
+                                                                    tasks,
                                                                 )
                                                                     ? "opacity-60"
                                                                     : ""
@@ -335,12 +350,9 @@ export default function ColumnView({
                                                                         }
                                                                     </h4>
                                                                     <div className="flex items-center gap-1.5 shrink-0">
-                                                                        {task.dependencies?.some(
-                                                                            (
-                                                                                d,
-                                                                            ) =>
-                                                                                d.status !==
-                                                                                "done",
+                                                                        {isTaskBlocked(
+                                                                            task,
+                                                                            tasks,
                                                                         ) && (
                                                                             <Lock
                                                                                 size={
@@ -461,6 +473,36 @@ export default function ColumnView({
                         </Droppable>
                     </div>
                 ))}
+            </div>
+
+            <Droppable droppableId="task-trash">
+                {(provided, snapshot) => (
+                    <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`pointer-events-auto absolute bottom-6 right-6 z-20 flex flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed px-5 py-4 shadow-2xl backdrop-blur-sm transition-all duration-200 ${
+                            snapshot.isDraggingOver
+                                ? "scale-110 border-accent-red bg-accent-red/20 text-accent-red"
+                                : "border-accent-red/30 bg-surface/90 text-accent-red/80"
+                        }`}
+                    >
+                        <Trash2
+                            size={22}
+                            className={
+                                snapshot.isDraggingOver
+                                    ? "animate-pulse"
+                                    : ""
+                            }
+                        />
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em]">
+                            {snapshot.isDraggingOver
+                                ? "Release"
+                                : "Delete"}
+                        </span>
+                        {provided.placeholder}
+                    </div>
+                )}
+            </Droppable>
             </div>
         </DragDropContext>
     );

@@ -30,9 +30,10 @@ class TaskUpdated implements ShouldBroadcastNow
      */
     public function broadcastOn(): array
     {
-        // Broadcast to the project specific channel
+        // Broadcast to both the project and task specific channels
         return [
-            new PresenceChannel('project.' . $this->task->project_id),
+            new PresenceChannel("project." . $this->task->project_id),
+            new PresenceChannel("task." . $this->task->id),
         ];
     }
 
@@ -49,11 +50,16 @@ class TaskUpdated implements ShouldBroadcastNow
      */
     public function broadcastWith(): array
     {
-        // Load relationships needed for the board
-        $this->task->load(['assignee', 'dependencies']);
+        // Load all relationships needed for the modal and board
+        $this->task->load([
+            "assignee",
+            "labels",
+            "dependencies",
+            "attachments.user",
+        ]);
 
         return [
-            'task' => $this->task,
+            "task" => $this->task,
         ];
     }
 }

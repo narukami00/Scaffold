@@ -1,6 +1,7 @@
 import { router, usePage } from "@inertiajs/react";
 import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { useState } from "react";
+import NotificationPanel from "@/components/ui/NotificationPanel";
 
 export default function AppLayout({ children }) {
     const { auth } = usePage().props;
@@ -77,8 +78,12 @@ export default function AppLayout({ children }) {
 
             {/* Main Content */}
             <main className="flex-1 flex flex-col overflow-hidden">
-                <header className="hidden h-16 shrink-0 items-center border-b border-border bg-surface/50 px-8 backdrop-blur-md lg:flex">
+                <header className="hidden h-16 shrink-0 items-center justify-between border-b border-border bg-surface/50 px-8 backdrop-blur-md lg:flex">
                     <div className="text-sm text-muted">Breadcrumb / Here</div>
+
+                    <div className="flex items-center gap-4">
+                        <NotificationPanel />
+                    </div>
                 </header>
 
                 <section className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">

@@ -31,7 +31,8 @@ class CommentPosted implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
-            new PresenceChannel('project.' . $this->comment->task->project_id),
+            new PresenceChannel("project." . $this->comment->task->project_id),
+            new PresenceChannel("task." . $this->comment->task_id),
         ];
     }
 
@@ -40,7 +41,7 @@ class CommentPosted implements ShouldBroadcastNow
      */
     public function broadcastAs(): string
     {
-        return 'CommentPosted';
+        return "CommentPosted";
     }
 
     /**
@@ -49,10 +50,10 @@ class CommentPosted implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         // Load the author relationship
-        $this->comment->load('user');
+        $this->comment->load("user");
 
         return [
-            'comment' => $this->comment,
+            "comment" => $this->comment,
         ];
     }
 }

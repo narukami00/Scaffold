@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreInvitationRequest;
+use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceInvitation;
+use App\Helpers\Notifier;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -21,19 +24,40 @@ class InvitationController extends Controller
             abort(403);
         }
 
+        // Check if user is already a member
+        $targetUser = User::where("email", $request->email)->first();
+        if ($targetUser && $workspace->members()->where("users.id", $targetUser->id)->exists()) {
+            return back()->withErrors(["email" => "This user is already a member of this workspace."]);
+        }
+
         // Generate a random secure token
         $token = Str::random(40);
 
-        WorkspaceInvitation::create([
+        $invitation = WorkspaceInvitation::create([
             "workspace_id" => $workspace->id,
+            "inviter_id" => Auth::id(),
             "email" => $request->email,
             "token" => $token,
             "role" => $request->role,
             "expires_at" => now()->addDays(7),
         ]);
 
-        // In a real app, you would send an email here with the link:
-        // /invitations/accept/{token}
+        // Real-time: If the user exists, push an in-app notification
+        if ($targetUser) {
+            Notifier::send(
+                $targetUser,
+                "workspace.invitation",
+                [
+                    "message" => "invited you to join {$workspace->name}",
+                    "actor_name" => Auth::user()->name,
+                    "workspace_name" => $workspace->name,
+                    "workspace_slug" => $workspace->slug,
+                    "token" => $token,
+                    "link" => "/invitations/{$token}",
+                ],
+                $invitation
+            );
+        }
 
         return back()->with("message", "Invitation sent successfully!");
     }
@@ -44,6 +68,7 @@ class InvitationController extends Controller
     public function show(string $token)
     {
         $invitation = WorkspaceInvitation::where("token", $token)
+            ->where("status", "pending")
             ->where("expires_at", ">", now())
             ->firstOrFail();
 
@@ -61,6 +86,7 @@ class InvitationController extends Controller
     public function accept(string $token)
     {
         $invitation = WorkspaceInvitation::where("token", $token)
+            ->where("status", "pending")
             ->where("expires_at", ">", now())
             ->firstOrFail();
 
@@ -68,21 +94,39 @@ class InvitationController extends Controller
 
         // Predefined premium palette
         $colors = [
-            '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', 
-            '#06b6d4', '#f97316', '#14b8a6', '#6366f1', '#d946ef', '#84cc16'
+            "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", 
+            "#06b6d4", "#f97316", "#14b8a6", "#6366f1", "#d946ef", "#84cc16"
         ];
         $randomColor = $colors[array_rand($colors)];
 
-        // Add the user to the workspace members
-        $workspace->members()->attach(Auth::id(), [
-            "role" => $invitation->role,
-            "joined_at" => now(),
-            "color" => $randomColor,
-        ]);
+        DB::transaction(function () use ($invitation, $workspace, $randomColor) {
+            // Add the user to the workspace members if not already one
+            $workspace->members()->syncWithoutDetaching([
+                Auth::id() => [
+                    "role" => $invitation->role,
+                    "joined_at" => now(),
+                    "color" => $randomColor,
+                ]
+            ]);
 
-        // Delete the invitation now that it's used
-        $invitation->delete();
+            // Update status instead of deleting (for audit log)
+            $invitation->update(["status" => "accepted"]);
+        });
 
         return redirect()->route("workspaces.show", $workspace->slug);
+    }
+
+    /**
+     * Decline the invitation.
+     */
+    public function decline(string $token)
+    {
+        $invitation = WorkspaceInvitation::where("token", $token)
+            ->where("status", "pending")
+            ->firstOrFail();
+
+        $invitation->update(["status" => "declined"]);
+
+        return redirect()->route("workspaces.index")->with("message", "Invitation declined.");
     }
 }
