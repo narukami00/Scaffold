@@ -72,7 +72,7 @@ export default function Show({ workspace, project, stats }) {
     );
 
     const checklistPct = stats.checklist.total > 0
-        ? Math.round((stats.checklist.completed / stats.stats?.checklist?.total || stats.checklist.completed / stats.checklist.total) * 100)
+        ? Math.round((stats.checklist.completed / stats.checklist.total) * 100)
         : 0;
 
     return (

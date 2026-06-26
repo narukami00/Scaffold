@@ -18,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(
             append: [\App\Http\Middleware\HandleInertiaRequests::class],
         );
+        $middleware->validateCsrfTokens(except: [
+            'public/workspaces/*/projects/*/git/webhook',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

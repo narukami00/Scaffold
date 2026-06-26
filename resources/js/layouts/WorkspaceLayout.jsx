@@ -4,10 +4,11 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { ChevronLeft, ChevronRight, FolderKanban, Plus, Settings } from "lucide-react";
 import { useState } from "react";
+import CommandPalette from "@/components/ui/CommandPalette";
 
 export default function WorkspaceLayout({ children }) {
     // Get the shared data from our Middleware
-    const { workspace, workspaceProjects, auth } = usePage().props;
+    const { workspace, workspaceProjects, auth, project } = usePage().props;
     const [showingNewProject, setShowingNewProject] = useState(false);
     const [isWorkspaceSidebarOpen, setIsWorkspaceSidebarOpen] = useState(true);
 
@@ -27,6 +28,7 @@ export default function WorkspaceLayout({ children }) {
 
     return (
         <AppLayout>
+            <CommandPalette workspace={workspace} project={project || null} />
             <div className="flex h-auto flex-col overflow-hidden lg:h-[calc(100vh-64px)] lg:flex-row">
                 {/* 1. Sidebar */}
                 <aside
@@ -34,23 +36,19 @@ export default function WorkspaceLayout({ children }) {
                         isWorkspaceSidebarOpen ? "lg:w-72" : "lg:w-[92px]"
                     }`}
                 >
-                    <div className="flex items-center justify-between border-b border-border p-4 sm:p-6">
-                        <div
-                            className={`overflow-hidden transition-all ${
-                                isWorkspaceSidebarOpen ? "max-w-[220px]" : "max-w-[32px]"
-                            }`}
-                        >
-                            <Link href={`/workspaces/${workspace.slug}`}>
-                                <h2 className="text-sm font-black uppercase tracking-widest text-white hover:text-accent transition-colors">
-                                    {isWorkspaceSidebarOpen ? workspace.name : "WS"}
-                                </h2>
-                            </Link>
-                            {isWorkspaceSidebarOpen && (
+                    <div className={`flex items-center justify-between border-b border-border p-4 ${isWorkspaceSidebarOpen ? "sm:p-6" : "lg:p-4 lg:justify-center"}`}>
+                        {isWorkspaceSidebarOpen && (
+                            <div className="overflow-hidden transition-all max-w-[220px]">
+                                <Link href={`/workspaces/${workspace.slug}`}>
+                                    <h2 className="text-sm font-black uppercase tracking-widest text-white hover:text-accent transition-colors">
+                                        {workspace.name}
+                                    </h2>
+                                </Link>
                                 <p className="mt-1 text-[10px] uppercase text-muted">
                                     Workspace Level
                                 </p>
-                            )}
-                        </div>
+                            </div>
+                        )}
                         <button
                             type="button"
                             onClick={() =>
@@ -69,7 +67,7 @@ export default function WorkspaceLayout({ children }) {
                     <div className="overflow-x-auto p-4 lg:flex-1 lg:overflow-y-auto lg:space-y-8">
                         {/* Projects List */}
                         <div className="space-y-4 lg:space-y-4">
-                            <div className="flex items-center justify-between px-2">
+                            <div className={`flex items-center justify-between px-2 ${!isWorkspaceSidebarOpen ? "justify-center" : ""}`}>
                                 {isWorkspaceSidebarOpen ? (
                                     <h3 className="text-[10px] font-black uppercase tracking-widest text-muted">
                                         Projects
@@ -77,12 +75,14 @@ export default function WorkspaceLayout({ children }) {
                                 ) : (
                                     <FolderKanban size={14} className="text-muted" />
                                 )}
-                                <button
-                                    onClick={() => setShowingNewProject(true)}
-                                    className="p-1 hover:bg-surface2 rounded text-accent transition-colors"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                </button>
+                                {isWorkspaceSidebarOpen && (
+                                    <button
+                                        onClick={() => setShowingNewProject(true)}
+                                        className="p-1 hover:bg-surface2 rounded text-accent transition-colors"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                    </button>
+                                )}
                             </div>
 
                             <div className="flex gap-2 lg:block lg:space-y-1">
@@ -90,7 +90,7 @@ export default function WorkspaceLayout({ children }) {
                                     <Link
                                         key={project.id}
                                         href={`/workspaces/${workspace.slug}/projects/${project.slug}`}
-                                        className="block shrink-0 rounded-xl px-3 py-2 text-sm font-medium text-muted transition-all hover:bg-surface2 hover:text-white lg:mb-1"
+                                        className={`block shrink-0 rounded-xl px-3 py-2 text-sm font-medium text-muted transition-all hover:bg-surface2 hover:text-white lg:mb-1 ${!isWorkspaceSidebarOpen ? "text-center px-0 font-black text-accent" : ""}`}
                                     >
                                         {isWorkspaceSidebarOpen ? (
                                             <>
@@ -100,9 +100,7 @@ export default function WorkspaceLayout({ children }) {
                                                 {project.name}
                                             </>
                                         ) : (
-                                            <span className="block text-center">
-                                                #
-                                            </span>
+                                            "#"
                                         )}
                                     </Link>
                                 ))}
@@ -113,7 +111,7 @@ export default function WorkspaceLayout({ children }) {
                         <div className="mt-4 border-t border-border pt-4">
                             <Link
                                 href={`/workspaces/${workspace.slug}?tab=settings`}
-                                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted hover:text-white hover:bg-surface2 transition-all font-medium"
+                                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted hover:text-white hover:bg-surface2 transition-all font-medium ${!isWorkspaceSidebarOpen ? "justify-center px-0" : ""}`}
                             >
                                 <Settings className="h-4 w-4 opacity-50" />
                                 {isWorkspaceSidebarOpen ? "Settings" : null}

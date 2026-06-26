@@ -23,11 +23,13 @@ class Thread extends Model
         "user_id",
         "title",
         "body",
+        "tags",
         "is_pinned",
     ];
 
     protected $casts = [
         "is_pinned" => "boolean",
+        "tags" => "array",
     ];
 
     public function project()

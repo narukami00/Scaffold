@@ -64,7 +64,11 @@ export default function NotificationPanel() {
         
         router.post(`/invitations/accept/${token}`, {}, {
             onSuccess: () => {
-                markAsRead(notification.id);
+                setNotifications((prev) =>
+                    prev.map((n) =>
+                        n.id === notification.id ? { ...n, read_at: new Date().toISOString() } : n
+                    )
+                );
                 setIsOpen(false);
             },
             onFinish: () => setProcessingId(null)
@@ -77,7 +81,11 @@ export default function NotificationPanel() {
 
         router.post(`/invitations/decline/${token}`, {}, {
             onSuccess: () => {
-                markAsRead(notification.id);
+                setNotifications((prev) =>
+                    prev.map((n) =>
+                        n.id === notification.id ? { ...n, read_at: new Date().toISOString() } : n
+                    )
+                );
             },
             onFinish: () => setProcessingId(null)
         });

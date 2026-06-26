@@ -140,45 +140,24 @@ function FlowViewInner({
     const [isCreating, setIsCreating] = useState(false);
     const [errorToast, setErrorToast] = useState(null);
 
-    const getCsrfToken = useCallback(
-        () =>
-            document.cookie
-                .split("; ")
-                .find((row) => row.startsWith("XSRF-TOKEN="))
-                ?.split("=")[1],
-        [],
-    );
+
 
     const patchTask = useCallback(
         async (taskId, payload) => {
-            const csrfToken = getCsrfToken();
-            const response = await fetch(
+            const { data } = await axios.patch(
                 `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${taskId}`,
+                payload,
                 {
-                    method: "PATCH",
                     headers: {
-                        "Content-Type": "application/json",
                         Accept: "application/json",
                         "X-Requested-With": "XMLHttpRequest",
-                        ...(csrfToken
-                            ? {
-                                  "X-XSRF-TOKEN": decodeURIComponent(
-                                      csrfToken,
-                                  ),
-                              }
-                            : {}),
                     },
-                    body: JSON.stringify(payload),
-                },
+                }
             );
 
-            if (!response.ok) {
-                throw new Error(`Task update failed with status ${response.status}`);
-            }
-
-            return response.json();
+            return data;
         },
-        [getCsrfToken, project.slug, workspace.slug],
+        [project.slug, workspace.slug],
     );
 
     // Rebuild nodes/edges whenever the tasks prop changes

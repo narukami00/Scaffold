@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import WorkspaceLayout from '@/layouts/WorkspaceLayout';
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
-import { ChevronLeft, MessageSquare, Clock, User, Pin } from 'lucide-react';
+import { ChevronLeft, MessageSquare, Clock, User, Pin, CheckCircle2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import MarkdownEditor from '@/components/ui/MarkdownEditor';
 import CommentTree from '@/components/threads/CommentTree';
@@ -27,6 +27,18 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
         }, {});
     }, [thread.reactions]);
 
+    const safeFormatDistance = (dateStr) => {
+        try {
+            if (!dateStr) return 'recently';
+            const normalized = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
+            const date = new Date(normalized);
+            if (isNaN(date.getTime())) return 'recently';
+            return formatDistanceToNow(date, { addSuffix: true });
+        } catch (e) {
+            return 'recently';
+        }
+    };
+
     // Top-level composer
     const { data, setData, post, processing, reset } = useForm({
         body: '',
@@ -35,20 +47,20 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
 
     const submitReply = (e) => {
         e.preventDefault();
-        post(route('workspaces.projects.threads.replies.store', [workspace.slug, project.id, thread.id]), {
+        post(`/workspaces/${workspace.slug}/projects/${project.slug}/threads/${thread.id}/replies`, {
             preserveScroll: true,
             onSuccess: () => reset(),
         });
     };
 
     const toggleThreadPin = () => {
-        router.post(route('workspaces.projects.threads.pin', [workspace.slug, project.id, thread.id]), {}, {
+        router.post(`/workspaces/${workspace.slug}/projects/${project.slug}/threads/${thread.id}/pin`, {}, {
             preserveScroll: true,
         });
     };
 
     const toggleReaction = (reactable_type, reactable_id, emoji) => {
-        router.post(route('workspaces.projects.reactions.toggle', [workspace.slug, project.id]), {
+        router.post(`/workspaces/${workspace.slug}/projects/${project.slug}/reactions/toggle`, {
             reactable_type,
             reactable_id,
             emoji
@@ -136,7 +148,7 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
             <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8 w-full">
                 
                 {/* Top Nav */}
-                <Link href={route('workspaces.projects.threads.index', [workspace.slug, project.id])} className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-500 hover:text-white transition-colors mb-6">
+                <Link href={`/workspaces/${workspace.slug}/projects/${project.slug}/threads`} className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-500 hover:text-white transition-colors mb-6">
                     <ChevronLeft className="w-4 h-4" />
                     Back to Threads
                 </Link>
@@ -153,11 +165,17 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
                                     alt={thread.user?.name} 
                                 />
                                 <div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                         <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight">
                                             {thread.title || 'Discussion'}
                                         </h1>
                                         {thread.is_pinned && <Pin className="w-4 h-4 text-amber-500 fill-amber-500/20" />}
+                                        {thread.replies?.some(r => r.is_definitive) && (
+                                            <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-400/5 px-2.5 py-1 rounded-xl border border-emerald-400/10">
+                                                <CheckCircle2 size={10} />
+                                                Solved
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-3 text-xs text-zinc-400 mt-1">
                                         <span className="flex items-center gap-1 font-medium text-indigo-300">
@@ -166,7 +184,7 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
                                         </span>
                                         <span className="flex items-center gap-1">
                                             <Clock className="w-3.5 h-3.5" />
-                                            {formatDistanceToNow(new Date(thread.created_at), { addSuffix: true })}
+                                            {safeFormatDistance(thread.created_at)}
                                         </span>
                                     </div>
                                 </div>
@@ -234,7 +252,7 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
                             <MarkdownEditor 
                                 value={data.body}
                                 onChange={val => setData('body', val)}
-                                uploadUrl={route('workspaces.media.upload', workspace.slug)}
+                                uploadUrl={`/workspaces/${workspace.slug}/media/upload`}
                                 placeholder="Add a comment to this thread..."
                             />
                             <div className="flex justify-end mt-3">
@@ -262,6 +280,7 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
                             project={project}
                             currentUserId={currentUserId}
                             onReactionToggle={toggleReaction}
+                            threadUserId={thread.user_id}
                         />
                     </div>
                 )}

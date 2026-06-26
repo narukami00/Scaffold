@@ -14,12 +14,34 @@ class ThreadController extends Controller
     /**
      * Display a listing of the project's threads.
      */
-    public function index(Workspace $workspace, Project $project)
+    public function index(Request $request, Workspace $workspace, Project $project)
     {
-        $threads = $project->threads()
+        $query = $project->threads()
             ->with(['user'])
             ->withCount('replies')
-            ->orderBy('is_pinned', 'desc')
+            ->withExists(['replies as is_solved' => function ($q) {
+                $q->where('is_definitive', true);
+            }]);
+
+        // Tag Filtering (tags is cast to array in Thread model)
+        if ($request->filled('tag')) {
+            $query->whereJsonContains('tags', $request->tag);
+        }
+
+        // Status Filtering (Solved vs Unsolved based on is_definitive reply check)
+        if ($request->filled('status')) {
+            if ($request->status === 'solved') {
+                $query->whereHas('replies', function ($q) {
+                    $q->where('is_definitive', true);
+                });
+            } elseif ($request->status === 'unsolved') {
+                $query->whereDoesntHave('replies', function ($q) {
+                    $q->where('is_definitive', true);
+                });
+            }
+        }
+
+        $threads = $query->orderBy('is_pinned', 'desc')
             ->latest()
             ->get();
 
@@ -27,6 +49,7 @@ class ThreadController extends Controller
             'workspace' => $workspace,
             'project' => $project,
             'threads' => $threads,
+            'filters' => $request->only(['tag', 'status']),
         ]);
     }
 
@@ -38,19 +61,22 @@ class ThreadController extends Controller
         $request->validate([
             'title' => 'nullable|string|max:255',
             'body' => 'required|string',
+            'tags' => 'nullable|array',
+            'tags.*' => 'string|max:30',
         ]);
 
         $thread = $project->threads()->create([
             'user_id' => $request->user()->id,
             'title' => $request->title,
             'body' => $request->body,
+            'tags' => $request->tags ?? [],
         ]);
 
         $thread->load('user');
 
         ThreadCreated::dispatch($thread);
 
-        return redirect()->route('workspaces.projects.threads.show', [$workspace->slug, $project->id, $thread->id]);
+        return redirect()->route('workspaces.projects.threads.show', [$workspace->slug, $project->slug, $thread->id]);
     }
 
     /**
@@ -84,11 +110,14 @@ class ThreadController extends Controller
         $request->validate([
             'title' => 'nullable|string|max:255',
             'body' => 'required|string',
+            'tags' => 'nullable|array',
+            'tags.*' => 'string|max:30',
         ]);
 
         $thread->update([
             'title' => $request->title,
             'body' => $request->body,
+            'tags' => $request->tags ?? [],
         ]);
 
         return back();
@@ -106,7 +135,7 @@ class ThreadController extends Controller
 
         $thread->delete();
 
-        return redirect()->route('workspaces.projects.threads.index', [$workspace->slug, $project->id]);
+        return redirect()->route('workspaces.projects.threads.index', [$workspace->slug, $project->slug]);
     }
 
     /**

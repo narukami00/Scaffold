@@ -37,15 +37,30 @@ class ReactionController extends Controller
             abort(400, 'Invalid reactable type');
         }
 
-        $existing = Reaction::where('user_id', $userId)
+        $userReaction = Reaction::where('user_id', $userId)
             ->where('reactable_type', $modelClass)
             ->where('reactable_id', $request->reactable_id)
-            ->where('emoji', $request->emoji)
             ->first();
 
-        if ($existing) {
-            $existing->delete();
-            ReactionToggled::dispatch($existing, 'removed', $project->id);
+        if ($userReaction) {
+            if ($userReaction->emoji === $request->emoji) {
+                $oldReaction = clone $userReaction;
+                $userReaction->delete();
+                broadcast(new \App\Events\ReactionToggled($oldReaction, 'removed', $project->id))->toOthers();
+            } else {
+                $oldReaction = clone $userReaction;
+                $userReaction->delete();
+                broadcast(new \App\Events\ReactionToggled($oldReaction, 'removed', $project->id))->toOthers();
+
+                $reaction = Reaction::create([
+                    'user_id' => $userId,
+                    'reactable_type' => $modelClass,
+                    'reactable_id' => $request->reactable_id,
+                    'emoji' => $request->emoji,
+                ]);
+                $reaction->load('user');
+                broadcast(new \App\Events\ReactionToggled($reaction, 'added', $project->id))->toOthers();
+            }
         } else {
             $reaction = Reaction::create([
                 'user_id' => $userId,
@@ -54,7 +69,7 @@ class ReactionController extends Controller
                 'emoji' => $request->emoji,
             ]);
             $reaction->load('user');
-            ReactionToggled::dispatch($reaction, 'added', $project->id);
+            broadcast(new \App\Events\ReactionToggled($reaction, 'added', $project->id))->toOthers();
         }
 
         return back();

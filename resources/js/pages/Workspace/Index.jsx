@@ -34,7 +34,7 @@ export default function Index({ workspaces }) {
                     onSubmit={submit}
                     className="flex items-start gap-3 w-full md:w-auto"
                 >
-                    <div className="flex-1 md:w-64">
+                    <div className="flex-1 md:flex-initial w-full md:w-80">
                         <Input
                             placeholder="Workspace Name..."
                             value={data.name}

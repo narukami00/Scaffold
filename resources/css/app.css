@@ -161,3 +161,39 @@
     stroke: #7c6aff;
     stroke-width: 1px;
 }
+
+/* Custom Scrollbars */
+html,
+body {
+    scrollbar-width: none; /* Hide main scrollbar on Firefox */
+    -ms-overflow-style: none; /* Hide main scrollbar on IE/Edge */
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+    display: none; /* Hide main scrollbar on Chrome/Safari/Opera */
+}
+
+/* Inner containers custom thin scrollbar */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #252528 #0a0a0b;
+}
+
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #252528;
+    border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #7c6aff;
+}
+

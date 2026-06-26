@@ -49,8 +49,8 @@ class ThreadReplyController extends Controller
      */
     public function markDefinitive(Request $request, Workspace $workspace, Project $project, Thread $thread, ThreadReply $reply)
     {
-        // Only workspace owner can mark definitive answers
-        if ((int)$workspace->owner_id !== (int)$request->user()->id) {
+        // Only workspace owner or thread author can mark definitive answers
+        if ((int)$workspace->owner_id !== (int)$request->user()->id && (int)$thread->user_id !== (int)$request->user()->id) {
             abort(403);
         }
 

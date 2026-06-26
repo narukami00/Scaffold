@@ -16,7 +16,10 @@ import {
     Lock,
     ExternalLink,
     AlertTriangle,
-    CheckCircle2
+    CheckCircle2,
+    Inbox,
+    Clock,
+    Eye
 } from "lucide-react";
 
 export default function Show({ workspace, stats, defaultTab }) {
@@ -167,11 +170,11 @@ export default function Show({ workspace, stats, defaultTab }) {
                 </div>
 
                 {/* Tab Switcher */}
-                <div className="flex bg-surface2/60 border border-border/80 rounded-2xl p-1 shadow-inner self-start md:self-auto">
+                <div className="flex bg-surface2 border border-border rounded-2xl p-1.5 shadow-xl self-start md:self-auto gap-1">
                     {[
                         { id: "insights", label: "Insights", icon: BarChart3 },
                         { id: "projects", label: "Projects", icon: FolderKanban },
-                        { id: "members", label: "Members & Team", icon: Users },
+                        { id: "members", label: "Members", icon: Users },
                         { id: "settings", label: "Settings", icon: SettingsIcon },
                     ].map((tab) => {
                         const Icon = tab.icon;
@@ -180,10 +183,10 @@ export default function Show({ workspace, stats, defaultTab }) {
                             <button
                                 key={tab.id}
                                 onClick={() => handleTabChange(tab.id)}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200 cursor-pointer ${
                                     isSelected
-                                        ? "bg-accent text-black shadow-lg scale-[1.03]"
-                                        : "text-muted hover:text-white"
+                                        ? "bg-accent text-white shadow-[0_4px_16px_rgba(124,106,255,0.25)] scale-[1.02]"
+                                        : "text-muted hover:text-white hover:bg-surface"
                                 }`}
                             >
                                 <Icon size={14} strokeWidth={2.5} />
@@ -209,27 +212,33 @@ export default function Show({ workspace, stats, defaultTab }) {
                             <div className="relative w-36 h-36 flex items-center justify-center">
                                 {/* SVG Ring */}
                                 <svg className="w-full h-full transform -rotate-90">
+                                    <defs>
+                                        <filter id="accent-glow" x="-20%" y="-20%" width="140%" height="140%">
+                                            <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#7c6aff" floodOpacity="0.4" />
+                                        </filter>
+                                    </defs>
                                     <circle
                                         cx="72"
                                         cy="72"
                                         r={radius}
                                         className="stroke-surface2 fill-none"
-                                        strokeWidth="10"
+                                        strokeWidth="12"
                                     />
                                     <circle
                                         cx="72"
                                         cy="72"
                                         r={radius}
                                         className="stroke-accent fill-none transition-all duration-500 ease-out"
-                                        strokeWidth="10"
+                                        strokeWidth="12"
                                         strokeDasharray={circumference}
                                         strokeDashoffset={strokeDashoffset}
                                         strokeLinecap="round"
+                                        filter="url(#accent-glow)"
                                     />
                                 </svg>
                                 <div className="absolute flex flex-col items-center justify-center">
-                                    <span className="text-3xl font-black text-white">{completionRate}%</span>
-                                    <span className="text-[9px] uppercase tracking-wider text-muted font-bold">Done</span>
+                                    <span className="text-3xl font-display font-black text-white">{completionRate}%</span>
+                                    <span className="text-[9px] uppercase tracking-wider text-muted font-black">Done</span>
                                 </div>
                             </div>
                             <p className="text-xs text-muted">
@@ -240,35 +249,43 @@ export default function Show({ workspace, stats, defaultTab }) {
                         {/* Status Breakdown Grid */}
                         <div className="lg:col-span-2 grid grid-cols-2 gap-4">
                             {[
-                                { status: "backlog", label: "Backlog", count: stats.status_counts.backlog, color: "text-[#7c6aff]", bg: "bg-[#7c6aff]/10", border: "border-[#7c6aff]/20" },
-                                { status: "in_progress", label: "In Progress", count: stats.status_counts.in_progress, color: "text-[#40c8ff]", bg: "bg-[#40c8ff]/10", border: "border-[#40c8ff]/20" },
-                                { status: "in_review", label: "In Review", count: stats.status_counts.in_review, color: "text-[#ffa040]", bg: "bg-[#ffa040]/10", border: "border-[#ffa040]/20" },
-                                { status: "done", label: "Done", count: stats.status_counts.done, color: "text-[#4fffb0]", bg: "bg-[#4fffb0]/10", border: "border-[#4fffb0]/20" }
-                            ].map((item) => (
-                                <div
-                                    key={item.status}
-                                    className={`bg-surface border ${item.border} p-6 rounded-3xl flex flex-col justify-between shadow-xl`}
-                                >
-                                    <div>
-                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">
-                                            {item.label}
-                                        </p>
-                                        <p className={`text-4xl font-black ${item.color} mt-2`}>
-                                            {item.count}
-                                        </p>
+                                { status: "backlog", label: "Backlog", count: stats.status_counts.backlog, color: "text-accent", bg: "bg-accent/10", border: "border-accent/10", icon: Inbox },
+                                { status: "in_progress", label: "In Progress", count: stats.status_counts.in_progress, color: "text-accent-blue", bg: "bg-accent-blue/10", border: "border-accent-blue/10", icon: Clock },
+                                { status: "in_review", label: "In Review", count: stats.status_counts.in_review, color: "text-accent-orange", bg: "bg-accent-orange/10", border: "border-accent-orange/10", icon: Eye },
+                                { status: "done", label: "Done", count: stats.status_counts.done, color: "text-accent-green", bg: "bg-accent-green/10", border: "border-accent-green/10", icon: CheckCircle2 }
+                            ].map((item) => {
+                                const CardIcon = item.icon;
+                                return (
+                                    <div
+                                        key={item.status}
+                                        className={`group bg-surface border ${item.border} p-6 rounded-3xl flex flex-col justify-between shadow-xl transition-all duration-300 hover:-translate-y-1 hover:border-accent/30 hover:shadow-2xl`}
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">
+                                                    {item.label}
+                                                </p>
+                                                <p className={`text-4xl font-display font-black ${item.color} mt-2 tracking-tight`}>
+                                                    {item.count}
+                                                </p>
+                                            </div>
+                                            <div className={`p-2.5 rounded-2xl ${item.bg} ${item.color}`}>
+                                                <CardIcon size={18} strokeWidth={2.5} />
+                                            </div>
+                                        </div>
+                                        <div className="w-full bg-surface2 h-2 rounded-full overflow-hidden mt-6">
+                                            <div
+                                                className={`h-full ${item.color.replace('text-', 'bg-')}`}
+                                                style={{
+                                                    width: stats.total_tasks > 0 
+                                                        ? `${(item.count / stats.total_tasks) * 100}%` 
+                                                        : "0%"
+                                                }}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="w-full bg-surface2 h-1.5 rounded-full overflow-hidden mt-4">
-                                        <div
-                                            className={`h-full ${item.bg.replace('/10', '')}`}
-                                            style={{
-                                                width: stats.total_tasks > 0 
-                                                    ? `${(item.count / stats.total_tasks) * 100}%` 
-                                                    : "0%"
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -282,10 +299,10 @@ export default function Show({ workspace, stats, defaultTab }) {
                             {/* Vertical Bar Chart */}
                             <div className="h-64 flex items-end justify-between px-4 pb-2 border-b border-border/40">
                                 {[
-                                    { label: "Urgent", count: stats.priority_counts.urgent, barColor: "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]", text: "text-red-400" },
-                                    { label: "High", count: stats.priority_counts.high, barColor: "bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.3)]", text: "text-orange-400" },
-                                    { label: "Medium", count: stats.priority_counts.medium, barColor: "bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.3)]", text: "text-yellow-400" },
-                                    { label: "Low", count: stats.priority_counts.low, barColor: "bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)]", text: "text-blue-400" }
+                                    { label: "Urgent", count: stats.priority_counts.urgent, barColor: "bg-accent-red shadow-[0_0_15px_rgba(255,106,106,0.3)]", text: "text-accent-red" },
+                                    { label: "High", count: stats.priority_counts.high, barColor: "bg-accent-orange shadow-[0_0_15px_rgba(255,160,64,0.3)]", text: "text-accent-orange" },
+                                    { label: "Medium", count: stats.priority_counts.medium, barColor: "bg-accent shadow-[0_0_15px_rgba(124,106,255,0.3)]", text: "text-accent" },
+                                    { label: "Low", count: stats.priority_counts.low, barColor: "bg-accent-blue shadow-[0_0_15px_rgba(64,200,255,0.3)]", text: "text-accent-blue" }
                                 ].map((item) => {
                                     const heightPct = (item.count / maxPriorityCount) * 100;
                                     return (
@@ -296,9 +313,9 @@ export default function Show({ workspace, stats, defaultTab }) {
                                             </span>
                                             
                                             {/* Bar */}
-                                            <div className="w-full bg-surface2 rounded-t-lg overflow-hidden flex items-end h-44">
+                                            <div className="w-full bg-surface2 rounded-t-xl overflow-hidden flex items-end h-44">
                                                 <div 
-                                                    className={`w-full rounded-t-md transition-all duration-500 ${item.barColor}`} 
+                                                    className={`w-full rounded-t-xl transition-all duration-500 ${item.barColor}`} 
                                                     style={{ height: `${heightPct}%` }}
                                                 />
                                             </div>
@@ -338,9 +355,9 @@ export default function Show({ workspace, stats, defaultTab }) {
                                 ) : (
                                     stats.project_stats.map((proj) => {
                                         let badgeColor = "border-muted/30 bg-muted/5 text-muted";
-                                        if (proj.status === "New") badgeColor = "border-blue-500/20 bg-blue-500/5 text-blue-400";
-                                        else if (proj.status === "Completed") badgeColor = "border-emerald-500/20 bg-emerald-500/5 text-emerald-400";
-                                        else if (proj.status === "Ongoing") badgeColor = "border-[#ffa040]/30 bg-[#ffa040]/5 text-[#ffa040]";
+                                        if (proj.status === "New") badgeColor = "border-accent-blue/20 bg-accent-blue/5 text-accent-blue";
+                                        else if (proj.status === "Completed") badgeColor = "border-accent-green/20 bg-accent-green/5 text-accent-green";
+                                        else if (proj.status === "Ongoing") badgeColor = "border-accent-orange/30 bg-accent-orange/5 text-accent-orange";
 
                                         const progress = proj.total > 0 ? Math.round((proj.done / proj.total) * 100) : 0;
 
@@ -385,14 +402,14 @@ export default function Show({ workspace, stats, defaultTab }) {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {stats.project_stats.length === 0 ? (
-                            <div className="md:col-span-2 border border-dashed border-border rounded-3xl p-12 text-center space-y-4">
-                                <p className="text-sm text-muted">No projects found. Create a project to start staging tasks.</p>
-                                <Button
-                                    onClick={() => setShowingNewProject(true)}
-                                    className="w-auto mx-auto px-6"
-                                >
-                                    Create First Project
-                                </Button>
+                            <div className="md:col-span-2 border border-dashed border-border bg-surface/30 rounded-3xl p-16 text-center space-y-3">
+                                <div className="w-12 h-12 rounded-2xl bg-surface2 border border-border flex items-center justify-center mx-auto text-muted opacity-50">
+                                    <FolderKanban size={20} />
+                                </div>
+                                <h4 className="text-base font-bold text-white uppercase tracking-tight">No Projects Yet</h4>
+                                <p className="text-xs text-muted max-w-sm mx-auto">
+                                    Get started by creating a new project. You can use the "New Project" button in the header or in the sidebar list.
+                                </p>
                             </div>
                         ) : (
                             stats.project_stats.map((proj) => {
@@ -402,9 +419,9 @@ export default function Show({ workspace, stats, defaultTab }) {
                                 const donePct = proj.total > 0 ? (proj.done / proj.total) * 100 : 0;
 
                                 let badgeColor = "border-muted/30 bg-muted/5 text-muted";
-                                if (proj.status === "New") badgeColor = "border-blue-500/20 bg-blue-500/5 text-blue-400";
-                                else if (proj.status === "Completed") badgeColor = "border-emerald-500/20 bg-emerald-500/5 text-emerald-400";
-                                else if (proj.status === "Ongoing") badgeColor = "border-[#ffa040]/30 bg-[#ffa040]/5 text-[#ffa040]";
+                                if (proj.status === "New") badgeColor = "border-accent-blue/20 bg-accent-blue/5 text-accent-blue";
+                                else if (proj.status === "Completed") badgeColor = "border-accent-green/20 bg-accent-green/5 text-accent-green";
+                                else if (proj.status === "Ongoing") badgeColor = "border-accent-orange/30 bg-accent-orange/5 text-accent-orange";
 
                                 return (
                                     <div
@@ -642,7 +659,7 @@ export default function Show({ workspace, stats, defaultTab }) {
                                     Invite New Member
                                 </h4>
                                 <p className="text-xs text-muted mt-1">
-                                    Team members will receive a notification instantly if they have a DevSpace account.
+                                    Team members will receive a notification instantly if they have a Scaffold account.
                                 </p>
                             </div>
                             <form

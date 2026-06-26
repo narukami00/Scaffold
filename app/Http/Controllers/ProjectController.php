@@ -40,7 +40,7 @@ class ProjectController extends Controller
         }
 
         // Load project tasks and workspace members
-        $workspace->loadMissing("members");
+        $workspace->loadMissing(["owner", "members"]);
 
         $project->load([
             "tasks.assignee",
@@ -48,7 +48,10 @@ class ProjectController extends Controller
         ]);
 
         $tasks = $project->tasks;
-        $members = $workspace->members;
+        $allMembers = collect([$workspace->owner])
+            ->merge($workspace->members)
+            ->filter()
+            ->unique("id");
 
         // 1. Task counts by status
         $statusCounts = [
@@ -71,8 +74,9 @@ class ProjectController extends Controller
 
         // Track stats for each workspace member
         $memberData = [];
-        foreach ($members as $member) {
-            $memberColor = $member->pivot?->color ?? '#3b82f6';
+        foreach ($allMembers as $member) {
+            $wsMember = $workspace->members->firstWhere('id', $member->id);
+            $memberColor = $wsMember?->pivot?->color ?? $member->pivot?->color ?? '#3b82f6';
             $memberData[$member->id] = [
                 'id' => $member->id,
                 'name' => $member->name,
@@ -231,12 +235,15 @@ class ProjectController extends Controller
             ->filter()
             ->unique("id")
             ->values()
-            ->map(fn ($member) => [
-                "id" => $member->id,
-                "name" => $member->name,
-                "email" => $member->email,
-                "color" => $member->pivot?->color ?? '#3b82f6',
-            ]);
+            ->map(function ($member) use ($workspace) {
+                $wsMember = $workspace->members->firstWhere('id', $member->id);
+                return [
+                    "id" => $member->id,
+                    "name" => $member->name,
+                    "email" => $member->email,
+                    "color" => $wsMember?->pivot?->color ?? $member->pivot?->color ?? '#3b82f6',
+                ];
+            });
 
         return Inertia::render("Project/Board", [
             "workspace" => $workspace,
@@ -308,10 +315,12 @@ class ProjectController extends Controller
 
         $validated = $request->validate([
             "name" => "required|string|max:255",
+            "git_repo_path" => "nullable|string|max:1000",
         ]);
 
         $project->update([
             "name" => $validated["name"],
+            "git_repo_path" => $validated["git_repo_path"] ?? null,
         ]);
 
         return back();

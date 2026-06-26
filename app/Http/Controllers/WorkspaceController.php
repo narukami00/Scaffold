@@ -17,7 +17,9 @@ class WorkspaceController extends Controller
      */
     public function index()
     {
-        $workspaces = Workspace::where("owner_id", Auth::id())->latest()->get();
+        $workspaces = Workspace::whereHas('members', function ($query) {
+            $query->where('users.id', Auth::id());
+        })->latest()->get();
 
         return Inertia::render("Workspace/Index", [
             "workspaces" => $workspaces,

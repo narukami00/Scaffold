@@ -575,7 +575,7 @@ export default function TaskModal({
                         {/* Identity tag */}
                         <div className="flex flex-col">
                             <span className="text-[10px] font-black uppercase tracking-[0.24em] text-accent">
-                                DevSpace Nucleus
+                                Scaffold Nucleus
                             </span>
                             <span className="text-[10px] font-black uppercase tracking-[0.24em] text-muted">
                                 Ref #{task.id}

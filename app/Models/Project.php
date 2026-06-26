@@ -7,7 +7,7 @@ use Illuminate\Support\Str;
 
 class Project extends Model
 {
-    protected $fillable = ["name", "slug", "description", "workspace_id"];
+    protected $fillable = ["name", "slug", "description", "workspace_id", "git_repo_path", "git_last_synced_commit"];
 
     /**
      * Automatic slug generation on creation.
@@ -47,5 +47,13 @@ class Project extends Model
     public function threads()
     {
         return $this->hasMany(Thread::class);
+    }
+
+    /**
+     * A project contains many wiki pages.
+     */
+    public function wikis()
+    {
+        return $this->hasMany(Wiki::class);
     }
 }

@@ -26,6 +26,12 @@ Route::post("/register", [AuthController::class, "register"]);
 Route::get("/login", [AuthController::class, "showLogin"])->name("login");
 Route::post("/login", [AuthController::class, "login"]);
 
+// Public webhook for Git Hook trigger
+Route::post("/public/workspaces/{workspace:slug}/projects/{project:slug}/git/webhook", [
+    \App\Http\Controllers\GitController::class,
+    "webhook",
+])->name("workspaces.projects.git.webhook");
+
 // Protected Routes (Login Required)
 Route::middleware("auth")->group(function () {
     Route::post("/logout", [AuthController::class, "logout"])->name("logout");
@@ -90,6 +96,11 @@ Route::middleware("auth")->group(function () {
             "workspaces.projects.store",
         );
 
+        Route::get("/search", [
+            \App\Http\Controllers\SearchController::class,
+            "search",
+        ])->name("workspaces.search");
+
         Route::patch("/preferences/color", [
             WorkspaceController::class,
             "updateMemberColor",
@@ -113,14 +124,50 @@ Route::middleware("auth")->group(function () {
                 ProjectController::class,
                 "board",
             ])->name("projects.board");
-            Route::get("/projects/{project}/docs", [
-                ProjectController::class,
-                "docs",
-            ])->name("projects.docs");
+            // Wiki Operations
+            Route::get("/projects/{project}/wiki", [
+                \App\Http\Controllers\WikiController::class,
+                "index",
+            ])->name("workspaces.projects.wiki.index");
+            
+            Route::get("/projects/{project}/wiki/create", [
+                \App\Http\Controllers\WikiController::class,
+                "create",
+            ])->name("workspaces.projects.wiki.create");
+            
+            Route::post("/projects/{project}/wiki", [
+                \App\Http\Controllers\WikiController::class,
+                "store",
+            ])->name("workspaces.projects.wiki.store");
+            
+            Route::get("/projects/{project}/wiki/{wiki}", [
+                \App\Http\Controllers\WikiController::class,
+                "show",
+            ])->name("workspaces.projects.wiki.show");
+            
+            Route::get("/projects/{project}/wiki/{wiki}/edit", [
+                \App\Http\Controllers\WikiController::class,
+                "edit",
+            ])->name("workspaces.projects.wiki.edit");
+            
+            Route::patch("/projects/{project}/wiki/{wiki}", [
+                \App\Http\Controllers\WikiController::class,
+                "update",
+            ])->name("workspaces.projects.wiki.update");
+            
+            Route::delete("/projects/{project}/wiki/{wiki}", [
+                \App\Http\Controllers\WikiController::class,
+                "destroy",
+            ])->name("workspaces.projects.wiki.destroy");
             Route::get("/projects/{project}/activity", [
-                ProjectController::class,
-                "activity",
+                \App\Http\Controllers\GitController::class,
+                "index",
             ])->name("projects.activity");
+            
+            Route::post("/projects/{project}/git/sync", [
+                \App\Http\Controllers\GitController::class,
+                "sync",
+            ])->name("workspaces.projects.git.sync");
             // Thread Operations
             Route::get("/projects/{project}/threads", [
                 \App\Http\Controllers\ThreadController::class,

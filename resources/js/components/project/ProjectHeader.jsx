@@ -1,17 +1,30 @@
-import { Link } from "@inertiajs/react";
-import { BarChart3, LayoutGrid, MessageSquare, FileText, Activity } from "lucide-react";
+import { Link, usePage } from "@inertiajs/react";
+import { BarChart3, LayoutGrid, MessageSquare, FileText, Activity, Settings } from "lucide-react";
+import { useState } from "react";
+import SettingsModal from "@/components/project/SettingsModal";
 
 export default function ProjectHeader({ workspace, project, activeTab }) {
+    const { auth } = usePage().props;
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const isOwner = auth?.user?.id === workspace.owner_id;
+
     const tabs = [
         { id: "dashboard", label: "Dashboard", href: `/workspaces/${workspace.slug}/projects/${project.slug}`, icon: BarChart3 },
         { id: "board", label: "Board", href: `/workspaces/${workspace.slug}/projects/${project.slug}/board`, icon: LayoutGrid },
         { id: "threads", label: "Threads", href: `/workspaces/${workspace.slug}/projects/${project.slug}/threads`, icon: MessageSquare },
-        { id: "docs", label: "Docs", href: `/workspaces/${workspace.slug}/projects/${project.slug}/docs`, icon: FileText },
+        { id: "wiki", label: "Wiki", href: `/workspaces/${workspace.slug}/projects/${project.slug}/wiki`, icon: FileText },
         { id: "activity", label: "Activity", href: `/workspaces/${workspace.slug}/projects/${project.slug}/activity`, icon: Activity },
     ];
 
     return (
         <header className="space-y-4 border-b border-border/40 pb-4">
+            <SettingsModal
+                workspace={workspace}
+                project={project}
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+            />
+
             {/* Breadcrumb */}
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted">
                 <Link href={`/workspaces/${workspace.slug}`} className="hover:text-accent transition-colors">
@@ -24,9 +37,20 @@ export default function ProjectHeader({ workspace, project, activeTab }) {
             {/* Title & Stats */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
-                    <h1 className="text-2xl font-display font-black text-white uppercase tracking-tighter sm:text-3xl">
-                        {project.name}
-                    </h1>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-2xl font-display font-black text-white uppercase tracking-tighter sm:text-3xl">
+                            {project.name}
+                        </h1>
+                        {isOwner && (
+                            <button
+                                onClick={() => setIsSettingsOpen(true)}
+                                className="text-muted hover:text-white transition-colors duration-300 hover:rotate-45"
+                                title="Project Settings"
+                            >
+                                <Settings size={18} />
+                            </button>
+                        )}
+                    </div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted font-mono">
                         Project ID: <span className="text-accent">{project.slug}</span>
                     </p>

@@ -25,11 +25,7 @@ export default function ColumnView({
         { id: "done", title: "Done" },
     ];
 
-    const getCsrfToken = () =>
-        document.cookie
-            .split("; ")
-            .find((row) => row.startsWith("XSRF-TOKEN="))
-            ?.split("=")[1];
+
 
     const taskUrl = (taskId) =>
         new URL(
@@ -141,30 +137,20 @@ export default function ColumnView({
 
         onTaskMove(draggableId, destination.droppableId, destination.index);
 
-        const csrfToken = getCsrfToken();
-
         try {
-            const response = await fetch(taskUrl(draggableId), {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    Accept: "application/json",
-                    "X-Requested-With": "XMLHttpRequest",
-                    ...(csrfToken
-                        ? { "X-XSRF-TOKEN": decodeURIComponent(csrfToken) }
-                        : {}),
-                },
-                body: JSON.stringify({
+            await axios.patch(
+                taskUrl(draggableId),
+                {
                     status: destination.droppableId,
                     position: destination.index,
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error(
-                    `Task move failed with status ${response.status}`,
-                );
-            }
+                },
+                {
+                    headers: {
+                        Accept: "application/json",
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                }
+            );
         } catch (error) {
             console.error("Failed to persist task move", error);
             onTaskMove(draggableId, source.droppableId, source.index);

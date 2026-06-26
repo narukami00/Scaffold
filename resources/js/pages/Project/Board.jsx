@@ -3,6 +3,7 @@ import WorkspaceLayout from "@/layouts/WorkspaceLayout";
 import { Head, usePage } from "@inertiajs/react";
 import { LayoutGrid, Share2, Sliders } from "lucide-react";
 import ColumnView from "@/components/kanban/ColumnView";
+import axios from "axios";
 import TaskModal from "@/components/kanban/TaskModal";
 import FlowView from "@/components/flow/FlowView";
 import ProjectHeader from "@/components/project/ProjectHeader";
@@ -303,38 +304,21 @@ export default function Board({ workspace, project, members = [] }) {
     const deleteTask = useCallback(
         async (taskId, { instant = false } = {}) => {
             const normalizedId = Number(taskId);
-            const csrfToken = document.cookie
-                .split("; ")
-                .find((row) => row.startsWith("XSRF-TOKEN="))
-                ?.split("=")[1];
 
             if (instant) {
                 handleTaskDeleted(normalizedId, { instant: true });
             }
 
             try {
-                const response = await fetch(
+                await axios.delete(
                     `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${normalizedId}`,
                     {
-                        method: "DELETE",
                         headers: {
                             Accept: "application/json",
                             "X-Requested-With": "XMLHttpRequest",
-                            ...(csrfToken
-                                ? {
-                                      "X-XSRF-TOKEN":
-                                          decodeURIComponent(csrfToken),
-                                  }
-                                : {}),
                         },
-                    },
+                    }
                 );
-
-                if (!response.ok) {
-                    throw new Error(
-                        `Task delete failed with status ${response.status}`,
-                    );
-                }
 
                 if (!instant) {
                     handleTaskDeleted(normalizedId);

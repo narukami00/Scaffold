@@ -113,6 +113,15 @@ class InvitationController extends Controller
             $invitation->update(["status" => "accepted"]);
         });
 
+        // Mark corresponding notification as read if it exists
+        if (Auth::check()) {
+            Auth::user()->notifications()
+                ->where('notifiable_type', WorkspaceInvitation::class)
+                ->where('notifiable_id', $invitation->id)
+                ->whereNull('read_at')
+                ->update(['read_at' => now()]);
+        }
+
         return redirect()->route("workspaces.show", $workspace->slug);
     }
 
@@ -126,6 +135,15 @@ class InvitationController extends Controller
             ->firstOrFail();
 
         $invitation->update(["status" => "declined"]);
+
+        // Mark corresponding notification as read if it exists
+        if (Auth::check()) {
+            Auth::user()->notifications()
+                ->where('notifiable_type', WorkspaceInvitation::class)
+                ->where('notifiable_id', $invitation->id)
+                ->whereNull('read_at')
+                ->update(['read_at' => now()]);
+        }
 
         return redirect()->route("workspaces.index")->with("message", "Invitation declined.");
     }

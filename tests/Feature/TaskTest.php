@@ -20,6 +20,7 @@ class TaskTest extends TestCase
             "name" => "Alpha Team",
             "owner_id" => $user->id,
         ]);
+        $workspace->members()->attach($user->id);
         $project = Project::create([
             "name" => "Launch Board",
             "workspace_id" => $workspace->id,
@@ -48,6 +49,7 @@ class TaskTest extends TestCase
             "name" => "Alpha Team",
             "owner_id" => $user->id,
         ]);
+        $workspace->members()->attach($user->id);
         $project = Project::create([
             "name" => "Launch Board",
             "workspace_id" => $workspace->id,
@@ -83,9 +85,12 @@ class TaskTest extends TestCase
             "id" => $task->id,
             "title" => "Ship polished UI",
             "priority" => "urgent",
-            "due_date" => "2026-04-30",
             "assignee_id" => $user->id,
         ]);
+        $this->assertEquals(
+            "2026-04-30",
+            \Carbon\Carbon::parse($task->fresh()->due_date)->toDateString()
+        );
         $this->assertDatabaseHas("task_dependencies", [
             "task_id" => $task->id,
             "depends_on_id" => $dependency->id,
@@ -99,6 +104,7 @@ class TaskTest extends TestCase
             "name" => "Alpha Team",
             "owner_id" => $user->id,
         ]);
+        $workspace->members()->attach($user->id);
         $project = Project::create([
             "name" => "Launch Board",
             "workspace_id" => $workspace->id,

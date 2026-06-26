@@ -6,6 +6,18 @@ import remarkGfm from 'remark-gfm';
 import MarkdownEditor from '@/components/ui/MarkdownEditor';
 import { useForm, usePage } from '@inertiajs/react';
 
+const safeFormatDistance = (dateStr) => {
+    try {
+        if (!dateStr) return 'recently';
+        const normalized = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
+        const date = new Date(normalized);
+        if (isNaN(date.getTime())) return 'recently';
+        return formatDistanceToNow(date, { addSuffix: true });
+    } catch (e) {
+        return 'recently';
+    }
+};
+
 // A single Reaction Pill
 const ReactionBadge = ({ emoji, count, hasReacted, onToggle }) => {
     return (
@@ -24,7 +36,7 @@ const ReactionBadge = ({ emoji, count, hasReacted, onToggle }) => {
 };
 
 // Component for a Single Reply Node
-const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onReactionToggle }) => {
+const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onReactionToggle, threadUserId }) => {
     const [isReplying, setIsReplying] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const children = allReplies.filter(r => r.parent_id === reply.id);
@@ -46,7 +58,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
 
     const submitReply = (e) => {
         e.preventDefault();
-        post(route('workspaces.projects.threads.replies.store', [workspace.slug, project.id, reply.thread_id]), {
+        post(`/workspaces/${workspace.slug}/projects/${project.slug}/threads/${reply.thread_id}/replies`, {
             preserveScroll: true,
             onSuccess: () => {
                 setIsReplying(false);
@@ -56,7 +68,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
     };
 
     const toggleDefinitive = () => {
-        post(route('workspaces.projects.threads.replies.definitive', [workspace.slug, project.id, reply.thread_id, reply.id]), {
+        post(`/workspaces/${workspace.slug}/projects/${project.slug}/threads/${reply.thread_id}/replies/${reply.id}/definitive`, {
             preserveScroll: true,
         });
     };
@@ -80,7 +92,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                     <div className="flex items-center gap-2 mb-1 group">
                         <span className="font-semibold text-zinc-200 text-sm">{reply.user?.name}</span>
                         <span className="text-xs text-zinc-500">
-                            {formatDistanceToNow(new Date(reply.created_at), { addSuffix: true })}
+                            {safeFormatDistance(reply.created_at)}
                         </span>
                         
                         {/* Definitive Marker */}
@@ -91,15 +103,21 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                             </span>
                         )}
                         
-                        {/* Owner Controls */}
-                        {!reply.is_definitive && currentUserId === workspace.owner_id && (
-                            <button onClick={toggleDefinitive} className="ml-auto flex items-center gap-1 text-[10px] font-bold uppercase text-zinc-500 hover:text-indigo-400 transition-colors opacity-0 group-hover:opacity-100">
-                                Mark Definitive
+                        {/* Solved Controls */}
+                        {!reply.is_definitive && (currentUserId === workspace.owner_id || currentUserId === threadUserId) && (
+                            <button 
+                                onClick={toggleDefinitive} 
+                                className="ml-auto flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-emerald-400 border border-border/85 bg-surface/80 px-2 py-0.5 rounded-lg transition-all cursor-pointer hover:border-emerald-400/30"
+                            >
+                                Mark Solved
                             </button>
                         )}
-                        {reply.is_definitive && currentUserId === workspace.owner_id && (
-                            <button onClick={toggleDefinitive} className="ml-auto flex items-center gap-1 text-[10px] font-bold uppercase text-indigo-400 hover:text-zinc-400 transition-colors opacity-0 group-hover:opacity-100">
-                                Unmark Definitive
+                        {reply.is_definitive && (currentUserId === workspace.owner_id || currentUserId === threadUserId) && (
+                            <button 
+                                onClick={toggleDefinitive} 
+                                className="ml-auto flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-400 hover:text-zinc-400 border border-emerald-400/20 bg-emerald-400/5 px-2 py-0.5 rounded-lg transition-all cursor-pointer"
+                            >
+                                Unmark Solved
                             </button>
                         )}
                     </div>
@@ -160,7 +178,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                         <MarkdownEditor 
                             value={data.body}
                             onChange={val => setData('body', val)}
-                            uploadUrl={route('workspaces.media.upload', workspace.slug)}
+                            uploadUrl={`/workspaces/${workspace.slug}/media/upload`}
                             placeholder={`Reply to ${reply.user?.name}...`}
                         />
                         <div className="flex justify-end gap-2 mt-2">
@@ -194,6 +212,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                                 project={project}
                                 currentUserId={currentUserId}
                                 onReactionToggle={onReactionToggle}
+                                threadUserId={threadUserId}
                             />
                         ))}
                     </div>
@@ -210,7 +229,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
     );
 };
 
-export default function CommentTree({ replies, workspace, project, currentUserId, onReactionToggle }) {
+export default function CommentTree({ replies, workspace, project, currentUserId, onReactionToggle, threadUserId }) {
     // Root replies are those without a parent
     const rootReplies = replies.filter(r => r.parent_id === null);
 
@@ -225,6 +244,7 @@ export default function CommentTree({ replies, workspace, project, currentUserId
                     project={project}
                     currentUserId={currentUserId}
                     onReactionToggle={onReactionToggle}
+                    threadUserId={threadUserId}
                 />
             ))}
         </div>
