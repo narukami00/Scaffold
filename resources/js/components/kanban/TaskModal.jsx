@@ -1508,12 +1508,12 @@ export default function TaskModal({
                                             )}
                                         </div>
                                         <div
-                                            className={`rounded-2xl border px-4 py-3 text-xs leading-relaxed shadow-sm ${
-                                                Number(comment.user_id) ===
-                                                Number(auth.user.id)
-                                                    ? "border-accent/60 bg-accent/10 text-white shadow-[0_0_18px_rgba(124,106,255,0.22)]"
-                                                    : "border-border/50 bg-surface/30 text-slate-700"
-                                            }`}
+                                            className="rounded-2xl border px-4 py-3 text-xs leading-relaxed shadow-sm animate-in fade-in duration-200"
+                                            style={{
+                                                borderColor: Number(comment.user_id) === Number(auth.user.id) ? "#0a2947" : "rgba(46,125,50,0.18)",
+                                                background: Number(comment.user_id) === Number(auth.user.id) ? "#0a2947" : "#d1fae5",
+                                                color: Number(comment.user_id) === Number(auth.user.id) ? "#86efac" : "#0a2947",
+                                            }}
                                         >
                                             {comment.body}
                                         </div>

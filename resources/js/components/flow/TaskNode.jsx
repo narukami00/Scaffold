@@ -50,7 +50,10 @@ export default memo(function TaskNode({ data }) {
         isRecent,
         isDeleting,
         onTaskDelete,
+        density,
     } = data;
+
+    const isMinimal = density === "minimal";
 
     const isBlocked = data.isBlocked ?? false;
     const isDone = task.status === "done";
@@ -59,7 +62,7 @@ export default memo(function TaskNode({ data }) {
     return (
         <div
             className={`
-                group relative min-h-[188px] w-[240px] rounded-3xl border p-4 shadow-md sm:w-[260px]
+                group relative ${isMinimal ? "min-h-[105px]" : "min-h-[188px]"} w-[240px] rounded-3xl border p-4 shadow-md sm:w-[260px]
                 cursor-pointer select-none transition-all duration-200
                 ${isBlocked ? "opacity-60" : ""}
                 ${isLocked ? "opacity-90" : ""}
@@ -127,116 +130,178 @@ export default memo(function TaskNode({ data }) {
             />
 
             {/* ── Card body ── */}
-            <div className="space-y-3">
-                {/* Title row */}
-                <div className="flex items-start justify-between gap-3">
-                    <h4
-                        className="line-clamp-2 flex-1 text-sm font-bold leading-snug transition-colors"
-                        style={{
-                            color: C.navy,
-                            textDecoration: isDone ? "line-through" : "none",
-                            opacity: isDone ? 0.6 : 1
-                        }}
-                    >
-                        {task.title}
-                    </h4>
-
-                    <div className="flex shrink-0 items-center gap-1.5">
-                        {isBlocked && (
-                            <Lock size={12} style={{ color: "#c0392b" }} />
-                        )}
-                        {isDone ? (
-                            <span className="rounded border px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.2em]"
-                                style={{ color: "#2d6a4f", background: "rgba(45,106,79,0.1)", borderColor: "rgba(45,106,79,0.2)" }}>
-                                Done
-                            </span>
-                        ) : (
+            {isMinimal ? (
+                <div className="space-y-3.5">
+                    {/* Minimalist layout */}
+                    <div className="flex items-start justify-between gap-3">
+                        <h4
+                            className="line-clamp-2 flex-1 text-sm font-bold leading-snug transition-colors"
+                            style={{
+                                color: C.navy,
+                                textDecoration: isDone ? "line-through" : "none",
+                                opacity: isDone ? 0.6 : 1
+                            }}
+                        >
+                            {task.title}
+                        </h4>
+                        {!isDone && (
                             <div
-                                className={`h-6 w-1.5 rounded-full ${PRIORITY_COLORS[task.priority] ?? "bg-blue-600"}`}
+                                className={`h-4 w-1.5 shrink-0 rounded-full ${PRIORITY_COLORS[task.priority] ?? "bg-blue-600"}`}
                             />
                         )}
                     </div>
-                </div>
-
-                {/* Meta row */}
-                <div
-                    className="flex items-center justify-between border-t pt-2.5"
-                    style={{ borderColor: isDone ? "rgba(45,106,79,0.12)" : C.border }}
-                >
-                    <div className="flex items-center gap-2">
-                        {/* Assignee avatar */}
-                        <div
-                            className="flex h-6 w-6 items-center justify-center rounded-full border text-[9px] font-black uppercase shadow-sm"
+                    <div
+                        className="flex items-center justify-between border-t pt-2"
+                        style={{ borderColor: isDone ? "rgba(45,106,79,0.12)" : C.border }}
+                    >
+                        <span
+                            className={`text-[9px] font-black uppercase tracking-[0.18em] ${statusCfg.color}`}
+                        >
+                            {statusCfg.label}
+                        </span>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (!isLocked) {
+                                    onTaskClick(task.id);
+                                }
+                            }}
+                            disabled={isLocked}
+                            className="flex items-center gap-1 rounded-xl border px-2 py-0.5 text-[9px] font-black uppercase tracking-widest transition-all duration-150 text-slate-500 hover:text-[#8b5e3c]"
                             style={{
-                                borderColor: isDone ? "rgba(45,106,79,0.2)" : C.border,
-                                background: isDone ? "rgba(45,106,79,0.1)" : C.brown,
-                                color: isDone ? "#2d6a4f" : "#f3e4c9"
+                                background: "rgba(139,94,60,0.05)",
+                                borderColor: C.border
+                            }}
+                            onMouseEnter={e => {
+                                if (!isLocked) {
+                                    e.currentTarget.style.borderColor = C.brown;
+                                    e.currentTarget.style.background = "rgba(139,94,60,0.1)";
+                                }
+                            }}
+                            onMouseLeave={e => {
+                                if (!isLocked) {
+                                    e.currentTarget.style.borderColor = C.border;
+                                    e.currentTarget.style.background = "rgba(139,94,60,0.05)";
+                                }
                             }}
                         >
-                            {task.assignee?.name?.substring(0, 2) ?? "??"}
-                        </div>
+                            <ExternalLink size={10} />
+                            Open
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {/* Title row */}
+                    <div className="flex items-start justify-between gap-3">
+                        <h4
+                            className="line-clamp-2 flex-1 text-sm font-bold leading-snug transition-colors"
+                            style={{
+                                color: C.navy,
+                                textDecoration: isDone ? "line-through" : "none",
+                                opacity: isDone ? 0.6 : 1
+                            }}
+                        >
+                            {task.title}
+                        </h4>
 
-                        {/* Due date */}
-                        {task.due_date && (
-                            <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest"
-                                style={{ color: C.muted }}>
-                                <Calendar
-                                    size={10}
-                                    style={{ color: isDone ? "#2d6a4f" : C.brown }}
+                        <div className="flex shrink-0 items-center gap-1.5">
+                            {isBlocked && (
+                                <Lock size={12} style={{ color: "#c0392b" }} />
+                            )}
+                            {isDone ? (
+                                <span className="rounded border px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.2em]"
+                                    style={{ color: "#2d6a4f", background: "rgba(45,106,79,0.1)", borderColor: "rgba(45,106,79,0.2)" }}>
+                                    Done
+                                </span>
+                            ) : (
+                                <div
+                                    className={`h-6 w-1.5 rounded-full ${PRIORITY_COLORS[task.priority] ?? "bg-blue-600"}`}
                                 />
-                                {new Date(task.due_date).toLocaleDateString(
-                                    [],
-                                    { month: "short", day: "numeric" },
-                                )}
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
 
-                    {/* Status badge */}
-                    <span
-                        className={`text-[9px] font-black uppercase tracking-[0.18em] ${statusCfg.color}`}
+                    {/* Meta row */}
+                    <div
+                        className="flex items-center justify-between border-t pt-2.5"
+                        style={{ borderColor: isDone ? "rgba(45,106,79,0.12)" : C.border }}
                     >
-                        {statusCfg.label}
-                    </span>
-                </div>
+                        <div className="flex items-center gap-2">
+                            {/* Assignee avatar */}
+                            <div
+                                className="flex h-6 w-6 items-center justify-center rounded-full border text-[9px] font-black uppercase shadow-sm"
+                                style={{
+                                    borderColor: isDone ? "rgba(45,106,79,0.2)" : C.border,
+                                    background: isDone ? "rgba(45,106,79,0.1)" : C.brown,
+                                    color: isDone ? "#2d6a4f" : "#f3e4c9"
+                                }}
+                            >
+                                {task.assignee?.name?.substring(0, 2) ?? "??"}
+                            </div>
 
-                {/* Open button — appears on hover (if not locked) */}
-                <div className="pt-1">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (!isLocked) {
-                                onTaskClick(task.id);
-                            }
-                        }}
-                        disabled={isLocked}
-                        className={`flex w-full items-center justify-center gap-1.5 rounded-xl border py-1 text-[10px] font-black uppercase tracking-widest transition-all duration-150 ${
-                            isLocked
-                                ? "border-transparent bg-transparent text-transparent opacity-0"
-                                : "border-transparent text-slate-500 hover:text-[#8b5e3c]"
-                        }`}
-                        style={{
-                            background: isLocked ? "transparent" : "rgba(139,94,60,0.05)",
-                            border: isLocked ? "none" : `1px solid ${C.border}`
-                        }}
-                        onMouseEnter={e => {
-                            if (!isLocked) {
-                                e.currentTarget.style.borderColor = C.brown;
-                                e.currentTarget.style.background = "rgba(139,94,60,0.1)";
-                            }
-                        }}
-                        onMouseLeave={e => {
-                            if (!isLocked) {
-                                e.currentTarget.style.borderColor = C.border;
-                                e.currentTarget.style.background = "rgba(139,94,60,0.05)";
-                            }
-                        }}
-                    >
-                        <ExternalLink size={10} />
-                        Open
-                    </button>
+                            {/* Due date */}
+                            {task.due_date && (
+                                <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest"
+                                    style={{ color: C.muted }}>
+                                    <Calendar
+                                        size={10}
+                                        style={{ color: isDone ? "#2d6a4f" : C.brown }}
+                                    />
+                                    {new Date(task.due_date).toLocaleDateString(
+                                        [],
+                                        { month: "short", day: "numeric" },
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Status badge */}
+                        <span
+                            className={`text-[9px] font-black uppercase tracking-[0.18em] ${statusCfg.color}`}
+                        >
+                            {statusCfg.label}
+                        </span>
+                    </div>
+
+                    {/* Open button — appears on hover (if not locked) */}
+                    <div className="pt-1">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (!isLocked) {
+                                    onTaskClick(task.id);
+                                }
+                            }}
+                            disabled={isLocked}
+                            className={`flex w-full items-center justify-center gap-1.5 rounded-xl border py-1 text-[10px] font-black uppercase tracking-widest transition-all duration-150 ${
+                                isLocked
+                                    ? "border-transparent bg-transparent text-transparent opacity-0"
+                                    : "border-transparent text-slate-500 hover:text-[#8b5e3c]"
+                            }`}
+                            style={{
+                                background: isLocked ? "transparent" : "rgba(139,94,60,0.05)",
+                                border: isLocked ? "none" : `1px solid ${C.border}`
+                            }}
+                            onMouseEnter={e => {
+                                if (!isLocked) {
+                                    e.currentTarget.style.borderColor = C.brown;
+                                    e.currentTarget.style.background = "rgba(139,94,60,0.1)";
+                                }
+                            }}
+                            onMouseLeave={e => {
+                                if (!isLocked) {
+                                    e.currentTarget.style.borderColor = C.border;
+                                    e.currentTarget.style.background = "rgba(139,94,60,0.05)";
+                                }
+                            }}
+                        >
+                            <ExternalLink size={10} />
+                            Open
+                        </button>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Outgoing dependency handle — bottom centre */}
             <Handle

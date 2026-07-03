@@ -417,6 +417,7 @@ export default function Board({ workspace, project, members = [] }) {
                         presenceMembers={presenceMembers}
                         recentTaskIds={recentTaskIds}
                         deletingTaskIds={deletingTaskIds}
+                        density={density}
                     />
                 )}
             </div>

@@ -60,6 +60,7 @@ function buildNodes(
     workspace = null,
     recentTaskIds = [],
     deletingTaskIds = [],
+    density = "informed",
 ) {
     const colIndex = {};
 
@@ -92,6 +93,7 @@ function buildNodes(
                 isBlocked: getResolvableDependencies(task, tasks).some(
                     (dep) => dep.status !== "done",
                 ),
+                density,
             },
         };
     });
@@ -140,6 +142,7 @@ function FlowViewInner({
     presenceMembers = [],
     recentTaskIds = [],
     deletingTaskIds = [],
+    density = "informed",
 }) {
     const { screenToFlowPosition, fitView } = useReactFlow();
 
@@ -180,6 +183,7 @@ function FlowViewInner({
                 workspace,
                 recentTaskIds,
                 deletingTaskIds,
+                density,
             ),
         );
         setEdges(buildEdges(tasks));
@@ -448,17 +452,7 @@ function FlowViewInner({
                     color="rgba(139,94,60,0.18)"
                 />
 
-                {/* Controls — styled */}
-                <Controls
-                    showInteractive={false}
-                    style={{
-                        background: C.card,
-                        border: `1px solid ${C.border}`,
-                        borderRadius: "16px",
-                        padding: "4px",
-                        boxShadow: "0 4px 12px rgba(139,94,60,0.1)",
-                    }}
-                />
+
 
 
             </ReactFlow>
