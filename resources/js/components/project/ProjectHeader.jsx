@@ -3,6 +3,17 @@ import { BarChart3, LayoutGrid, MessageSquare, FileText, Activity, Settings } fr
 import { useState } from "react";
 import SettingsModal from "@/components/project/SettingsModal";
 
+// ── Palette tokens ────────────────────────────────────────────────────────────
+const C = {
+    bg:      "#ede0c8",
+    card:    "#f3e4c9",
+    navy:    "#0a2947",
+    brown:   "#8b5e3c",
+    sage:    "#d3d4c0",
+    border:  "rgba(139,94,60,0.18)",
+    muted:   "rgba(10,41,71,0.45)",
+};
+
 export default function ProjectHeader({ workspace, project, activeTab }) {
     const { auth } = usePage().props;
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -17,7 +28,7 @@ export default function ProjectHeader({ workspace, project, activeTab }) {
     ];
 
     return (
-        <header className="space-y-4 border-b border-border/40 pb-4">
+        <header className="space-y-4 border-b pb-4" style={{ borderColor: "rgba(139,94,60,0.15)" }}>
             <SettingsModal
                 workspace={workspace}
                 project={project}
@@ -25,39 +36,38 @@ export default function ProjectHeader({ workspace, project, activeTab }) {
                 onClose={() => setIsSettingsOpen(false)}
             />
 
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted">
-                <Link href={`/workspaces/${workspace.slug}`} className="hover:text-accent transition-colors">
-                    {workspace.name}
-                </Link>
-                <span>/</span>
-                <span className="text-white">{project.name}</span>
-            </div>
-
-            {/* Title & Stats */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            {/* Title & Stats & Switcher */}
+            <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                 <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: "rgba(139,94,60,0.65)" }}>
+                        Project
+                    </p>
                     <div className="flex items-center gap-3">
-                        <h1 className="text-2xl font-display font-black text-white uppercase tracking-tighter sm:text-3xl">
+                        <h1 className="font-display font-black text-3xl leading-tight"
+                            style={{ color: C.navy, letterSpacing: "0.04em" }}>
                             {project.name}
                         </h1>
                         {isOwner && (
                             <button
                                 onClick={() => setIsSettingsOpen(true)}
-                                className="text-muted hover:text-white transition-colors duration-300 hover:rotate-45"
+                                className="transition-all duration-300 hover:rotate-45 p-1 rounded-lg"
+                                style={{ color: C.muted }}
+                                onMouseEnter={e => e.currentTarget.style.color = C.brown}
+                                onMouseLeave={e => e.currentTarget.style.color = C.muted}
                                 title="Project Settings"
                             >
-                                <Settings size={18} />
+                                <Settings size={16} />
                             </button>
                         )}
                     </div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted font-mono">
-                        Project ID: <span className="text-accent">{project.slug}</span>
+                    <p className="text-[10px] font-mono" style={{ color: C.muted }}>
+                        ID: /{project.slug}
                     </p>
                 </div>
 
                 {/* Sub-navigation tabs */}
-                <div className="flex bg-surface2/60 border border-border/80 rounded-2xl p-1 shadow-inner self-start sm:self-auto">
+                <div className="flex items-center gap-1 p-1 rounded-2xl self-start md:self-auto"
+                    style={{ background: "rgba(139,94,60,0.08)", border: `1px solid ${C.border}` }}>
                     {tabs.map((tab) => {
                         const Icon = tab.icon;
                         const isSelected = activeTab === tab.id;
@@ -65,13 +75,16 @@ export default function ProjectHeader({ workspace, project, activeTab }) {
                             <Link
                                 key={tab.id}
                                 href={tab.href}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all sm:gap-2 sm:px-3.5 sm:py-2 sm:text-xs ${
-                                    isSelected
-                                        ? "bg-accent text-black shadow-lg scale-[1.03]"
-                                        : "text-muted hover:text-white"
-                                }`}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200"
+                                style={{
+                                    background: isSelected ? C.brown : "transparent",
+                                    color: isSelected ? "#f3e4c9" : C.muted,
+                                    boxShadow: isSelected ? "0 2px 12px rgba(139,94,60,0.25)" : "none",
+                                }}
+                                onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.background = "rgba(139,94,60,0.1)"; e.currentTarget.style.color = C.navy; } }}
+                                onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.muted; } }}
                             >
-                                <Icon size={12} strokeWidth={2.5} />
+                                <Icon size={13} strokeWidth={2.5} />
                                 <span>{tab.label}</span>
                             </Link>
                         );

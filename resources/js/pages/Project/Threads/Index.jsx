@@ -4,6 +4,19 @@ import { Head, Link, useForm, router } from '@inertiajs/react';
 import { MessageSquare, Pin, Clock, User, PlusCircle, Check, CheckCircle2, Tag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import MarkdownEditor from '@/components/ui/MarkdownEditor';
+import ProjectHeader from '@/components/project/ProjectHeader';
+
+// ── Palette tokens ────────────────────────────────────────────────────────────
+const C = {
+    bg:      "#ede0c8",
+    card:    "#f3e4c9",
+    navy:    "#0a2947",
+    brown:   "#8b5e3c",
+    sage:    "#d3d4c0",
+    border:  "rgba(139,94,60,0.18)",
+    muted:   "rgba(10,41,71,0.45)",
+    faint:   "rgba(10,41,71,0.25)",
+};
 
 export default function ThreadIndex({ workspace, project, threads, filters = {} }) {
     const [isComposing, setIsComposing] = useState(false);
@@ -45,7 +58,6 @@ export default function ThreadIndex({ workspace, project, threads, filters = {} 
         }
     };
 
-    // Extract unique tags from threads list to build filters
     const allUniqueTags = Array.from(new Set(threads.flatMap(t => Array.isArray(t.tags) ? t.tags : [])));
 
     const handleTagFilter = (tag) => {
@@ -69,215 +81,242 @@ export default function ThreadIndex({ workspace, project, threads, filters = {} 
     };
 
     return (
-        <div className="flex min-h-[70vh] h-full flex-col space-y-4 sm:min-h-[75vh] sm:space-y-6 lg:min-h-0">
-            <Head title={`Threads | ${project.name}`} />
+        <div className="space-y-6 max-w-4xl mx-auto">
+            <Head title={`Threads — ${project.name}`} />
 
-            <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8 w-full">
-                {/* Header Subtitle */}
-                <div className="space-y-1">
-                    <h1 className="text-2xl font-display font-black uppercase tracking-tighter text-white sm:text-3xl flex items-center gap-4">
-                        Project Threads
-                        <div className="flex bg-surface2/50 rounded-lg p-1 border border-border mt-1">
-                            <Link href={`/workspaces/${workspace.slug}/projects/${project.slug}/board`} className="px-3 py-1 text-xs font-bold uppercase tracking-widest rounded text-muted hover:text-white transition-colors">Board</Link>
-                            <span className="px-3 py-1 text-xs font-bold uppercase tracking-widest rounded bg-accent text-black shadow">Threads</span>
+            <ProjectHeader workspace={workspace} project={project} activeTab="threads" />
+
+            {/* Composer */}
+            <div className="rounded-2xl p-5 shadow-sm transition-all"
+                style={{ background: C.card, border: `1px solid ${C.border}` }}>
+                {!isComposing ? (
+                    <div 
+                        className="flex items-center gap-3 cursor-pointer opacity-80 hover:opacity-100 transition-opacity"
+                        onClick={() => setIsComposing(true)}
+                    >
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                            style={{ background: "rgba(139,94,60,0.12)", border: `1px solid ${C.border}` }}>
+                            <PlusCircle className="w-5 h-5" style={{ color: C.brown }} />
                         </div>
-                    </h1>
-                    <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted mt-1">
-                        Discuss architectural decisions, share updates, and collaborate globally.
-                    </p>
-                </div>
-
-                {/* Composer */}
-                <div className="bg-[#111113] border border-white/10 rounded-xl p-4 shadow-xl shadow-black/20">
-                    {!isComposing ? (
-                        <div 
-                            className="flex items-center gap-3 cursor-text opacity-70 hover:opacity-100 transition-opacity"
-                            onClick={() => setIsComposing(true)}
-                        >
-                            <div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center shrink-0">
-                                <PlusCircle className="w-5 h-5 text-zinc-400" />
-                            </div>
-                            <div className="text-sm text-zinc-500 flex-1">Start a new thread or announcement...</div>
+                        <div className="text-sm font-semibold" style={{ color: C.muted }}>Start a new thread or announcement...</div>
+                    </div>
+                ) : (
+                    <form onSubmit={submitThread} className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest block" style={{ color: C.brown }}>
+                                Thread Title
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Thread title (optional)"
+                                value={data.title}
+                                onChange={e => setData('title', e.target.value)}
+                                className="w-full bg-transparent border-b pb-2 text-base font-bold outline-none transition-colors"
+                                style={{ color: C.navy, borderColor: C.border }}
+                                onFocus={e => e.currentTarget.style.borderColor = C.brown}
+                                onBlur={e => e.currentTarget.style.borderColor = C.border}
+                            />
+                            {errors.title && <span className="text-xs text-red-700 mt-1 block">{errors.title}</span>}
                         </div>
-                    ) : (
-                        <form onSubmit={submitThread} className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                            <div>
-                                <input
-                                    type="text"
-                                    placeholder="Thread title (optional)"
-                                    value={data.title}
-                                    onChange={e => setData('title', e.target.value)}
-                                    className="w-full bg-transparent border-b border-white/5 pb-2 text-lg font-semibold text-zinc-200 focus:border-indigo-500 focus:ring-0 outline-none transition-colors"
-                                />
-                                {errors.title && <span className="text-xs text-red-500 mt-1 block">{errors.title}</span>}
-                            </div>
 
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest block" style={{ color: C.brown }}>
+                                Discussion Body
+                            </label>
                             <MarkdownEditor 
                                 value={data.body}
                                 onChange={val => setData('body', val)}
                                 uploadUrl={`/workspaces/${workspace.slug}/media/upload`}
                                 placeholder="What's on your mind? (Markdown & Image Drop supported)"
                             />
-                            {errors.body && <span className="text-xs text-red-500 block">{errors.body}</span>}
-
-                            <div>
-                                <input
-                                    type="text"
-                                    placeholder="Tags (comma-separated: e.g. bug, setup, auth)"
-                                    value={tagInput}
-                                    onChange={e => setTagInput(e.target.value)}
-                                    className="w-full bg-transparent border-b border-white/5 pb-2 text-xs text-zinc-400 focus:border-indigo-500 focus:ring-0 outline-none transition-colors placeholder:text-zinc-600"
-                                />
-                            </div>
-
-                            <div className="flex justify-end gap-2 mt-2">
-                                <button
-                                    type="button"
-                                    onClick={() => { reset(); setTagInput(''); setIsComposing(false); }}
-                                    className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={processing || !data.body.trim()}
-                                    className="px-6 py-2 bg-accent hover:scale-105 text-black text-sm font-black uppercase tracking-widest rounded-xl shadow flex items-center justify-center disabled:opacity-50 transition-all duration-300"
-                                >
-                                    {processing ? 'Posting...' : 'Post Thread'}
-                                </button>
-                            </div>
-                        </form>
-                    )}
-                </div>
-
-                {/* Filters Section */}
-                <div className="flex flex-wrap items-center gap-4 bg-surface2/30 rounded-2xl border border-border/40 p-4">
-                    {/* Status filter buttons */}
-                    <div className="flex bg-surface rounded-xl p-1 border border-border/50">
-                        <button
-                            onClick={() => handleStatusFilter('solved')}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                                filters.status === 'solved'
-                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                    : 'text-muted hover:text-white'
-                            }`}
-                        >
-                            Solved Only
-                        </button>
-                        <button
-                            onClick={() => handleStatusFilter('unsolved')}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                                filters.status === 'unsolved'
-                                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                    : 'text-muted hover:text-white'
-                            }`}
-                        >
-                            Unsolved Only
-                        </button>
-                    </div>
-
-                    {/* Tag filter badges */}
-                    {allUniqueTags.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1.5 border-l border-border/50 pl-4">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-muted flex items-center gap-1 mr-1">
-                                <Tag size={10} /> Filter tags:
-                            </span>
-                            {allUniqueTags.map(tag => {
-                                const isSelected = filters.tag === tag;
-                                return (
-                                    <button
-                                        key={tag}
-                                        onClick={() => handleTagFilter(tag)}
-                                        className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${
-                                            isSelected
-                                                ? 'bg-accent text-black border-accent/30'
-                                                : 'bg-surface/50 text-muted border-border hover:text-white'
-                                        }`}
-                                    >
-                                        {tag}
-                                    </button>
-                                );
-                            })}
+                            {errors.body && <span className="text-xs text-red-700 block">{errors.body}</span>}
                         </div>
-                    )}
-                </div>
 
-                {/* Thread List */}
-                <div className="space-y-4">
-                    {threads.length === 0 ? (
-                        <div className="text-center py-16 px-4 bg-zinc-900/30 border border-dashed border-white/10 rounded-xl relative overflow-hidden group">
-                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            <MessageSquare className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-                            <h3 className="text-zinc-300 font-medium text-lg">No threads match these filters</h3>
-                            <p className="text-zinc-500 text-sm mt-1">Clear your filter queries to view all discussions.</p>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest block" style={{ color: C.brown }}>
+                                Tags
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Tags (comma-separated: e.g. bug, setup, auth)"
+                                value={tagInput}
+                                onChange={e => setTagInput(e.target.value)}
+                                className="w-full bg-transparent border-b pb-2 text-xs outline-none transition-colors placeholder:text-slate-400 font-medium"
+                                style={{ color: C.navy, borderColor: C.border }}
+                                onFocus={e => e.currentTarget.style.borderColor = C.brown}
+                                onBlur={e => e.currentTarget.style.borderColor = C.border}
+                            />
                         </div>
-                    ) : (
-                        threads.map(thread => (
-                            <Link 
-                                href={`/workspaces/${workspace.slug}/projects/${project.slug}/threads/${thread.id}`} 
-                                key={thread.id} 
-                                className="block rounded-xl border border-white/5 bg-[#111113] hover:bg-[#161619] transition-all hover:border-white/10 overflow-hidden relative group"
+
+                        <div className="flex justify-end gap-3 mt-2">
+                            <button
+                                type="button"
+                                onClick={() => { reset(); setTagInput(''); setIsComposing(false); }}
+                                className="px-4 py-2 text-sm font-semibold transition-colors"
+                                style={{ color: C.muted }}
+                                onMouseEnter={e => e.currentTarget.style.color = C.navy}
+                                onMouseLeave={e => e.currentTarget.style.color = C.muted}
                             >
-                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-transparent group-hover:bg-indigo-500/50 transition-colors"></div>
-                                <div className="p-5 flex gap-4 items-start">
-                                    <img 
-                                        src={thread.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(thread.user?.name || 'U')}&background=random`} 
-                                        className="w-10 h-10 rounded-full bg-zinc-800"
-                                        alt={thread.user?.name} 
-                                    />
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            {thread.is_pinned && (
-                                                <Pin className="w-3.5 h-3.5 text-amber-500 fill-amber-500/20" />
-                                            )}
-                                            <h3 className="font-medium text-zinc-100 truncate flex-1">
-                                                {thread.title || "Status Update"}
-                                            </h3>
-                                            
-                                            {/* Status Badge */}
-                                            {thread.is_solved && (
-                                                <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-400/5 px-2 py-0.5 rounded border border-emerald-400/10">
-                                                    <CheckCircle2 size={10} />
-                                                    Solved
-                                                </span>
-                                            )}
-                                        </div>
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={processing || !data.body.trim()}
+                                className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-50"
+                                style={{ background: C.brown, color: "#f3e4c9" }}
+                                onMouseEnter={e => e.currentTarget.style.background = "#a06b43"}
+                                onMouseLeave={e => e.currentTarget.style.background = C.brown}
+                            >
+                                {processing ? 'Posting...' : 'Post Thread'}
+                            </button>
+                        </div>
+                    </form>
+                )}
+            </div>
 
-                                        <div className="text-sm text-zinc-400 line-clamp-2 leading-relaxed">
-                                            {thread.body}
-                                        </div>
+            {/* Filters Section */}
+            <div className="flex flex-wrap items-center gap-4 p-4 rounded-xl"
+                style={{ background: "rgba(139,94,60,0.06)", border: `1px solid ${C.border}` }}>
+                {/* Status filter buttons */}
+                <div className="flex rounded-xl p-1 border"
+                    style={{ background: "rgba(243,228,201,0.5)", borderColor: C.border }}>
+                    <button
+                        onClick={() => handleStatusFilter('solved')}
+                        className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+                        style={{
+                            background: filters.status === 'solved' ? C.brown : 'transparent',
+                            color: filters.status === 'solved' ? '#f3e4c9' : C.muted
+                        }}
+                    >
+                        Solved Only
+                    </button>
+                    <button
+                        onClick={() => handleStatusFilter('unsolved')}
+                        className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+                        style={{
+                            background: filters.status === 'unsolved' ? C.brown : 'transparent',
+                            color: filters.status === 'unsolved' ? '#f3e4c9' : C.muted
+                        }}
+                    >
+                        Unsolved Only
+                    </button>
+                </div>
 
-                                        {/* Display Thread Tags */}
-                                        {Array.isArray(thread.tags) && thread.tags.length > 0 && (
-                                            <div className="flex flex-wrap gap-1 mt-2.5">
-                                                {thread.tags.map(tag => (
-                                                    <span key={tag} className="text-[9px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-400/5 px-2 py-0.5 rounded border border-indigo-400/10">
-                                                        {tag}
-                                                    </span>
-                                                ))}
-                                            </div>
+                {/* Tag filter badges */}
+                {allUniqueTags.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 border-l pl-4"
+                        style={{ borderColor: C.border }}>
+                        <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1 mr-1"
+                            style={{ color: C.muted }}>
+                            <Tag size={10} /> Filter:
+                        </span>
+                        {allUniqueTags.map(tag => {
+                            const isSelected = filters.tag === tag;
+                            return (
+                                <button
+                                    key={tag}
+                                    onClick={() => handleTagFilter(tag)}
+                                    className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all"
+                                    style={{
+                                        background: isSelected ? C.brown : "rgba(243,228,201,0.5)",
+                                        color: isSelected ? '#f3e4c9' : C.muted,
+                                        borderColor: isSelected ? C.brown : C.border
+                                    }}
+                                >
+                                    {tag}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* Thread List */}
+            <div className="space-y-4">
+                {threads.length === 0 ? (
+                    <div className="text-center py-16 px-4 border border-dashed rounded-2xl relative overflow-hidden"
+                        style={{ borderColor: C.border, background: "rgba(243,228,201,0.5)" }}>
+                        <MessageSquare className="w-12 h-12 mx-auto mb-4" style={{ color: C.muted }} />
+                        <h3 className="font-bold text-lg" style={{ color: C.navy }}>No threads match these filters</h3>
+                        <p className="text-sm mt-1" style={{ color: C.muted }}>Clear your filter queries to view all discussions.</p>
+                    </div>
+                ) : (
+                    threads.map(thread => (
+                        <Link 
+                            href={`/workspaces/${workspace.slug}/projects/${project.slug}/threads/${thread.id}`} 
+                            key={thread.id} 
+                            className="block rounded-2xl border transition-all overflow-hidden relative group"
+                            style={{ background: C.card, borderColor: C.border, boxShadow: "0 2px 10px rgba(139,94,60,0.06)" }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.borderColor = "rgba(139,94,60,0.4)";
+                                e.currentTarget.style.transform = "translateY(-1px)";
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.borderColor = C.border;
+                                e.currentTarget.style.transform = "none";
+                            }}
+                        >
+                            <div className="absolute left-0 top-0 bottom-0 w-1 transition-colors bg-transparent group-hover:bg-[#8b5e3c]" />
+                            <div className="p-5 flex gap-4 items-start">
+                                <img 
+                                    src={thread.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(thread.user?.name || 'U')}&background=random`} 
+                                    className="w-10 h-10 rounded-full shrink-0"
+                                    style={{ background: C.brown }}
+                                    alt={thread.user?.name} 
+                                />
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        {thread.is_pinned && (
+                                            <Pin className="w-3.5 h-3.5 text-amber-600 fill-amber-500/20" />
                                         )}
+                                        <h3 className="font-bold truncate flex-1" style={{ color: C.navy }}>
+                                            {thread.title || "Status Update"}
+                                        </h3>
+                                        
+                                        {/* Status Badge */}
+                                        {thread.is_solved && (
+                                            <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                                <CheckCircle2 size={10} />
+                                                Solved
+                                            </span>
+                                        )}
+                                    </div>
 
-                                        <div className="flex items-center gap-4 mt-3 text-xs text-zinc-500">
-                                            <span className="flex items-center gap-1.5 font-medium text-zinc-400">
-                                                <User className="w-3.5 h-3.5" />
-                                                {thread.user?.name}
-                                            </span>
-                                            <span className="flex items-center gap-1">
-                                                <Clock className="w-3.5 h-3.5" />
-                                                {safeFormatDistance(thread.created_at)}
-                                            </span>
-                                            <span className="flex items-center gap-1.5 ml-auto font-medium text-zinc-400">
-                                                <MessageSquare className="w-3.5 h-3.5" />
-                                                {thread.replies_count} {thread.replies_count === 1 ? 'reply' : 'replies'}
-                                            </span>
+                                    <div className="text-sm line-clamp-2 leading-relaxed text-slate-700">
+                                        {thread.body}
+                                    </div>
+
+                                    {/* Display Thread Tags */}
+                                    {Array.isArray(thread.tags) && thread.tags.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-2.5">
+                                            {thread.tags.map(tag => (
+                                                <span key={tag} className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border"
+                                                    style={{ color: C.brown, background: "rgba(139,94,60,0.06)", borderColor: C.border }}>
+                                                    {tag}
+                                                </span>
+                                            ))}
                                         </div>
+                                    )}
+
+                                    <div className="flex items-center gap-4 mt-4 text-xs" style={{ color: C.muted }}>
+                                        <span className="flex items-center gap-1.5 font-semibold" style={{ color: C.navy }}>
+                                            <User className="w-3.5 h-3.5" />
+                                            {thread.user?.name}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <Clock className="w-3.5 h-3.5" />
+                                            {safeFormatDistance(thread.created_at)}
+                                        </span>
+                                        <span className="flex items-center gap-1.5 ml-auto font-semibold" style={{ color: C.brown }}>
+                                            <MessageSquare className="w-3.5 h-3.5" />
+                                            {thread.replies_count} {thread.replies_count === 1 ? 'reply' : 'replies'}
+                                        </span>
                                     </div>
                                 </div>
-                            </Link>
-                        ))
-                    )}
-                </div>
+                            </div>
+                        </Link>
+                    ))
+                )}
             </div>
         </div>
     );

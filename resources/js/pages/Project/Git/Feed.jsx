@@ -4,6 +4,18 @@ import { Head, Link, router } from "@inertiajs/react";
 import ProjectHeader from "@/components/project/ProjectHeader";
 import { GitBranch, GitCommit, RefreshCw, AlertTriangle, Terminal, Copy, Check, HelpCircle } from "lucide-react";
 
+// ── Palette tokens ────────────────────────────────────────────────────────────
+const C = {
+    bg:      "#ede0c8",
+    card:    "#f3e4c9",
+    navy:    "#0a2947",
+    brown:   "#8b5e3c",
+    sage:    "#d3d4c0",
+    border:  "rgba(139,94,60,0.18)",
+    muted:   "rgba(10,41,71,0.45)",
+    faint:   "rgba(10,41,71,0.25)",
+};
+
 export default function Feed({ workspace, project, commits = [], error = null }) {
     const [isSyncing, setIsSyncing] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -45,17 +57,18 @@ curl -X POST "${webhookUrl}" \\
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-6xl mx-auto">
             <Head title={`${project.name} - Git Feed`} />
             <ProjectHeader workspace={workspace} project={project} activeTab="activity" />
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 {/* Timeline Feed */}
-                <div className="rounded-3xl border border-border/80 bg-surface2/20 p-6 lg:col-span-2 space-y-6">
-                    <div className="flex items-center justify-between border-b border-border/50 pb-4">
+                <div className="rounded-2xl border p-6 lg:col-span-2 space-y-6"
+                    style={{ background: C.card, borderColor: C.border }}>
+                    <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: C.border }}>
                         <div className="flex items-center gap-2">
-                            <GitBranch className="text-accent" size={18} />
-                            <h2 className="text-sm font-display font-black uppercase tracking-widest text-white">
+                            <GitBranch style={{ color: C.brown }} size={18} />
+                            <h2 className="text-sm font-display font-black uppercase tracking-widest" style={{ color: C.navy }}>
                                 Commit History
                             </h2>
                         </div>
@@ -64,7 +77,10 @@ curl -X POST "${webhookUrl}" \\
                             <button
                                 onClick={handleSync}
                                 disabled={isSyncing}
-                                className="flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted transition-colors hover:text-white disabled:opacity-50"
+                                className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                                style={{ borderColor: C.border, color: C.muted, background: "rgba(139,94,60,0.03)" }}
+                                onMouseEnter={e => { if (!isSyncing) { e.currentTarget.style.borderColor = C.brown; e.currentTarget.style.color = C.brown; } }}
+                                onMouseLeave={e => { if (!isSyncing) { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; } }}
                             >
                                 <RefreshCw className={`h-3 w-3 ${isSyncing ? "animate-spin" : ""}`} />
                                 Sync Commits
@@ -73,29 +89,31 @@ curl -X POST "${webhookUrl}" \\
                     </div>
 
                     {error && (
-                        <div className="flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-red-400">
+                        <div className="flex items-start gap-3 rounded-2xl border p-4"
+                            style={{ borderColor: "rgba(192,57,43,0.25)", background: "rgba(192,57,43,0.03)", color: "#c0392b" }}>
                             <AlertTriangle size={18} className="shrink-0 mt-0.5" />
                             <div className="text-xs space-y-1">
                                 <p className="font-bold">Git Integration Error</p>
-                                <p className="text-red-300/80 leading-normal">{error}</p>
+                                <p className="opacity-90 leading-normal">{error}</p>
                             </div>
                         </div>
                     )}
 
                     {!project.git_repo_path ? (
                         <div className="flex h-72 flex-col items-center justify-center space-y-4 text-center">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-surface2/60 border border-border/80 text-muted">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-3xl border text-muted"
+                                style={{ background: "rgba(139,94,60,0.08)", borderColor: C.border, color: C.muted }}>
                                 <GitCommit size={24} />
                             </div>
                             <div className="space-y-1">
-                                <h3 className="text-sm font-black uppercase tracking-widest text-white">
+                                <h3 className="font-display font-black text-lg" style={{ color: C.navy }}>
                                     Link Git Repository
                                 </h3>
-                                <p className="text-xs text-muted max-w-sm leading-normal">
+                                <p className="text-xs max-w-sm leading-normal font-semibold" style={{ color: C.muted }}>
                                     Connect this project to a local Git folder. Scaffold will scan commit logs to build your timeline.
                                 </p>
                             </div>
-                            <p className="text-[10px] text-muted italic">
+                            <p className="text-[10px] italic" style={{ color: C.muted }}>
                                 Click the gear settings icon in the project header to configure.
                             </p>
                             <button
@@ -104,7 +122,10 @@ curl -X POST "${webhookUrl}" \\
                                     setHelpPage(1);
                                     setShowingHelpModal(true);
                                 }}
-                                className="flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-accent hover:text-white transition-colors cursor-pointer mt-1"
+                                className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all mt-1"
+                                style={{ borderColor: C.border, color: C.brown, background: "rgba(139,94,60,0.03)" }}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor = C.brown; e.currentTarget.style.background = "rgba(139,94,60,0.06)"; }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = "rgba(139,94,60,0.03)"; }}
                             >
                                 <HelpCircle size={12} />
                                 View Setup Guide
@@ -113,32 +134,36 @@ curl -X POST "${webhookUrl}" \\
                     ) : (
                         <div className="space-y-6">
                             {commits.length === 0 ? (
-                                <div className="py-12 text-center text-xs text-muted font-semibold uppercase tracking-wider">
+                                <div className="py-12 text-center text-xs font-semibold uppercase tracking-wider" style={{ color: C.muted }}>
                                     No commits recorded in this repository.
                                 </div>
                             ) : (
-                                <div className="relative border-l-2 border-border/50 pl-5 ml-3 space-y-6">
-                                    {commits.map((commit, index) => (
+                                <div className="relative border-l-2 pl-5 ml-3 space-y-6" style={{ borderColor: "rgba(139,94,60,0.15)" }}>
+                                    {commits.map((commit) => (
                                         <div key={commit.hash} className="relative group">
                                             {/* Bullet icon */}
-                                            <span className="absolute -left-[27px] top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-accent border-4 border-surface shadow"></span>
+                                            <span className="absolute -left-[27px] top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border-4 shadow"
+                                                style={{ backgroundColor: C.brown, borderColor: C.card }}></span>
 
-                                            <div className="space-y-1 bg-surface2/30 rounded-2xl border border-border/40 p-4 transition-all group-hover:border-border">
+                                            <div className="space-y-1.5 rounded-2xl border p-4 transition-all group-hover:border-slate-400 bg-black/[0.01]"
+                                                style={{ borderColor: C.border }}>
                                                 <div className="flex items-center justify-between gap-4">
-                                                    <span className="font-mono text-[10px] font-black text-accent bg-accent/5 px-2 py-0.5 rounded-lg border border-accent/20">
+                                                    <span className="font-mono text-[9px] font-black px-2 py-0.5 rounded-lg border"
+                                                        style={{ color: C.brown, background: "rgba(139,94,60,0.08)", borderColor: C.border }}>
                                                         {commit.short_hash}
                                                     </span>
-                                                    <span className="text-[9px] font-black uppercase tracking-widest text-muted">
+                                                    <span className="text-[9px] font-black uppercase tracking-widest font-mono" style={{ color: C.muted }}>
                                                         {commit.date}
                                                     </span>
                                                 </div>
 
-                                                <p className="text-xs font-bold text-white leading-relaxed">
+                                                <p className="text-xs font-bold leading-relaxed" style={{ color: C.navy }}>
                                                     {commit.message}
                                                 </p>
 
-                                                <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-muted pt-2 border-t border-border/30">
-                                                    <span className="text-zinc-400">{commit.author_name}</span>
+                                                <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest pt-2 border-t"
+                                                    style={{ borderColor: "rgba(139,94,60,0.12)", color: C.muted }}>
+                                                    <span style={{ color: C.navy }}>{commit.author_name}</span>
                                                     <span>&lt;{commit.author_email}&gt;</span>
                                                 </div>
                                             </div>
@@ -151,11 +176,12 @@ curl -X POST "${webhookUrl}" \\
                 </div>
 
                 {/* Git Hook Info Card */}
-                <div className="rounded-3xl border border-border/80 bg-surface2/40 p-6 self-start space-y-4">
-                    <div className="flex items-center justify-between border-b border-border/50 pb-3">
+                <div className="rounded-2xl border p-6 self-start space-y-4 shadow-sm"
+                    style={{ background: C.card, borderColor: C.border }}>
+                    <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: C.border }}>
                         <div className="flex items-center gap-2">
-                            <Terminal className="text-accent" size={16} />
-                            <h3 className="text-xs font-black uppercase tracking-widest text-white">
+                            <Terminal style={{ color: C.brown }} size={16} />
+                            <h3 className="text-xs font-black uppercase tracking-widest" style={{ color: C.navy }}>
                                 Git Automation Hook
                             </h3>
                         </div>
@@ -165,41 +191,49 @@ curl -X POST "${webhookUrl}" \\
                                 setHelpPage(1);
                                 setShowingHelpModal(true);
                             }}
-                            className="p-1.5 rounded-lg border border-border bg-surface hover:text-white transition-colors hover:border-accent/40 text-muted cursor-pointer"
+                            className="p-1.5 rounded-lg border transition-all"
+                            style={{ borderColor: C.border, color: C.muted, background: "rgba(139,94,60,0.03)" }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = C.brown; e.currentTarget.style.color = C.brown; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}
                             title="Open Git Setup Guide"
                         >
                             <HelpCircle size={14} />
                         </button>
                     </div>
 
-                    <p className="text-xs text-muted leading-relaxed">
-                        Expose real-time commit pushes locally! Scaffold can receive commit notifications when you run <code className="text-accent font-mono text-[10px]">git commit</code> and automatically transition referenced tasks to Done.
+                    <p className="text-xs leading-relaxed font-semibold" style={{ color: C.muted }}>
+                        Expose real-time commit pushes locally! Scaffold can receive commit notifications when you run <code className="font-mono text-[10px]" style={{ color: C.brown }}>git commit</code> and automatically transition referenced tasks to Done.
                     </p>
 
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-muted">
+                            <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: C.muted }}>
                                 post-commit hook script
                             </span>
                             <button
                                 onClick={copyToClipboard}
-                                className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-accent hover:text-white transition-colors"
+                                className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest transition-colors"
+                                style={{ color: C.brown }}
+                                onMouseEnter={e => e.currentTarget.style.color = "#a06b43"}
+                                onMouseLeave={e => e.currentTarget.style.color = C.brown}
                             >
                                 {copied ? <Check size={10} /> : <Copy size={10} />}
                                 {copied ? "Copied" : "Copy"}
                             </button>
                         </div>
-                        <pre className="overflow-x-auto rounded-xl border border-border/80 bg-surface/85 p-3 text-[9px] font-mono text-zinc-300 leading-normal custom-scrollbar select-all">
+                        <pre className="overflow-x-auto rounded-xl border p-3 text-[9px] font-mono leading-normal custom-scrollbar select-all"
+                            style={{ background: "rgba(10,41,71,0.03)", borderColor: C.border, color: C.navy }}>
                             {hookScript}
                         </pre>
                     </div>
 
-                    <div className="rounded-2xl border border-border/40 bg-surface/30 p-3 text-[10px] text-muted space-y-1.5">
-                        <p className="font-bold text-white uppercase tracking-wider text-[9px]">
+                    <div className="rounded-xl border p-3 text-[10px] space-y-1.5"
+                        style={{ borderColor: C.border, background: "rgba(139,94,60,0.03)" }}>
+                        <p className="font-black uppercase tracking-wider text-[9px]" style={{ color: C.navy }}>
                             Keywords to resolve tasks:
                         </p>
-                        <p className="leading-normal">
-                            Include <code className="text-accent font-bold">fix #14</code>, <code className="text-accent font-bold">closes #14</code>, or <code className="text-accent font-bold">resolve #14</code> in your commit message.
+                        <p className="leading-normal font-semibold" style={{ color: C.muted }}>
+                            Include <code className="font-bold" style={{ color: C.brown }}>fix #14</code>, <code className="font-bold" style={{ color: C.brown }}>closes #14</code>, or <code className="font-bold" style={{ color: C.brown }}>resolve #14</code> in your commit message.
                         </p>
                     </div>
                 </div>
@@ -207,22 +241,24 @@ curl -X POST "${webhookUrl}" \\
 
             {/* Git Integration Multi-Page Help Guide Modal */}
             {showingHelpModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-surface border border-border p-6 rounded-3xl w-full max-w-lg space-y-6 shadow-2xl relative">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="border p-6 rounded-3xl w-full max-w-lg space-y-6 shadow-2xl relative"
+                        style={{ background: C.card, borderColor: C.border }}>
                         <button
                             type="button"
                             onClick={() => setShowingHelpModal(false)}
-                            className="absolute top-4 right-4 text-muted hover:text-white rounded-lg p-1 hover:bg-surface2 transition-colors cursor-pointer text-lg font-bold"
+                            className="absolute top-4 right-4 hover:text-[#8b5e3c] rounded-lg p-1 transition-colors cursor-pointer text-lg font-bold"
+                            style={{ color: C.muted }}
                         >
                             &times;
                         </button>
 
                         <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-accent">
+                            <div className="flex items-center gap-2" style={{ color: C.brown }}>
                                 <HelpCircle size={18} strokeWidth={2.5} />
                                 <span className="text-[10px] font-black uppercase tracking-[0.2em]">Git Integration Guide</span>
                             </div>
-                            <h3 className="text-xl font-display font-black text-white uppercase tracking-tight">
+                            <h3 className="font-display font-black text-xl uppercase tracking-tight" style={{ color: C.navy }}>
                                 {helpPage === 1 && "1. How Git Integration Works"}
                                 {helpPage === 2 && "2. Linking a Local Repository"}
                                 {helpPage === 3 && "3. Setting up Real-time Webhooks"}
@@ -231,7 +267,8 @@ curl -X POST "${webhookUrl}" \\
                         </div>
 
                         {/* Page Contents */}
-                        <div className="text-xs text-muted leading-relaxed space-y-4 min-h-[180px] py-2 border-t border-b border-border/40">
+                        <div className="text-xs leading-relaxed space-y-4 min-h-[180px] py-2 border-t border-b font-medium"
+                            style={{ borderColor: C.border, color: C.muted }}>
                             {helpPage === 1 && (
                                 <div className="space-y-3">
                                     <p>
@@ -253,8 +290,8 @@ curl -X POST "${webhookUrl}" \\
                                         <li>Click the <strong>Settings (Gear)</strong> icon in the project header page.</li>
                                         <li>Find the <strong>Git Repository Path</strong> field.</li>
                                         <li>Enter the absolute folder path where your <code>.git</code> folder is located on your local disk.
-                                            <div className="bg-surface2 p-2 rounded-xl mt-1 font-mono text-[10px] text-zinc-400 break-all">
-                                                Windows: F:\__Projects\Web\my-project<br />
+                                            <div className="p-2 rounded-xl mt-1 font-mono text-[10px] break-all" style={{ background: "rgba(139,94,60,0.06)", color: C.navy }}>
+                                                Windows: F:\\__Projects\\Web\\my-project<br />
                                                 macOS/Linux: /Users/username/projects/my-project
                                             </div>
                                         </li>
@@ -273,7 +310,7 @@ curl -X POST "${webhookUrl}" \\
                                         <li>Navigate to your project's local directory and enter the hidden <code>.git/hooks/</code> directory.</li>
                                         <li>Create a file named <code>post-commit</code> (no extension) and paste the script inside it.</li>
                                         <li>If you are on macOS or Linux, make the file executable by running this terminal command:
-                                            <div className="bg-surface2 p-2 rounded-xl mt-1 font-mono text-[10px] text-zinc-400">
+                                            <div className="p-2 rounded-xl mt-1 font-mono text-[10px]" style={{ background: "rgba(139,94,60,0.06)", color: C.navy }}>
                                                 chmod +x .git/hooks/post-commit
                                             </div>
                                         </li>
@@ -296,7 +333,7 @@ curl -X POST "${webhookUrl}" \\
 
                         {/* Navigation controls */}
                         <div className="flex items-center justify-between text-xs pt-2">
-                            <span className="text-[10px] font-black uppercase text-muted tracking-widest">
+                            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.muted }}>
                                 Page {helpPage} of 4
                             </span>
                             <div className="flex items-center gap-2">
@@ -304,7 +341,8 @@ curl -X POST "${webhookUrl}" \\
                                     <button
                                         type="button"
                                         onClick={() => setHelpPage(prev => prev - 1)}
-                                        className="px-3 py-1.5 bg-surface2 hover:bg-surface border border-border text-white rounded-xl transition-colors cursor-pointer"
+                                        className="px-3 py-1.5 border rounded-xl transition-all"
+                                        style={{ borderColor: C.border, color: C.muted, background: "rgba(139,94,60,0.03)" }}
                                     >
                                         Back
                                     </button>
@@ -313,7 +351,8 @@ curl -X POST "${webhookUrl}" \\
                                     <button
                                         type="button"
                                         onClick={() => setHelpPage(prev => prev + 1)}
-                                        className="px-3 py-1.5 bg-accent hover:bg-accent/90 text-white rounded-xl font-bold transition-colors cursor-pointer"
+                                        className="px-3 py-1.5 rounded-xl font-bold transition-all text-white"
+                                        style={{ background: C.brown }}
                                     >
                                         Next
                                     </button>
@@ -321,7 +360,8 @@ curl -X POST "${webhookUrl}" \\
                                     <button
                                         type="button"
                                         onClick={() => setShowingHelpModal(false)}
-                                        className="px-4 py-1.5 bg-accent-green hover:bg-accent-green/90 text-black rounded-xl font-black uppercase tracking-wider transition-colors cursor-pointer"
+                                        className="px-4 py-1.5 rounded-xl font-black uppercase tracking-wider transition-all"
+                                        style={{ background: "#2d6a4f", color: "#f3e4c9" }}
                                     >
                                         Got It
                                     </button>

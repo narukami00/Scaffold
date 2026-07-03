@@ -119,6 +119,127 @@ function PriorityBars({ priority_counts }) {
     );
 }
 
+// ── Project Card ────────────────────────────────────────────────────────────
+function ProjectCard({ proj, workspace, isOwner, setEditingProject, confirmingProjectId, setConfirmingProjectId, deletingProjectId, submitProjectDelete }) {
+    const [hovered, setHovered] = useState(false);
+    const total = proj.total;
+
+    return (
+        <div
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            className="block rounded-2xl overflow-hidden transition-all duration-300 relative"
+            style={{
+                background: C.card,
+                border: `1px solid ${hovered ? "rgba(139,94,60,0.45)" : C.border}`,
+                boxShadow: hovered
+                    ? "0 20px 40px rgba(139,94,60,0.12), 0 0 0 1px rgba(139,94,60,0.15)"
+                    : "0 2px 12px rgba(139,94,60,0.07)",
+                transform: hovered
+                    ? "perspective(800px) rotateX(-1.5deg) rotateY(1.5deg) translateY(-3px)"
+                    : "perspective(800px) rotateX(0) rotateY(0) translateY(0)",
+                transformStyle: "preserve-3d",
+            }}
+        >
+            <Link 
+                href={`/workspaces/${workspace.slug}/projects/${proj.slug}`}
+                className="block p-6 space-y-5"
+            >
+                {/* Header */}
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-base font-bold truncate" style={{ color: hovered ? C.brown : C.navy }}>
+                                {proj.name}
+                            </h3>
+                        </div>
+                        <p className="text-[10px] font-mono mt-0.5" style={{ color: C.faint }}>/{proj.slug}</p>
+                    </div>
+                    <StatusBadge status={proj.status} />
+                </div>
+
+                {/* Task metric pills */}
+                <div className="grid grid-cols-4 gap-2 text-center" onClick={e => e.stopPropagation()}>
+                    {[
+                        { label: "Backlog",  val: proj.backlog,     color: SEG.backlog },
+                        { label: "Active",   val: proj.in_progress, color: SEG.in_progress },
+                        { label: "Review",   val: proj.in_review,   color: SEG.in_review },
+                        { label: "Done",     val: proj.done,        color: SEG.done },
+                    ].map(m => (
+                        <div key={m.label} className="rounded-xl py-2"
+                            style={{ background: "rgba(139,94,60,0.06)", border: `1px solid ${C.border}` }}>
+                            <p className="text-[8px] font-black uppercase tracking-wider" style={{ color: m.color }}>{m.label}</p>
+                            <p className="text-sm font-bold mt-0.5" style={{ color: C.navy }}>{m.val}</p>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Segmented bar */}
+                <div className="space-y-1.5" onClick={e => e.stopPropagation()}>
+                    <SegBar {...proj} />
+                    <div className="flex justify-between text-[10px]" style={{ color: C.muted }}>
+                        <span>Progress</span>
+                        <span>{total > 0 ? Math.round((proj.done / total) * 100) : 0}% done</span>
+                    </div>
+                </div>
+            </Link>
+
+            {/* Actions */}
+            <div className="px-6 pb-6 pt-2 flex items-center justify-between" style={{ borderTop: `1px solid ${C.border}` }} onClick={e => e.stopPropagation()}>
+                <div className="flex gap-2">
+                    {[
+                        { href: `/workspaces/${workspace.slug}/projects/${proj.slug}/board`, label: "Kanban" },
+                        { href: `/workspaces/${workspace.slug}/projects/${proj.slug}/threads`, label: "Threads" },
+                    ].map(l => (
+                        <Link key={l.label} href={l.href}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                            style={{ border: `1px solid ${C.border}`, color: C.muted, background: "rgba(139,94,60,0.04)" }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = C.brown; e.currentTarget.style.color = C.brown; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+                            <ExternalLink size={10} />{l.label}
+                        </Link>
+                    ))}
+                </div>
+                <div className="flex items-center gap-2">
+                    {isOwner && (
+                        <button onClick={() => setEditingProject(proj)}
+                            className="p-1.5 rounded-xl transition-colors shrink-0 text-muted hover:text-accent"
+                            onMouseEnter={e => e.currentTarget.style.color = C.brown}
+                            onMouseLeave={e => e.currentTarget.style.color = C.muted}>
+                            <Pencil size={11} />
+                        </button>
+                    )}
+                    {isOwner && (
+                        confirmingProjectId === proj.id ? (
+                            <div className="flex gap-2">
+                                <button onClick={() => submitProjectDelete(proj)}
+                                    disabled={deletingProjectId === proj.id}
+                                    className="px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
+                                    style={{ background: "#c0392b", color: "#fff" }}>
+                                    Confirm
+                                </button>
+                                <button onClick={() => setConfirmingProjectId(null)}
+                                    className="px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
+                                    style={{ border: `1px solid ${C.border}`, color: C.muted }}>
+                                    Cancel
+                                </button>
+                            </div>
+                        ) : (
+                            <button onClick={() => setConfirmingProjectId(proj.id)}
+                                className="p-2 rounded-xl transition-all"
+                                style={{ color: "rgba(192,57,43,0.5)" }}
+                                onMouseEnter={e => { e.currentTarget.style.color = "#c0392b"; e.currentTarget.style.background = "rgba(192,57,43,0.06)"; }}
+                                onMouseLeave={e => { e.currentTarget.style.color = "rgba(192,57,43,0.5)"; e.currentTarget.style.background = "transparent"; }}>
+                                <Trash2 size={13} />
+                            </button>
+                        )
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ── Member avatar stack ───────────────────────────────────────────────────────
 function AvatarStack({ members, max = 5 }) {
     const shown = members.slice(0, max);
@@ -499,102 +620,19 @@ export default function Show({ workspace, stats, defaultTab }) {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            {stats.project_stats.map(proj => {
-                                const total = proj.total;
-                                return (
-                                    <Card key={proj.id} className="flex flex-col justify-between space-y-5">
-                                        {/* Header */}
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <h3 className="text-base font-bold truncate" style={{ color: C.navy }}>
-                                                        {proj.name}
-                                                    </h3>
-                                                    {isOwner && (
-                                                        <button onClick={() => setEditingProject(proj)}
-                                                            className="p-1 rounded transition-colors shrink-0"
-                                                            style={{ color: C.muted }}
-                                                            onMouseEnter={e => e.currentTarget.style.color = C.brown}
-                                                            onMouseLeave={e => e.currentTarget.style.color = C.muted}>
-                                                            <Pencil size={11} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                                <p className="text-[10px] font-mono mt-0.5" style={{ color: C.faint }}>/{proj.slug}</p>
-                                            </div>
-                                            <StatusBadge status={proj.status} />
-                                        </div>
-
-                                        {/* Task metric pills */}
-                                        <div className="grid grid-cols-4 gap-2 text-center">
-                                            {[
-                                                { label: "Backlog",  val: proj.backlog,     color: SEG.backlog },
-                                                { label: "Active",   val: proj.in_progress, color: SEG.in_progress },
-                                                { label: "Review",   val: proj.in_review,   color: SEG.in_review },
-                                                { label: "Done",     val: proj.done,        color: SEG.done },
-                                            ].map(m => (
-                                                <div key={m.label} className="rounded-xl py-2"
-                                                    style={{ background: "rgba(139,94,60,0.06)", border: `1px solid ${C.border}` }}>
-                                                    <p className="text-[8px] font-black uppercase tracking-wider" style={{ color: m.color }}>{m.label}</p>
-                                                    <p className="text-sm font-bold mt-0.5" style={{ color: C.navy }}>{m.val}</p>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Segmented bar */}
-                                        <div className="space-y-1.5">
-                                            <SegBar {...proj} />
-                                            <div className="flex justify-between text-[10px]" style={{ color: C.muted }}>
-                                                <span>Progress</span>
-                                                <span>{total > 0 ? Math.round((proj.done / total) * 100) : 0}% done</span>
-                                            </div>
-                                        </div>
-
-                                        {/* Actions */}
-                                        <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
-                                            <div className="flex gap-2">
-                                                {[
-                                                    { href: `/workspaces/${workspace.slug}/projects/${proj.slug}/board`, label: "Kanban" },
-                                                    { href: `/workspaces/${workspace.slug}/projects/${proj.slug}/threads`, label: "Threads" },
-                                                ].map(l => (
-                                                    <Link key={l.label} href={l.href}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-                                                        style={{ border: `1px solid ${C.border}`, color: C.muted, background: "rgba(139,94,60,0.04)" }}
-                                                        onMouseEnter={e => { e.currentTarget.style.borderColor = C.brown; e.currentTarget.style.color = C.brown; }}
-                                                        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
-                                                        <ExternalLink size={10} />{l.label}
-                                                    </Link>
-                                                ))}
-                                            </div>
-                                            {isOwner && (
-                                                confirmingProjectId === proj.id ? (
-                                                    <div className="flex gap-2">
-                                                        <button onClick={() => submitProjectDelete(proj)}
-                                                            disabled={deletingProjectId === proj.id}
-                                                            className="px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
-                                                            style={{ background: "#c0392b", color: "#fff" }}>
-                                                            Confirm
-                                                        </button>
-                                                        <button onClick={() => setConfirmingProjectId(null)}
-                                                            className="px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
-                                                            style={{ border: `1px solid ${C.border}`, color: C.muted }}>
-                                                            Cancel
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <button onClick={() => setConfirmingProjectId(proj.id)}
-                                                        className="p-2 rounded-xl transition-all"
-                                                        style={{ color: "rgba(192,57,43,0.5)" }}
-                                                        onMouseEnter={e => { e.currentTarget.style.color = "#c0392b"; e.currentTarget.style.background = "rgba(192,57,43,0.06)"; }}
-                                                        onMouseLeave={e => { e.currentTarget.style.color = "rgba(192,57,43,0.5)"; e.currentTarget.style.background = "transparent"; }}>
-                                                        <Trash2 size={13} />
-                                                    </button>
-                                                )
-                                            )}
-                                        </div>
-                                    </Card>
-                                );
-                            })}
+                            {stats.project_stats.map(proj => (
+                                <ProjectCard
+                                    key={proj.id}
+                                    proj={proj}
+                                    workspace={workspace}
+                                    isOwner={isOwner}
+                                    setEditingProject={setEditingProject}
+                                    confirmingProjectId={confirmingProjectId}
+                                    setConfirmingProjectId={setConfirmingProjectId}
+                                    deletingProjectId={deletingProjectId}
+                                    submitProjectDelete={submitProjectDelete}
+                                />
+                            ))}
                         </div>
                     )}
                 </div>

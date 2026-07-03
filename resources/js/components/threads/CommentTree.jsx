@@ -4,7 +4,19 @@ import { User, MessageSquare, CheckCircle, Reply } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import MarkdownEditor from '@/components/ui/MarkdownEditor';
-import { useForm, usePage } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
+
+// ── Palette tokens ────────────────────────────────────────────────────────────
+const C = {
+    bg:      "#ede0c8",
+    card:    "#f3e4c9",
+    navy:    "#0a2947",
+    brown:   "#8b5e3c",
+    sage:    "#d3d4c0",
+    border:  "rgba(139,94,60,0.18)",
+    muted:   "rgba(10,41,71,0.45)",
+    faint:   "rgba(10,41,71,0.25)",
+};
 
 const safeFormatDistance = (dateStr) => {
     try {
@@ -25,8 +37,8 @@ const ReactionBadge = ({ emoji, count, hasReacted, onToggle }) => {
             onClick={() => onToggle(emoji)}
             className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium transition-colors border ${
                 hasReacted 
-                ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/30' 
-                : 'bg-zinc-800/50 text-zinc-400 border-white/5 hover:bg-zinc-800 hover:text-zinc-200'
+                ? 'bg-indigo-500/10 text-indigo-700 border-indigo-500/20 hover:bg-indigo-500/20' 
+                : 'bg-black/[0.03] text-slate-500 border-black/5 hover:bg-black/[0.06] hover:text-slate-800'
             }`}
         >
             <span>{emoji}</span>
@@ -74,32 +86,33 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
     };
 
     return (
-        <div className={`flex relative mt-4 ${reply.is_definitive ? 'bg-indigo-500/5 -mx-4 px-4 py-3 border border-indigo-500/20 rounded-xl' : ''}`}>
+        <div className={`flex relative mt-4 ${reply.is_definitive ? 'bg-emerald-500/[0.02] -mx-4 px-4 py-3 border border-emerald-500/20 rounded-xl' : ''}`}>
             {/* Thread linking line */}
             <div className="flex flex-col items-center mr-3 mt-1 cursor-pointer group" onClick={() => setIsCollapsed(!isCollapsed)}>
                 <img 
                     src={reply.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(reply.user?.name || 'U')}&background=random`} 
                     alt={reply.user?.name}
-                    className="w-8 h-8 rounded-full bg-zinc-800 z-10 box-content border-[3px] border-surface" 
+                    className="w-8 h-8 rounded-full z-10 box-content border-[3px]" 
+                    style={{ borderColor: C.card, background: C.brown }}
                 />
                 {!isCollapsed && children.length > 0 && (
-                    <div className="w-[2px] bg-zinc-800 flex-1 my-1 group-hover:bg-zinc-600 transition-colors rounded-full" />
+                    <div className="w-[2px] bg-slate-300 flex-1 my-1 group-hover:bg-[#8b5e3c]/50 transition-colors rounded-full" />
                 )}
             </div>
 
             <div className="flex-1 min-w-0">
                 <div className="pl-1">
                     <div className="flex items-center gap-2 mb-1 group">
-                        <span className="font-semibold text-zinc-200 text-sm">{reply.user?.name}</span>
-                        <span className="text-xs text-zinc-500">
+                        <span className="font-semibold text-sm" style={{ color: C.navy }}>{reply.user?.name}</span>
+                        <span className="text-xs" style={{ color: C.muted }}>
                             {safeFormatDistance(reply.created_at)}
                         </span>
                         
                         {/* Definitive Marker */}
                         {reply.is_definitive && (
-                            <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-indigo-400 bg-indigo-400/10 px-2 py-0.5 rounded-sm ml-2">
-                                <CheckCircle className="w-3 h-3" />
-                                Definitive Answer
+                            <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded ml-2">
+                                <CheckCircle className="w-2.5 h-2.5" />
+                                Solution
                             </span>
                         )}
                         
@@ -107,7 +120,10 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                         {!reply.is_definitive && (currentUserId === workspace.owner_id || currentUserId === threadUserId) && (
                             <button 
                                 onClick={toggleDefinitive} 
-                                className="ml-auto flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-emerald-400 border border-border/85 bg-surface/80 px-2 py-0.5 rounded-lg transition-all cursor-pointer hover:border-emerald-400/30"
+                                className="ml-auto flex items-center gap-1 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer"
+                                style={{ color: C.muted }}
+                                onMouseEnter={e => e.currentTarget.style.color = "#2d6a4f"}
+                                onMouseLeave={e => e.currentTarget.style.color = C.muted}
                             >
                                 Mark Solved
                             </button>
@@ -115,7 +131,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                         {reply.is_definitive && (currentUserId === workspace.owner_id || currentUserId === threadUserId) && (
                             <button 
                                 onClick={toggleDefinitive} 
-                                className="ml-auto flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-400 hover:text-zinc-400 border border-emerald-400/20 bg-emerald-400/5 px-2 py-0.5 rounded-lg transition-all cursor-pointer"
+                                className="ml-auto flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-700 hover:text-slate-500 transition-all cursor-pointer"
                             >
                                 Unmark Solved
                             </button>
@@ -123,7 +139,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                     </div>
 
                     {!isCollapsed && (
-                        <div className="prose prose-sm prose-invert max-w-none text-zinc-300">
+                        <div className="prose prose-sm max-w-none text-slate-800 leading-relaxed font-normal">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{reply.body}</ReactMarkdown>
                         </div>
                     )}
@@ -134,7 +150,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                     <div className="flex flex-wrap items-center gap-2 mt-2 pl-1">
                         <button 
                             onClick={() => setIsReplying(!isReplying)}
-                            className="flex items-center gap-1 text-xs font-semibold text-zinc-500 hover:text-zinc-300 transition-colors"
+                            className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-[#8b5e3c] transition-colors"
                         >
                             <Reply className="w-3.5 h-3.5" />
                             Reply
@@ -151,17 +167,19 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                                     onToggle={(e) => onReactionToggle('App\\Models\\ThreadReply', reply.id, e)}
                                 />
                             ))}
-                            {/* Simple Quick Add Reaction (we can expand this to emoji picker later) */}
+                            {/* Simple Quick Add Reaction */}
                             <div className="group relative z-10 flex">
-                                <button className="flex items-center justify-center w-6 h-6 rounded-full border border-dashed border-white/20 text-zinc-500 hover:text-zinc-300 hover:border-white/40 transition-colors bg-zinc-900 ml-1">
+                                <button className="flex items-center justify-center w-6 h-6 rounded-full border border-dashed text-slate-400 hover:text-[#8b5e3c] hover:border-[#8b5e3c]/50 transition-colors ml-1 bg-transparent"
+                                    style={{ borderColor: C.border }}>
                                     +
                                 </button>
-                                <div className="absolute top-full left-0 mt-1 hidden group-hover:flex gap-1 bg-zinc-800 p-1 rounded-lg border border-white/10 shadow-xl">
+                                <div className="absolute top-full left-0 mt-1 hidden group-hover:flex gap-1 p-1 rounded-xl shadow-xl z-50"
+                                    style={{ background: C.bg, border: `1px solid ${C.border}` }}>
                                     {['👍','👎','❤️','🚀','👀','🎉'].map(emoji => (
                                         <button 
                                             key={emoji}
                                             onClick={() => onReactionToggle('App\\Models\\ThreadReply', reply.id, emoji)}
-                                            className="hover:bg-zinc-700 p-1 rounded text-base leading-none transition-colors"
+                                            className="hover:bg-black/10 p-1.5 rounded text-base leading-none transition-colors"
                                         >
                                             {emoji}
                                         </button>
@@ -185,14 +203,17 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                             <button
                                 type="button"
                                 onClick={() => { reset(); setIsReplying(false); }}
-                                className="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-white transition-colors"
+                                className="px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-[#8b5e3c] transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 disabled={processing || !data.body.trim()}
-                                className="px-4 py-1.5 bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-bold rounded shadow disabled:opacity-50 transition-colors"
+                                className="px-4 py-1.5 text-xs font-bold rounded-xl shadow transition-colors"
+                                style={{ background: C.brown, color: "#f3e4c9" }}
+                                onMouseEnter={e => e.currentTarget.style.background = "#a06b43"}
+                                onMouseLeave={e => e.currentTarget.style.background = C.brown}
                             >
                                 Post Reply
                             </button>
@@ -202,7 +223,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
 
                 {/* Recursive Children rendering */}
                 {!isCollapsed && children.length > 0 && (
-                    <div className="">
+                    <div className="mt-1">
                         {children.map(child => (
                             <ReplyNode 
                                 key={child.id} 
@@ -220,7 +241,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
 
                 {/* Show collapsed indicator */}
                 {isCollapsed && children.length > 0 && (
-                    <button onClick={() => setIsCollapsed(false)} className="text-xs text-indigo-400 font-semibold py-1 hover:underline ml-1">
+                    <button onClick={() => setIsCollapsed(false)} className="text-xs text-indigo-700 font-semibold py-1 hover:underline ml-1">
                         Show {children.length} {children.length === 1 ? 'reply' : 'replies'}
                     </button>
                 )}
@@ -230,7 +251,6 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
 };
 
 export default function CommentTree({ replies, workspace, project, currentUserId, onReactionToggle, threadUserId }) {
-    // Root replies are those without a parent
     const rootReplies = replies.filter(r => r.parent_id === null);
 
     return (

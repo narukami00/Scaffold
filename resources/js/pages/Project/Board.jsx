@@ -337,25 +337,37 @@ export default function Board({ workspace, project, members = [] }) {
             <ProjectHeader workspace={workspace} project={project} activeTab="board" />
 
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end">
-                <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface2/50 p-1.5">
-                    <div className="flex flex-1 items-center rounded-xl border border-border/50 bg-surface p-1 shadow-inner lg:flex-none">
+                <div className="flex flex-wrap items-center gap-3 rounded-2xl p-1.5"
+                    style={{ background: "rgba(139,94,60,0.08)", border: "1px solid rgba(139,94,60,0.18)" }}>
+                    <div className="flex flex-1 items-center rounded-xl p-1 lg:flex-none"
+                        style={{ background: "rgba(139,94,60,0.04)" }}>
                         <button
                             onClick={() => setView("columns")}
-                            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-black uppercase tracking-widest transition-all ${view === "columns" ? "scale-105 bg-accent text-black shadow-lg" : "text-muted hover:text-white"}`}
+                            className="flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-black uppercase tracking-widest transition-all"
+                            style={{
+                                background: view === "columns" ? "#8b5e3c" : "transparent",
+                                color: view === "columns" ? "#f3e4c9" : "rgba(10,41,71,0.45)",
+                                boxShadow: view === "columns" ? "0 2px 8px rgba(139,94,60,0.25)" : "none"
+                            }}
                         >
                             <LayoutGrid size={14} strokeWidth={3} />
                             Columns
                         </button>
                         <button
                             onClick={() => setView("flow")}
-                            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-black uppercase tracking-widest transition-all ${view === "flow" ? "scale-105 bg-accent text-black shadow-lg" : "text-muted hover:text-white"}`}
+                            className="flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-black uppercase tracking-widest transition-all"
+                            style={{
+                                background: view === "flow" ? "#8b5e3c" : "transparent",
+                                color: view === "flow" ? "#f3e4c9" : "rgba(10,41,71,0.45)",
+                                boxShadow: view === "flow" ? "0 2px 8px rgba(139,94,60,0.25)" : "none"
+                            }}
                         >
                             <Share2 size={14} strokeWidth={3} />
                             Flow
                         </button>
                     </div>
 
-                    <div className="mx-1 hidden h-6 w-px bg-border sm:block" />
+                    <div className="mx-1 hidden h-6 w-px sm:block" style={{ background: "rgba(139,94,60,0.18)" }} />
 
                     <button
                         onClick={() =>
@@ -363,7 +375,12 @@ export default function Board({ workspace, project, members = [] }) {
                                 density === "minimal" ? "informed" : "minimal",
                             )
                         }
-                        className={`rounded-xl border border-border p-2 transition-all hover:scale-110 ${density === "informed" ? "border-accent/50 bg-accent/5 text-accent" : "text-muted"}`}
+                        className="rounded-xl border p-2 transition-all hover:scale-110"
+                        style={{
+                            borderColor: density === "informed" ? "#8b5e3c" : "rgba(139,94,60,0.25)",
+                            background: density === "informed" ? "rgba(139,94,60,0.1)" : "transparent",
+                            color: density === "informed" ? "#8b5e3c" : "rgba(10,41,71,0.45)"
+                        }}
                         title="Toggle Card Density"
                     >
                         <Sliders size={18} />
@@ -371,7 +388,8 @@ export default function Board({ workspace, project, members = [] }) {
                 </div>
             </header>
 
-            <div className="relative min-h-[60vh] flex-1 overflow-hidden rounded-[28px] border-2 border-border/50 bg-surface2/20 shadow-2xl sm:min-h-[65vh] sm:rounded-[40px] lg:min-h-0">
+            <div className="relative min-h-[60vh] flex-1 overflow-hidden rounded-[28px] border-2 shadow-inner sm:min-h-[65vh] sm:rounded-[40px] lg:min-h-0"
+                style={{ background: "rgba(139,94,60,0.03)", borderColor: "rgba(139,94,60,0.15)" }}>
                 {view === "columns" ? (
                     <ColumnView
                         workspace={workspace}
