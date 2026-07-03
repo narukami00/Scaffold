@@ -411,24 +411,32 @@ function ProjectNavItem({ project, workspace, open, onClick }) {
         <Link
             href={href}
             onClick={onClick}
-            className={`flex items-center gap-2 rounded-xl py-2 text-[11px] font-medium transition-all duration-150 ${open ? "px-3" : "justify-center px-0"}`}
+            className={`flex items-center gap-2 rounded-xl text-[11px] font-bold transition-all duration-150 ${open ? "px-3 py-2" : "h-8 w-8 mx-auto justify-center"}`}
             style={{
-                background: "transparent",
-                color: isActive ? "#f3e4c9" : "rgba(211,212,192,0.85)",
-                borderLeft: isActive ? "2px solid #8b5e3c" : "2px solid transparent",
-                paddingLeft: open ? (isActive ? "10px" : "12px") : undefined,
+                background: isActive ? "#f3e4c9" : "transparent",
+                color: isActive ? "#0a2947" : "rgba(211,212,192,0.85)",
             }}
-            onMouseEnter={e => { if (!isActive) { e.currentTarget.style.color = "#f3e4c9"; } }}
-            onMouseLeave={e => { if (!isActive) { e.currentTarget.style.color = "rgba(211,212,192,0.85)"; } }}
+            onMouseEnter={e => {
+                if (!isActive) {
+                    e.currentTarget.style.background = "rgba(243,228,201,0.06)";
+                    e.currentTarget.style.color = "#f3e4c9";
+                }
+            }}
+            onMouseLeave={e => {
+                if (!isActive) {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = "rgba(211,212,192,0.85)";
+                }
+            }}
         >
             {open ? (
                 <>
-                    <span style={{ color: "rgba(139,94,60,0.6)", fontSize: 12 }}>#</span>
+                    <span style={{ color: isActive ? "rgba(10,41,71,0.5)" : "rgba(139,94,60,0.6)", fontSize: 12 }}>#</span>
                     <span className="truncate">{project.name}</span>
                 </>
             ) : (
-                <span className="text-[9px] font-black">
-                    {project.name.charAt(0).toUpperCase()}
+                <span className="text-[10px] font-black uppercase">
+                    {project.name.charAt(0)}
                 </span>
             )}
         </Link>
