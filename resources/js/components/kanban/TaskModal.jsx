@@ -747,7 +747,7 @@ export default function TaskModal({
                                                         (o) => !o,
                                                     )
                                                 }
-                                                className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed text-muted transition-all hover:border-[#8b5e3c] hover:text-[#8b5e3c]" style={{ borderColor: "rgba(139,94,60,0.25)" }}
+                                                className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed text-slate-700 transition-all hover:border-[#8b5e3c] hover:text-[#8b5e3c]" style={{ borderColor: "rgba(139,94,60,0.25)" }}
                                                 title="Add a label"
                                             >
                                                 <Plus size={12} />
@@ -757,7 +757,7 @@ export default function TaskModal({
                                                 <div className="absolute left-0 top-8 z-20 min-w-[200px] rounded-2xl border p-2 shadow-2xl animate-in slide-in-from-top-2 duration-200" style={{ background: "#f3e4c9", borderColor: "rgba(139,94,60,0.18)" }}>
                                                     {(workspace.labels || [])
                                                         .length === 0 ? (
-                                                        <p className="px-3 py-3 text-[10px] text-slate-500">
+                                                        <p className="px-3 py-3 text-[10px] text-slate-700">
                                                             No labels defined in
                                                             this workspace.
                                                         </p>
@@ -784,7 +784,7 @@ export default function TaskModal({
                                                                             label.id,
                                                                         )
                                                                     }
-                                                                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-bold transition-colors hover:bg-black/5 ${active ? "text-[#0a2947]" : "text-slate-500"}`}
+                                                                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-bold transition-colors hover:bg-black/5 ${active ? "text-[#0a2947]" : "text-slate-700"}`}
                                                                 >
                                                                     <span
                                                                         className="h-3 w-3 flex-shrink-0 rounded-full"
@@ -924,7 +924,7 @@ export default function TaskModal({
                             {/* ▸ Description */}
                             <section className="space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">
+                                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: "#8b5e3c" }}>
                                         <ChevronRight size={14} style={{ color: "#8b5e3c" }} />
                                         Description
                                     </div>
@@ -937,7 +937,7 @@ export default function TaskModal({
                                             className={`rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-wider ${
                                                 descriptionMode === "write"
                                                     ? "border-accent/40 bg-accent/10 text-accent"
-                                                    : "border-[rgba(139,94,60,0.18)] text-slate-500 hover:text-[#8b5e3c]"
+                                                    : "border-[rgba(139,94,60,0.18)] text-slate-700 hover:text-[#8b5e3c]"
                                             }`}
                                         >
                                             Write
@@ -950,7 +950,7 @@ export default function TaskModal({
                                             className={`rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-wider ${
                                                 descriptionMode === "preview"
                                                     ? "border-accent/40 bg-accent/10 text-accent"
-                                                    : "border-[rgba(139,94,60,0.18)] text-slate-500 hover:text-[#8b5e3c]"
+                                                    : "border-[rgba(139,94,60,0.18)] text-slate-700 hover:text-[#8b5e3c]"
                                             }`}
                                         >
                                             Preview
@@ -1011,7 +1011,7 @@ export default function TaskModal({
                                                     H{level}
                                                 </button>
                                             ))}
-                                            <span className="ml-auto text-[10px] text-muted">
+                                            <span className="ml-auto text-[10px] text-slate-700">
                                                 Ctrl/Cmd+B, I, U · Ctrl/Cmd+Alt+1/2/3
                                             </span>
                                         </div>
@@ -1058,12 +1058,12 @@ export default function TaskModal({
                             {/* ▸ Checklist */}
                             <section className="space-y-6">
                                 <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.24em] text-muted">
+                                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.24em] text-slate-700">
                                         <CheckCircle2 size={14} style={{ color: "#8b5e3c" }} />
                                         Checklist
                                     </div>
                                     {totalCount > 0 && (
-                                        <span className="text-[10px] font-black text-slate-500">
+                                        <span className="text-[10px] font-black" style={{ color: "#0a2947" }}>
                                             {checkedCount}/{totalCount} Complete
                                         </span>
                                     )}
@@ -1262,7 +1262,7 @@ export default function TaskModal({
                                                                         newList,
                                                                     );
                                                                 }}
-                                                                className="h-5 w-5 flex-shrink-0 rounded border-border bg-transparent text-accent ring-offset-0 focus:ring-0"
+                                                                className="h-5 w-5 flex-shrink-0 rounded focus:ring-0" style={{ borderColor: "rgba(139,94,60,0.35)", background: "transparent", color: "#8b5e3c" }}
                                                             />
                                                             <span className="flex-1 text-sm font-bold line-through" style={{ color: "rgba(10,41,71,0.45)" }}>
                                                                 {item.text}
@@ -1284,7 +1284,7 @@ export default function TaskModal({
                                                                             newList,
                                                                         );
                                                                     }}
-                                                                    className="text-muted opacity-0 transition-all group-hover:opacity-100 hover:text-red-400"
+                                                                    className="text-slate-700 opacity-0 transition-all group-hover:opacity-100 hover:text-red-400"
                                                                 >
                                                                     <X
                                                                         size={
@@ -1304,7 +1304,7 @@ export default function TaskModal({
                             {/* ▸ Blockers (Dependencies) — own section, outside checklist */}
                             <section className="space-y-6">
                                 <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.24em] text-muted">
+                                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.24em] text-slate-700">
                                         <Lock size={14} style={{ color: "#8b5e3c" }} />
                                         Blockers
                                     </div>
@@ -1327,7 +1327,7 @@ export default function TaskModal({
                                 <div className="flex flex-wrap gap-3">
                                     {activeDeps.length === 0 &&
                                         !isDependencyListOpen && (
-                                            <p className="text-[11px] text-slate-500/60">
+                                            <p className="text-[11px] text-slate-700/60">
                                                 No blockers assigned.
                                             </p>
                                         )}
@@ -1371,12 +1371,12 @@ export default function TaskModal({
                                             />
                                             <Maximize2
                                                 size={16}
-                                                className="absolute left-4 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+                                                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-700 pointer-events-none"
                                             />
                                         </div>
                                         <div className="max-h-60 space-y-1 overflow-y-auto custom-scrollbar">
                                             {filteredTasks.length === 0 ? (
-                                                <p className="px-3 py-4 text-center text-xs text-muted">
+                                                <p className="px-3 py-4 text-center text-xs text-slate-700">
                                                     No matching tasks found.
                                                 </p>
                                             ) : (
@@ -1395,7 +1395,7 @@ export default function TaskModal({
                                                                 #{t.id}{" "}
                                                                 {t.title}
                                                             </span>
-                                                            <span className="text-[10px] uppercase tracking-wider text-muted">
+                                                            <span className="text-[10px] uppercase tracking-wider text-slate-700">
                                                                 {t.assignee
                                                                     ?.name ||
                                                                     "Unassigned"}{" "}
@@ -1404,7 +1404,7 @@ export default function TaskModal({
                                                         </div>
                                                         <Plus
                                                             size={16}
-                                                            className="flex-shrink-0 text-muted"
+                                                            className="flex-shrink-0 text-slate-700"
                                                         />
                                                     </button>
                                                 ))
@@ -1421,12 +1421,12 @@ export default function TaskModal({
                         <aside className="flex w-96 shrink-0 flex-col border-l" style={{ borderColor: "rgba(139,94,60,0.18)", background: "#f3e4c9" }}>
                             {/* Panel header */}
                             <div className="flex h-14 items-center justify-between border-b px-6" style={{ borderColor: "rgba(139,94,60,0.18)" }}>
-                                <span className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">
+                                <span className="text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: "#8b5e3c" }}>
                                     Project Stream
                                 </span>
                                 <button
                                     onClick={() => setIsSidePanelOpen(false)}
-                                    className="rounded-lg p-1.5 text-muted transition-colors hover:text-[#8b5e3c]"
+                                    className="rounded-lg p-1.5 text-slate-700 transition-colors hover:text-[#8b5e3c]"
                                     title="Collapse panel"
                                 >
                                     <PanelRightClose size={16} />
@@ -1438,7 +1438,7 @@ export default function TaskModal({
                                 {/* Attachments */}
                                 {(data.attachments || []).length > 0 && (
                                     <div className="space-y-3">
-                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                                        <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#8b5e3c" }}>
                                             Project Assets
                                         </span>
                                         <div className="flex flex-wrap gap-2">
@@ -1469,7 +1469,7 @@ export default function TaskModal({
 
                                 {/* Comments */}
                                 {data.comments.length === 0 && (
-                                    <p className="py-8 text-center text-xs text-muted/40">
+                                    <p className="py-8 text-center text-xs text-slate-700/40">
                                         No messages yet.
                                         <br />
                                         Be the first to broadcast.
@@ -1490,7 +1490,7 @@ export default function TaskModal({
                                                 {comment.user?.name ??
                                                     "Unknown"}
                                             </span>
-                                            <span className="text-[9px] text-slate-500">
+                                            <span className="text-[9px] text-slate-700">
                                                 {format(
                                                     new Date(
                                                         comment.created_at,
@@ -1502,7 +1502,7 @@ export default function TaskModal({
                                             {String(comment.id).startsWith(
                                                 "temp-",
                                             ) && (
-                                                <span className="ml-auto text-[9px] text-slate-500/60 italic">
+                                                <span className="ml-auto text-[9px] text-slate-700/60 italic">
                                                     Sending…
                                                 </span>
                                             )}
@@ -1525,7 +1525,7 @@ export default function TaskModal({
                             <div className="p-6 pt-0">
                                 <div className="relative rounded-3xl border p-4 transition-all focus-within:border-[#8b5e3c]" style={{ borderColor: "rgba(139,94,60,0.25)", background: "rgba(139,94,60,0.03)" }}>
                                     <textarea
-                                        className="w-full resize-none bg-transparent pb-10 text-xs outline-none placeholder:text-muted/50" style={{ color: "#1e293b" }}
+                                        className="w-full resize-none bg-transparent pb-10 text-xs outline-none placeholder:text-slate-700/50" style={{ color: "#1e293b" }}
                                         placeholder="Broadcast a message…"
                                         rows={2}
                                         value={newComment}
@@ -1571,7 +1571,7 @@ export default function TaskModal({
                                 <span className="text-xs font-black" style={{ color: "#0a2947" }}>
                                     {req.name}
                                 </span>
-                                <span className="text-[10px] text-slate-500">
+                                <span className="text-[10px] text-slate-700">
                                     Requesting control
                                 </span>
                             </div>

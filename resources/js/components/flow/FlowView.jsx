@@ -13,7 +13,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import axios from "axios";
-import { Plus, LayoutGrid, Zap } from "lucide-react";
+import { Plus, LayoutGrid, Zap, Minimize2, Map, HelpCircle } from "lucide-react";
 import TaskNode from "@/components/flow/TaskNode";
 import { wouldCreateCycle } from "@/utils/cycleDetection";
 import { getResolvableDependencies } from "@/utils/taskDependencies";
@@ -148,6 +148,8 @@ function FlowViewInner({
     const [contextMenu, setContextMenu] = useState(null);
     const [isCreating, setIsCreating] = useState(false);
     const [errorToast, setErrorToast] = useState(null);
+    const [isMiniMapOpen, setIsMiniMapOpen] = useState(true);
+    const [isTipOpen, setIsTipOpen] = useState(true);
 
     const patchTask = useCallback(
         async (taskId, payload) => {
@@ -458,23 +460,7 @@ function FlowViewInner({
                     }}
                 />
 
-                {/* Mini-map — styled */}
-                <MiniMap
-                    style={{
-                        background: C.card,
-                        border: `1px solid ${C.border}`,
-                        borderRadius: "16px",
-                        boxShadow: "0 4px 12px rgba(139,94,60,0.1)",
-                    }}
-                    nodeColor={(node) => {
-                        const status = node.data?.task?.status;
-                        if (status === "done") return "#2d6a4f";
-                        if (status === "in_progress") return "#b45309";
-                        if (status === "in_review") return "#7c5c1e";
-                        return "#0a2947";
-                    }}
-                    maskColor="rgba(237,224,200,0.6)"
-                />
+
             </ReactFlow>
 
             {/* ── Canvas toolbar overlay ── */}
@@ -510,32 +496,90 @@ function FlowViewInner({
             </div>
 
             {/* ── Legend overlay ── */}
-            <div className="pointer-events-none absolute bottom-4 left-4 z-10">
-                <div className="rounded-2xl border px-4 py-3 shadow-sm backdrop-blur-sm"
-                    style={{ background: "rgba(243,228,201,0.9)", borderColor: C.border }}>
-                    <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em]" style={{ color: C.brown }}>
-                        Tip
-                    </p>
-                    <ul className="space-y-1 text-[10px]" style={{ color: C.muted }}>
-                        <li>
-                            <span style={{ color: C.brown }}>Drag handle</span> →
-                            dependency
-                        </li>
-                        <li>
-                            <span style={{ color: C.brown }}>Right-click</span> →
-                            new task here
-                        </li>
-                        <li>
-                            <span style={{ color: C.brown }}>Delete</span> → remove
-                            selected link
-                        </li>
-                        <li>
-                            <span style={{ color: C.brown }}>Open</span> → edit
-                            details
-                        </li>
-                    </ul>
+            {isTipOpen ? (
+                <div className="pointer-events-none absolute bottom-4 left-4 z-10">
+                    <div className="pointer-events-auto rounded-2xl border px-4 py-3 shadow-sm backdrop-blur-sm"
+                        style={{ background: "rgba(243,228,201,0.9)", borderColor: C.border }}>
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-[9px] font-black uppercase tracking-[0.2em]" style={{ color: C.brown }}>
+                                Tips & Legend
+                            </p>
+                            <button onClick={() => setIsTipOpen(false)} className="ml-4 hover:text-[#8b5e3c]" style={{ color: C.navy }}>
+                                <Minimize2 size={10} style={{ color: C.brown }} strokeWidth={2.5} />
+                            </button>
+                        </div>
+                        <ul className="space-y-1 text-[10px]" style={{ color: C.muted }}>
+                            <li>
+                                <span style={{ color: C.brown }}>Drag handle</span> →
+                                dependency
+                            </li>
+                            <li>
+                                <span style={{ color: C.brown }}>Right-click</span> →
+                                new task
+                            </li>
+                            <li>
+                                <span style={{ color: C.brown }}>Delete</span> → remove link
+                            </li>
+                            <li>
+                                <span style={{ color: C.brown }}>Open</span> → edit details
+                            </li>
+                        </ul>
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <button
+                    onClick={() => setIsTipOpen(true)}
+                    className="pointer-events-auto absolute bottom-4 left-4 z-10 flex h-8 w-8 items-center justify-center rounded-full border shadow-md transition-all hover:scale-110"
+                    style={{ background: C.card, borderColor: C.border, color: C.navy }}
+                    title="Show Tips"
+                >
+                    <HelpCircle size={14} style={{ color: C.brown }} />
+                </button>
+            )}
+
+            {/* ── Mini-map overlay ── */}
+            {isMiniMapOpen ? (
+                <div className="pointer-events-none absolute bottom-4 right-4 z-10 flex flex-col items-end gap-1.5 animate-in slide-in-from-bottom-2 duration-200">
+                    <div className="pointer-events-auto flex w-[150px] items-center justify-between rounded-t-2xl border px-3 py-1.5 text-[8px] font-black uppercase tracking-wider shadow-sm"
+                         style={{ background: C.card, borderColor: C.border, color: C.navy }}>
+                        <span>Navigator</span>
+                        <button onClick={() => setIsMiniMapOpen(false)} className="hover:opacity-75 transition-opacity">
+                            <Minimize2 size={10} style={{ color: C.brown }} strokeWidth={2.5} />
+                        </button>
+                    </div>
+                    <div className="pointer-events-auto overflow-hidden rounded-b-2xl shadow-lg border-x border-b"
+                         style={{ borderColor: C.border, background: C.card }}>
+                        <MiniMap
+                            style={{
+                                background: 'transparent',
+                                width: 150,
+                                height: 110,
+                                margin: 0,
+                                border: 'none',
+                                position: 'relative'
+                            }}
+                            nodeBorderRadius={14}
+                            nodeColor={(node) => {
+                                const status = node.data?.task?.status;
+                                if (status === "done") return "#2d6a4f";
+                                if (status === "in_progress") return "#b45309";
+                                if (status === "in_review") return "#7c5c1e";
+                                return "#0a2947";
+                            }}
+                            maskColor="rgba(237,224,200,0.4)"
+                        />
+                    </div>
+                </div>
+            ) : (
+                <button
+                    onClick={() => setIsMiniMapOpen(true)}
+                    className="pointer-events-auto absolute bottom-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-full border shadow-md transition-all hover:scale-110"
+                    style={{ background: C.card, borderColor: C.border, color: C.navy }}
+                    title="Open Navigator"
+                >
+                    <Map size={14} style={{ color: C.brown }} />
+                </button>
+            )}
 
             {/* ── Right-click context menu ── */}
             {contextMenu && (
