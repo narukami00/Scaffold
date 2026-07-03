@@ -1,6 +1,6 @@
 import { usePage, Link } from "@inertiajs/react";
-import { ChevronLeft, ChevronRight, LayoutDashboard, LogOut, FolderKanban, Settings, Plus } from "lucide-react";
-import { useState } from "react";
+import { ChevronLeft, ChevronRight, LayoutDashboard, LogOut, FolderKanban, Settings, Plus, Menu, X, Search } from "lucide-react";
+import { useState, useEffect } from "react";
 import NotificationPanel from "@/components/ui/NotificationPanel";
 
 // ── Scaffold geometric icon mark ──────────────────────────────────────────────
@@ -24,7 +24,33 @@ function ScaffoldMark({ size = 28 }) {
 export default function AppLayout({ children, onNewProject }) {
     const { auth, workspace, workspaceProjects, project } = usePage().props;
     const user = auth?.user;
-    const [open, setOpen] = useState(true);
+
+    // Persist sidebar open state across transitions
+    const [open, setOpen] = useState(() => {
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("scaffold_sidebar_open");
+            return saved !== null ? JSON.parse(saved) : true;
+        }
+        return true;
+    });
+
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [isProjectSearchOpen, setIsProjectSearchOpen] = useState(false);
+    const [projectSearchQuery, setProjectSearchQuery] = useState("");
+    const [windowHeight, setWindowHeight] = useState(typeof window !== "undefined" ? window.innerHeight : 800);
+
+    useEffect(() => {
+        const handleResize = () => setWindowHeight(window.innerHeight);
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+    const toggleOpen = (val) => {
+        setOpen(val);
+        if (typeof window !== "undefined") {
+            localStorage.setItem("scaffold_sidebar_open", JSON.stringify(val));
+        }
+    };
 
     const initials = user?.name
         ? user.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
@@ -35,7 +61,7 @@ export default function AppLayout({ children, onNewProject }) {
 
             {/* ── PRIMARY SIDEBAR ──────────────────────────────────────────────── */}
             <aside
-                className={`w-full shrink-0 flex flex-col border-b lg:border-b-0 lg:border-r transition-all duration-300 ${open ? "lg:w-60" : "lg:w-[68px]"}`}
+                className={`w-full shrink-0 flex flex-col border-b lg:border-b-0 lg:border-r lg:h-screen lg:sticky lg:top-0 fixed lg:relative inset-x-0 top-0 z-[80] transition-all duration-300 ${open ? "lg:w-60" : "lg:w-[68px]"} ${mobileMenuOpen ? "h-screen overflow-y-auto" : "h-16 overflow-hidden"}`}
                 style={{ background: "#071d38", borderColor: "#1a3f6e" }}
             >
                 {/* Logo */}
@@ -43,37 +69,53 @@ export default function AppLayout({ children, onNewProject }) {
                     className={`flex items-center h-16 shrink-0 border-b px-4 ${open ? "justify-between px-5" : "justify-center"}`}
                     style={{ borderColor: "#1a3f6e" }}
                 >
-                    {open && (
-                        <Link href="/workspaces" className="flex items-center gap-2.5 min-w-0">
+                    {open ? (
+                        <Link href="/workspaces" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2.5 min-w-0">
                             <ScaffoldMark size={26} />
                             <span className="font-display font-black text-lg truncate"
                                 style={{ color: "#f3e4c9", letterSpacing: "0.04em" }}>
                                 Scaffold
                             </span>
                         </Link>
-                    )}
-                    {!open && (
-                        <button type="button" onClick={() => setOpen(true)} title="Expand sidebar">
+                    ) : (
+                        <button type="button" onClick={() => toggleOpen(true)} title="Expand sidebar" className="hidden lg:block">
                             <ScaffoldMark size={26} />
                         </button>
                     )}
-                    <button
-                        type="button"
-                        onClick={() => setOpen(v => !v)}
-                        className={`shrink-0 rounded-lg p-1.5 transition-all duration-150 ${!open ? "hidden" : ""}`}
-                        style={{ background: "rgba(243,228,201,0.06)", border: "1px solid rgba(243,228,201,0.12)", color: "rgba(243,228,201,0.5)" }}
-                        onMouseEnter={e => { e.currentTarget.style.background = "rgba(243,228,201,0.12)"; e.currentTarget.style.color = "#f3e4c9"; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = "rgba(243,228,201,0.06)"; e.currentTarget.style.color = "rgba(243,228,201,0.5)"; }}
-                    >
-                        {open ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-                    </button>
+
+                    {/* Mobile Notification and Hamburger wrapper */}
+                    <div className="flex items-center gap-3 lg:hidden">
+                        <NotificationPanel />
+                        <button
+                            type="button"
+                            onClick={() => setMobileMenuOpen(v => !v)}
+                            className="shrink-0 rounded-lg p-1.5 transition-all duration-150"
+                            style={{ background: "rgba(243,228,201,0.06)", border: "1px solid rgba(243,228,201,0.12)", color: "#f3e4c9" }}
+                        >
+                            {mobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
+                        </button>
+                    </div>
+
+                    {/* Desktop sidebar toggle chevron */}
+                    {open && (
+                        <button
+                            type="button"
+                            onClick={() => toggleOpen(false)}
+                            className="hidden lg:block shrink-0 rounded-lg p-1.5 transition-all duration-150"
+                            style={{ background: "rgba(243,228,201,0.06)", border: "1px solid rgba(243,228,201,0.12)", color: "rgba(243,228,201,0.5)" }}
+                            onMouseEnter={e => { e.currentTarget.style.background = "rgba(243,228,201,0.12)"; e.currentTarget.style.color = "#f3e4c9"; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = "rgba(243,228,201,0.06)"; e.currentTarget.style.color = "rgba(243,228,201,0.5)"; }}
+                        >
+                            <ChevronLeft size={14} />
+                        </button>
+                    )}
                 </div>
 
                 {/* Nav */}
                 <nav className="flex-1 p-3 overflow-y-auto space-y-0.5">
 
                     {/* Workspaces link */}
-                    <NavItem href="/workspaces" icon={<LayoutDashboard size={15} strokeWidth={2} />} label="Workspaces" open={open} />
+                    <NavItem href="/workspaces" icon={<LayoutDashboard size={15} strokeWidth={2} />} label="Workspaces" open={open} onClick={() => setMobileMenuOpen(false)} />
 
                     {/* Workspace + projects section */}
                     {workspace && (
@@ -87,7 +129,7 @@ export default function AppLayout({ children, onNewProject }) {
 
                             {/* Workspace name link */}
                             <NavItem
-                                href={`/workspaces/${workspace.slug}`}
+                                href={`/workspaces/${workspace.slug}`} onClick={() => setMobileMenuOpen(false)}
                                 icon={
                                     <span className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-black shrink-0"
                                         style={{ background: "rgba(139,94,60,0.35)", color: "#f3e4c9" }}>
@@ -99,32 +141,64 @@ export default function AppLayout({ children, onNewProject }) {
                                 exactMatch
                             />
 
-                            {/* Projects list */}
-                            {workspaceProjects && workspaceProjects.length > 0 && (
-                                <div className="mt-1 space-y-0.5">
-                                    {open && (
-                                        <div className="flex items-center justify-between px-3 py-1">
-                                            <p className="text-[9px] font-bold uppercase tracking-[0.2em]"
-                                                style={{ color: "rgba(211,212,192,0.3)" }}>
-                                                Projects
-                                            </p>
-                                        </div>
-                                    )}
-                                    {workspaceProjects.map(proj => (
-                                        <ProjectNavItem key={proj.id} project={proj} workspace={workspace} open={open} />
-                                    ))}
-                                </div>
-                            )}
+                            {/* Projects list with dynamic height scaling */}
+                            {workspaceProjects && workspaceProjects.length > 0 && (() => {
+                                const projectsToDisplay = workspaceProjects || [];
+                                const maxProjects = Math.max(1, Math.floor((windowHeight - 380) / 36));
+                                const showSeeMore = projectsToDisplay.length > maxProjects;
+                                const visibleProjects = showSeeMore
+                                    ? projectsToDisplay.slice(0, Math.max(1, maxProjects - 1))
+                                    : projectsToDisplay;
+
+                                return (
+                                    <div className="mt-1 space-y-0.5">
+                                        {open && (
+                                            <div className="flex items-center justify-between px-3 py-1">
+                                                <p className="text-[9px] font-bold uppercase tracking-[0.2em]"
+                                                    style={{ color: "rgba(211,212,192,0.3)" }}>
+                                                    Projects
+                                                </p>
+                                            </div>
+                                        )}
+                                        {visibleProjects.map(proj => (
+                                            <ProjectNavItem key={proj.id} project={proj} workspace={workspace} open={open} onClick={() => setMobileMenuOpen(false)} />
+                                        ))}
+
+                                        {showSeeMore && (
+                                            open ? (
+                                                <button
+                                                    onClick={() => setIsProjectSearchOpen(true)}
+                                                    className="w-full flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all duration-150"
+                                                    style={{ color: "#8b5e3c" }}
+                                                    onMouseEnter={e => e.currentTarget.style.color = "#f3e4c9"}
+                                                    onMouseLeave={e => e.currentTarget.style.color = "#8b5e3c"}
+                                                >
+                                                    <span>+ See {projectsToDisplay.length - visibleProjects.length} more</span>
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setIsProjectSearchOpen(true)}
+                                                    className="w-full flex justify-center py-2 transition-all duration-150"
+                                                    style={{ color: "#8b5e3c" }}
+                                                    title="See all projects"
+                                                >
+                                                    <Plus size={14} />
+                                                </button>
+                                            )
+                                        )}
+                                    </div>
+                                );
+                            })()}
 
                             {/* Settings link */}
                             {open ? (
                                 <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(26,63,110,0.5)" }}>
                                     <Link
-                                        href={`/workspaces/${workspace.slug}?tab=settings`}
+                                        href={`/workspaces/${workspace.slug}?tab=settings`} onClick={() => setMobileMenuOpen(false)}
                                         className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-150"
-                                        style={{ color: "rgba(211,212,192,0.4)" }}
+                                        style={{ color: "rgba(211,212,192,0.85)" }}
                                         onMouseEnter={e => { e.currentTarget.style.background = "rgba(243,228,201,0.06)"; e.currentTarget.style.color = "#f3e4c9"; }}
-                                        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(211,212,192,0.4)"; }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(211,212,192,0.85)"; }}
                                     >
                                         <Settings size={12} strokeWidth={2} />
                                         Settings
@@ -133,11 +207,11 @@ export default function AppLayout({ children, onNewProject }) {
                             ) : (
                                 <div className="mt-2 flex justify-center">
                                     <Link
-                                        href={`/workspaces/${workspace.slug}?tab=settings`}
+                                        href={`/workspaces/${workspace.slug}?tab=settings`} onClick={() => setMobileMenuOpen(false)}
                                         className="p-2 rounded-lg transition-all duration-150"
-                                        style={{ color: "rgba(211,212,192,0.4)" }}
+                                        style={{ color: "rgba(211,212,192,0.85)" }}
                                         onMouseEnter={e => { e.currentTarget.style.color = "#f3e4c9"; }}
-                                        onMouseLeave={e => { e.currentTarget.style.color = "rgba(211,212,192,0.4)"; }}
+                                        onMouseLeave={e => { e.currentTarget.style.color = "rgba(211,212,192,0.85)"; }}
                                     >
                                         <Settings size={13} strokeWidth={2} />
                                     </Link>
@@ -179,7 +253,7 @@ export default function AppLayout({ children, onNewProject }) {
             </aside>
 
             {/* ── MAIN CONTENT ─────────────────────────────────────────────────── */}
-            <main className="flex-1 flex flex-col overflow-hidden min-h-screen lg:min-h-0">
+            <main className="flex-1 flex flex-col overflow-hidden min-h-screen lg:min-h-0 pt-16 lg:pt-0">
                 {/* Topbar */}
                 <header
                     className="hidden lg:flex h-16 shrink-0 items-center justify-between px-8 border-b"
@@ -222,12 +296,91 @@ export default function AppLayout({ children, onNewProject }) {
                     {children}
                 </section>
             </main>
+
+            {/* ── All Projects Search & Navigation Modal ── */}
+            {isProjectSearchOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="relative w-full max-w-md rounded-[32px] border p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+                        style={{ background: "#ede0c8", borderColor: "rgba(139,94,60,0.18)" }}>
+                        
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-4">
+                            <span className="text-xs font-black uppercase tracking-[0.24em]" style={{ color: "#8b5e3c" }}>
+                                All Projects
+                            </span>
+                            <button
+                                onClick={() => {
+                                    setIsProjectSearchOpen(false);
+                                    setProjectSearchQuery("");
+                                }}
+                                className="rounded-xl border p-2 transition-all hover:bg-black/5"
+                                style={{ borderColor: "rgba(139,94,60,0.18)", color: "#0a2947" }}
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        {/* Search Input */}
+                        <div className="relative mb-4">
+                            <input
+                                type="text"
+                                className="w-full rounded-2xl border px-4 py-3 text-sm font-bold outline-none transition-all"
+                                style={{ borderColor: "rgba(139,94,60,0.18)", background: "#f3e4c9", color: "#0a2947" }}
+                                placeholder="Search project by name..."
+                                value={projectSearchQuery}
+                                onChange={(e) => setProjectSearchQuery(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+
+                        {/* List */}
+                        <div className="max-h-60 space-y-1 overflow-y-auto custom-scrollbar pr-1">
+                            {(workspaceProjects || [])
+                                .filter(proj => proj.name.toLowerCase().includes(projectSearchQuery.toLowerCase()))
+                                .length === 0 ? (
+                                <p className="py-6 text-center text-xs text-slate-500">
+                                    No projects found.
+                                </p>
+                            ) : (
+                                (workspaceProjects || [])
+                                    .filter(proj => proj.name.toLowerCase().includes(projectSearchQuery.toLowerCase()))
+                                    .map(proj => {
+                                        const href = `/workspaces/${workspace.slug}/projects/${proj.slug}`;
+                                        return (
+                                            <Link
+                                                key={proj.id}
+                                                href={href}
+                                                onClick={() => {
+                                                    setIsProjectSearchOpen(false);
+                                                    setProjectSearchQuery("");
+                                                    setMobileMenuOpen(false);
+                                                }}
+                                                className="flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all hover:bg-black/[0.03]"
+                                                style={{ border: "1px solid transparent" }}
+                                                onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(139,94,60,0.12)"}
+                                                onMouseLeave={e => e.currentTarget.style.borderColor = "transparent"}
+                                            >
+                                                <span className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-black shrink-0"
+                                                    style={{ background: "rgba(139,94,60,0.15)", color: "#8b5e3c" }}>
+                                                    #
+                                                </span>
+                                                <span className="text-sm font-bold" style={{ color: "#0a2947" }}>
+                                                    {proj.name}
+                                                </span>
+                                            </Link>
+                                        );
+                                    })
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 
 // ── NavItem ───────────────────────────────────────────────────────────────────
-function NavItem({ href, icon, label, open, exactMatch = false }) {
+function NavItem({ href, icon, label, open, exactMatch = false, onClick }) {
     const { url } = usePage();
     const isActive = exactMatch
         ? (url === href || url.startsWith(href + "?"))
@@ -236,10 +389,11 @@ function NavItem({ href, icon, label, open, exactMatch = false }) {
     return (
         <Link
             href={href}
+            onClick={onClick}
             className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-150 ${!open ? "justify-center px-0" : ""}`}
-            style={{ background: isActive ? "#f3e4c9" : "transparent", color: isActive ? "#0a2947" : "rgba(211,212,192,0.6)" }}
+            style={{ background: isActive ? "#f3e4c9" : "transparent", color: isActive ? "#0a2947" : "rgba(211,212,192,0.85)" }}
             onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = "rgba(243,228,201,0.08)"; e.currentTarget.style.color = "#f3e4c9"; } }}
-            onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(211,212,192,0.6)"; } }}
+            onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(211,212,192,0.85)"; } }}
         >
             <span className="shrink-0">{icon}</span>
             {open && <span className="truncate uppercase tracking-widest text-[10px] font-bold">{label}</span>}
@@ -248,7 +402,7 @@ function NavItem({ href, icon, label, open, exactMatch = false }) {
 }
 
 // ── ProjectNavItem ────────────────────────────────────────────────────────────
-function ProjectNavItem({ project, workspace, open }) {
+function ProjectNavItem({ project, workspace, open, onClick }) {
     const { url } = usePage();
     const href = `/workspaces/${workspace.slug}/projects/${project.slug}`;
     const isActive = url.startsWith(href);
@@ -256,15 +410,16 @@ function ProjectNavItem({ project, workspace, open }) {
     return (
         <Link
             href={href}
+            onClick={onClick}
             className={`flex items-center gap-2 rounded-xl py-2 text-[11px] font-medium transition-all duration-150 ${open ? "px-3" : "justify-center px-0"}`}
             style={{
-                background: isActive ? "rgba(243,228,201,0.08)" : "transparent",
-                color: isActive ? "#f3e4c9" : "rgba(211,212,192,0.5)",
+                background: "transparent",
+                color: isActive ? "#f3e4c9" : "rgba(211,212,192,0.85)",
                 borderLeft: isActive ? "2px solid #8b5e3c" : "2px solid transparent",
                 paddingLeft: open ? (isActive ? "10px" : "12px") : undefined,
             }}
-            onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = "rgba(243,228,201,0.05)"; e.currentTarget.style.color = "#f3e4c9"; } }}
-            onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(211,212,192,0.5)"; } }}
+            onMouseEnter={e => { if (!isActive) { e.currentTarget.style.color = "#f3e4c9"; } }}
+            onMouseLeave={e => { if (!isActive) { e.currentTarget.style.color = "rgba(211,212,192,0.85)"; } }}
         >
             {open ? (
                 <>

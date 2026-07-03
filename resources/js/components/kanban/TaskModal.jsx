@@ -570,8 +570,8 @@ export default function TaskModal({
             {/* Modal shell */}
             <div className="relative flex h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-[32px] border shadow-2xl animate-in zoom-in-95 fade-in duration-300" style={{ background: "#ede0c8", borderColor: "rgba(139,94,60,0.18)" }}>
                 {/* ── HEADER ────────────────────────────────────────────────── */}
-                <header className="flex h-20 shrink-0 items-center justify-between border-b px-8" style={{ background: "#f3e4c9", borderColor: "rgba(139,94,60,0.18)" }}>
-                    <div className="flex items-center gap-6">
+                <header className="flex flex-wrap md:flex-nowrap gap-4 h-auto py-4 md:h-20 shrink-0 items-center justify-between border-b px-4 md:px-8" style={{ background: "#f3e4c9", borderColor: "rgba(139,94,60,0.18)" }}>
+                    <div className="flex flex-wrap items-center gap-3 md:gap-6">
                         {/* Identity tag */}
                         <div className="flex flex-col">
                             <span className="text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: "#8b5e3c" }}>
@@ -709,7 +709,7 @@ export default function TaskModal({
                 </header>
 
                 {/* ── BODY ──────────────────────────────────────────────────── */}
-                <div className="flex flex-1 overflow-hidden">
+                <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
                     {/* ── MAIN ── The Work ────────────────────────────────── */}
                     <main className="flex-1 overflow-y-auto p-10 custom-scrollbar">
                         <div className="mx-auto max-w-3xl space-y-12">
@@ -811,7 +811,7 @@ export default function TaskModal({
 
                                 {/* Title */}
                                 <input
-                                    className={`w-full border-none bg-transparent p-0 text-5xl font-black tracking-tight outline-none placeholder:text-slate-350 ${!isEditor ? "pointer-events-none opacity-80" : ""}`} style={{ color: "#0a2947" }}
+                                    className={`w-full border-none bg-transparent p-0 text-2xl sm:text-3xl md:text-5xl font-black tracking-tight outline-none placeholder:text-slate-350 ${!isEditor ? "pointer-events-none opacity-80" : ""}`} style={{ color: "#0a2947" }}
                                     value={data.title}
                                     onChange={(e) =>
                                         handleFieldChange(
@@ -1418,7 +1418,7 @@ export default function TaskModal({
 
                     {/* ── ASIDE ── Project Stream ──────────────────────────── */}
                     {isSidePanelOpen && (
-                        <aside className="flex w-96 shrink-0 flex-col border-l" style={{ borderColor: "rgba(139,94,60,0.18)", background: "#f3e4c9" }}>
+                        <aside className="flex w-full h-[320px] lg:h-auto lg:w-96 shrink-0 flex-col border-t lg:border-t-0 lg:border-l" style={{ borderColor: "rgba(139,94,60,0.18)", background: "#f3e4c9" }}>
                             {/* Panel header */}
                             <div className="flex h-14 items-center justify-between border-b px-6" style={{ borderColor: "rgba(139,94,60,0.18)" }}>
                                 <span className="text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: "#8b5e3c" }}>

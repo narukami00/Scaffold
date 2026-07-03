@@ -12,7 +12,7 @@ const C = {
     brown:   "#8b5e3c",
     sage:    "#d3d4c0",
     border:  "rgba(139,94,60,0.18)",
-    muted:   "rgba(10,41,71,0.45)",
+    muted:   "rgba(10,41,71,0.68)",
     faint:   "rgba(10,41,71,0.25)",
 };
 
@@ -26,6 +26,16 @@ export default function MarkdownEditor({
     const [view, setView] = useState('write');
     const [isUploading, setIsUploading] = useState(false);
     const textareaRef = useRef(null);
+    const fileInputRef = useRef(null);
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        await uploadImage(file);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    };
 
     const handlePaste = async (e) => {
         if (!uploadUrl) return;
@@ -151,8 +161,20 @@ export default function MarkdownEditor({
                 )}
             </div>
             
+            {/* Hidden File Input for Click-to-Attach */}
+            {uploadUrl && (
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange} 
+                    accept="image/*" 
+                    className="hidden" 
+                />
+            )}
+
             {/* Footer hints */}
-            <div className="px-3 py-1.5 flex justify-between items-center text-[10px] border-t"
+            <div className="px-3 py-1.5 flex justify-between items-center text-[10px] border-t cursor-pointer hover:bg-black/[0.02] transition-colors"
+                onClick={() => { if (!disabled && uploadUrl) fileInputRef.current?.click(); }}
                 style={{ background: "rgba(139,94,60,0.04)", borderColor: C.border, color: C.muted }}>
                 <span className="flex items-center gap-1">
                     <ImageIcon className="w-3 h-3" /> Paste, drop, or click to attach images

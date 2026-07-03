@@ -17,7 +17,7 @@ const C = {
     sage:    "#d3d4c0",
     border:  "rgba(139,94,60,0.18)",
     borderHover: "rgba(139,94,60,0.4)",
-    muted:   "rgba(10,41,71,0.45)",
+    muted:   "rgba(10,41,71,0.68)",
     faint:   "rgba(10,41,71,0.25)",
 };
 
@@ -306,7 +306,7 @@ function NewProjectModal({ workspace, onClose }) {
                 </div>
                 <form onSubmit={submit} className="space-y-5">
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest block" style={{ color: "#8b5e3c" }}>
+                        <label className="text-[10px] font-black uppercase tracking-widest block" style={{ color: "#f3e4c9" }}>
                             Project Name
                         </label>
                         <input

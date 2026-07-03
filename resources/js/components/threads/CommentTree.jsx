@@ -14,7 +14,7 @@ const C = {
     brown:   "#8b5e3c",
     sage:    "#d3d4c0",
     border:  "rgba(139,94,60,0.18)",
-    muted:   "rgba(10,41,71,0.45)",
+    muted:   "rgba(10,41,71,0.68)",
     faint:   "rgba(10,41,71,0.25)",
 };
 
@@ -48,7 +48,8 @@ const ReactionBadge = ({ emoji, count, hasReacted, onToggle }) => {
 };
 
 // Component for a Single Reply Node
-const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onReactionToggle, threadUserId }) => {
+const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onReactionToggle, threadUserId, depth = 0 }) => {
+    const [isReactionOpen, setIsReactionOpen] = useState(false);
     const [isReplying, setIsReplying] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const children = allReplies.filter(r => r.parent_id === reply.id);
@@ -86,13 +87,13 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
     };
 
     return (
-        <div className={`flex relative mt-4 ${reply.is_definitive ? 'bg-emerald-500/[0.02] -mx-4 px-4 py-3 border border-emerald-500/20 rounded-xl' : ''}`}>
+        <div className={`flex relative mt-4 ${depth >= 2 ? '-ml-7 sm:ml-0' : ''} ${reply.is_definitive ? 'bg-emerald-500/[0.02] -mx-4 px-4 py-3 border border-emerald-500/20 rounded-xl' : ''}`}>
             {/* Thread linking line */}
-            <div className="flex flex-col items-center mr-3 mt-1 cursor-pointer group" onClick={() => setIsCollapsed(!isCollapsed)}>
+            <div className="flex flex-col items-center mr-2 sm:mr-3 mt-1 cursor-pointer group" onClick={() => setIsCollapsed(!isCollapsed)}>
                 <img 
                     src={reply.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(reply.user?.name || 'U')}&background=random`} 
                     alt={reply.user?.name}
-                    className="w-8 h-8 rounded-full z-10 box-content border-[3px]" 
+                    className={`rounded-full z-10 box-content border-[3px] ${depth > 0 ? 'w-6 h-6' : 'w-8 h-8'}`} 
                     style={{ borderColor: C.card, background: C.brown }}
                 />
                 {!isCollapsed && children.length > 0 && (
@@ -169,16 +170,23 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                             ))}
                             {/* Simple Quick Add Reaction */}
                             <div className="group relative z-10 flex">
-                                <button className="flex items-center justify-center w-6 h-6 rounded-full border border-dashed text-slate-400 hover:text-[#8b5e3c] hover:border-[#8b5e3c]/50 transition-colors ml-1 bg-transparent"
+                                <button 
+                                    type="button"
+                                    onClick={() => setIsReactionOpen(v => !v)}
+                                    className="flex items-center justify-center w-8 h-8 rounded-full border border-dashed text-slate-400 hover:text-[#8b5e3c] hover:border-[#8b5e3c]/50 transition-colors ml-1 bg-transparent shrink-0"
                                     style={{ borderColor: C.border }}>
                                     +
                                 </button>
-                                <div className="absolute top-full left-0 mt-1 hidden group-hover:flex gap-1 p-1 rounded-xl shadow-xl z-50"
+                                <div className={`absolute top-full left-0 mt-1 gap-1 p-1 rounded-xl shadow-xl z-50 ${isReactionOpen ? 'flex' : 'hidden md:group-hover:flex'}`}
                                     style={{ background: C.bg, border: `1px solid ${C.border}` }}>
                                     {['👍','👎','❤️','🚀','👀','🎉'].map(emoji => (
                                         <button 
                                             key={emoji}
-                                            onClick={() => onReactionToggle('App\\Models\\ThreadReply', reply.id, emoji)}
+                                            type="button"
+                                            onClick={() => {
+                                                onReactionToggle('App\\Models\\ThreadReply', reply.id, emoji);
+                                                setIsReactionOpen(false);
+                                            }}
                                             className="hover:bg-black/10 p-1.5 rounded text-base leading-none transition-colors"
                                         >
                                             {emoji}
@@ -234,6 +242,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                                 currentUserId={currentUserId}
                                 onReactionToggle={onReactionToggle}
                                 threadUserId={threadUserId}
+                                depth={depth + 1}
                             />
                         ))}
                     </div>

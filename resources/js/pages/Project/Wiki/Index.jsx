@@ -14,7 +14,7 @@ const C = {
     brown:   "#8b5e3c",
     sage:    "#d3d4c0",
     border:  "rgba(139,94,60,0.18)",
-    muted:   "rgba(10,41,71,0.45)",
+    muted:   "rgba(10,41,71,0.68)",
     faint:   "rgba(10,41,71,0.25)",
 };
 

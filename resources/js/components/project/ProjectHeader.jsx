@@ -11,7 +11,7 @@ const C = {
     brown:   "#8b5e3c",
     sage:    "#d3d4c0",
     border:  "rgba(139,94,60,0.18)",
-    muted:   "rgba(10,41,71,0.45)",
+    muted:   "rgba(10,41,71,0.68)",
 };
 
 export default function ProjectHeader({ workspace, project, activeTab }) {
@@ -66,7 +66,7 @@ export default function ProjectHeader({ workspace, project, activeTab }) {
                 </div>
 
                 {/* Sub-navigation tabs */}
-                <div className="flex items-center gap-1 p-1 rounded-2xl self-start md:self-auto"
+                <div className="flex items-center gap-1 p-1 rounded-2xl self-start md:self-auto max-w-full overflow-x-auto whitespace-nowrap scrollbar-none"
                     style={{ background: "rgba(139,94,60,0.08)", border: `1px solid ${C.border}` }}>
                     {tabs.map((tab) => {
                         const Icon = tab.icon;
@@ -75,7 +75,7 @@ export default function ProjectHeader({ workspace, project, activeTab }) {
                             <Link
                                 key={tab.id}
                                 href={tab.href}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200"
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200 shrink-0"
                                 style={{
                                     background: isSelected ? C.brown : "transparent",
                                     color: isSelected ? "#f3e4c9" : C.muted,

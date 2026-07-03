@@ -202,7 +202,7 @@ function CreateWorkspaceModal({ onClose }) {
                     <div className="space-y-1.5">
                         <label
                             className="block text-[10px] font-black uppercase tracking-widest"
-                            style={{ color: "#8b5e3c" }}
+                            style={{ color: "#f3e4c9" }}
                         >
                             Workspace Name
                         </label>

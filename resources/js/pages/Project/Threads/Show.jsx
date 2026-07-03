@@ -17,7 +17,7 @@ const C = {
     brown:   "#8b5e3c",
     sage:    "#d3d4c0",
     border:  "rgba(139,94,60,0.18)",
-    muted:   "rgba(10,41,71,0.45)",
+    muted:   "rgba(10,41,71,0.68)",
     faint:   "rgba(10,41,71,0.25)",
 };
 
@@ -234,16 +234,23 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
                         ))}
                         {/* Thread Quick Reaction Add */}
                         <div className="group relative">
-                            <button className="flex items-center justify-center w-8 h-8 rounded-full border border-dashed text-slate-400 hover:text-[#8b5e3c] hover:border-[#8b5e3c]/50 transition-colors ml-1 bg-transparent"
+                            <button 
+                                type="button"
+                                onClick={() => setIsReactionOpen(v => !v)}
+                                className="flex items-center justify-center w-8 h-8 rounded-full border border-dashed text-slate-400 hover:text-[#8b5e3c] hover:border-[#8b5e3c]/50 transition-colors ml-1 bg-transparent"
                                 style={{ borderColor: C.border }}>
                                 +
                             </button>
-                            <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover:flex gap-1 p-1 rounded-xl shadow-2xl z-50"
+                            <div className={`absolute bottom-full left-0 mb-1.5 gap-1 p-1 rounded-xl shadow-2xl z-50 ${isReactionOpen ? 'flex' : 'hidden md:group-hover:flex'}`}
                                 style={{ background: C.bg, border: `1px solid ${C.border}` }}>
                                 {['👍','👎','❤️','🚀','👀','🎉'].map(emoji => (
                                     <button 
                                         key={emoji}
-                                        onClick={() => toggleReaction('App\\Models\\Thread', thread.id, emoji)}
+                                        type="button"
+                                        onClick={() => {
+                                            toggleReaction('App\\Models\\Thread', thread.id, emoji);
+                                            setIsReactionOpen(false);
+                                        }}
                                         className="hover:bg-black/10 p-1.5 rounded text-base leading-none transition-all hover:scale-110 active:scale-95"
                                     >
                                         {emoji}
