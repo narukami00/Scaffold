@@ -1510,9 +1510,9 @@ export default function TaskModal({
                                         <div
                                             className="rounded-2xl border px-4 py-3 text-xs leading-relaxed shadow-sm animate-in fade-in duration-200"
                                             style={{
-                                                borderColor: Number(comment.user_id) === Number(auth.user.id) ? "#0a2947" : "rgba(46,125,50,0.18)",
-                                                background: Number(comment.user_id) === Number(auth.user.id) ? "#0a2947" : "#d1fae5",
-                                                color: Number(comment.user_id) === Number(auth.user.id) ? "#86efac" : "#0a2947",
+                                                borderColor: Number(comment.user_id) === Number(auth.user.id) ? "#0a2947" : "rgba(139,94,60,0.18)",
+                                                background: Number(comment.user_id) === Number(auth.user.id) ? "#0a2947" : "#f3e4c9",
+                                                color: Number(comment.user_id) === Number(auth.user.id) ? "#f3e4c9" : "#0a2947",
                                             }}
                                         >
                                             {comment.body}

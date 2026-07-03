@@ -197,6 +197,7 @@ function FlowViewInner({
         workspace,
         recentTaskIds,
         deletingTaskIds,
+        density,
     ]);
 
     const onNodeDragStart = useCallback(
