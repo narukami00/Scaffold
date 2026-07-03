@@ -563,37 +563,37 @@ export default function TaskModal({
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/80 backdrop-blur-md"
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                 onClick={onClose}
             />
 
             {/* Modal shell */}
-            <div className="relative flex h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-[32px] border border-border bg-[#0a0a0b] shadow-[0_0_100px_rgba(0,0,0,1)] animate-in zoom-in-95 fade-in duration-300">
+            <div className="relative flex h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-[32px] border shadow-2xl animate-in zoom-in-95 fade-in duration-300" style={{ background: "#ede0c8", borderColor: "rgba(139,94,60,0.18)" }}>
                 {/* ── HEADER ────────────────────────────────────────────────── */}
-                <header className="flex h-20 shrink-0 items-center justify-between border-b border-border/50 px-8">
+                <header className="flex h-20 shrink-0 items-center justify-between border-b px-8" style={{ background: "#f3e4c9", borderColor: "rgba(139,94,60,0.18)" }}>
                     <div className="flex items-center gap-6">
                         {/* Identity tag */}
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-black uppercase tracking-[0.24em] text-accent">
+                            <span className="text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: "#8b5e3c" }}>
                                 Scaffold Nucleus
                             </span>
-                            <span className="text-[10px] font-black uppercase tracking-[0.24em] text-muted">
+                            <span className="text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: "rgba(10,41,71,0.45)" }}>
                                 Ref #{task.id}
                             </span>
                         </div>
 
-                        <div className="h-8 w-px bg-border/50" />
+                        <div className="h-8 w-px" style={{ background: "rgba(139,94,60,0.18)" }} />
 
                         {/* Presence avatars */}
                         <div className="flex -space-x-2">
                             {presence.map((user) => (
                                 <div
                                     key={user.id}
-                                    className={`group relative h-10 w-10 overflow-hidden rounded-full border-2 border-[#0a0a0b] bg-surface ring-2 transition-transform hover:z-10 hover:scale-110 ${
+                                    className={`group relative h-10 w-10 overflow-hidden rounded-full border-2 bg-surface ring-2 transition-transform hover:z-10 hover:scale-110 ${
                                         editorId === user.id
-                                            ? "ring-accent"
-                                            : "ring-border/20"
-                                    }`}
+                                            ? "ring-[#8b5e3c]"
+                                            : "ring-slate-300"
+                                    }`} style={{ borderColor: "#f3e4c9" }}
                                     title={`${user.name} — ${editorId === user.id ? "Editor" : "Viewer"}`}
                                 >
                                     <div
@@ -608,7 +608,7 @@ export default function TaskModal({
                                             onClick={() =>
                                                 transferControl(user.id)
                                             }
-                                            className="absolute inset-0 flex items-center justify-center bg-accent/90 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                                            className="absolute inset-0 flex items-center justify-center text-white opacity-0 transition-opacity group-hover:opacity-100" style={{ background: "#8b5e3c" }}
                                             title={`Pass control to ${user.name}`}
                                         >
                                             <UserPlus size={16} />
@@ -621,11 +621,11 @@ export default function TaskModal({
                         {/* Editor pill */}
                         {editorId && (
                             <span
-                                className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
-                                    isEditor
-                                        ? "border-accent/30 bg-accent/10 text-accent"
-                                        : "border-border/50 bg-surface text-muted"
-                                }`}
+                                className="rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest" style={{
+                                    borderColor: isEditor ? "rgba(139,94,60,0.35)" : "rgba(139,94,60,0.18)",
+                                    background: isEditor ? "rgba(139,94,60,0.08)" : "transparent",
+                                    color: isEditor ? "#8b5e3c" : "rgba(10,41,71,0.45)"
+                                }}
                             >
                                 {isEditor ? "You are editing" : "Read-only"}
                             </span>
@@ -656,7 +656,7 @@ export default function TaskModal({
                         {!isSidePanelOpen && (
                             <button
                                 onClick={() => setIsSidePanelOpen(true)}
-                                className="rounded-2xl border border-border bg-surface p-3 text-muted transition-all hover:scale-110 hover:text-white active:scale-95"
+                                className="rounded-2xl border p-3 transition-all hover:scale-110 active:scale-95" style={{ borderColor: "rgba(139,94,60,0.2)", bg: "transparent", color: "rgba(10,41,71,0.45)" }}
                                 title="Show Project Stream"
                             >
                                 <PanelRightClose size={18} />
@@ -672,7 +672,7 @@ export default function TaskModal({
                                             onTaskDelete(task.id);
                                             setConfirmingDelete(false);
                                         }}
-                                        className="rounded-2xl border border-accent-red/30 bg-accent-red px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-accent-red/80"
+                                        className="rounded-2xl border px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-red-700 bg-red-600 border-red-650/30"
                                     >
                                         Confirm delete
                                     </button>
@@ -681,7 +681,7 @@ export default function TaskModal({
                                         onClick={() =>
                                             setConfirmingDelete(false)
                                         }
-                                        className="rounded-2xl border border-border bg-surface px-4 py-2 text-[10px] font-black uppercase tracking-widest text-muted transition-all hover:text-white"
+                                        className="rounded-2xl border px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all" style={{ borderColor: "rgba(139,94,60,0.2)", background: "transparent", color: "rgba(10,41,71,0.45)" }}
                                     >
                                         Cancel
                                     </button>
@@ -690,7 +690,7 @@ export default function TaskModal({
                                 <button
                                     type="button"
                                     onClick={() => setConfirmingDelete(true)}
-                                    className="rounded-2xl border border-accent-red/20 bg-accent-red/10 p-3 text-accent-red transition-all hover:scale-110 hover:bg-accent-red hover:text-white active:scale-95"
+                                    className="rounded-2xl border p-3 transition-all hover:scale-110 active:scale-95" style={{ borderColor: "rgba(192,57,43,0.25)", background: "rgba(192,57,43,0.03)", color: "#c0392b" }}
                                     title="Delete task"
                                 >
                                     <Trash2 size={20} />
@@ -701,7 +701,7 @@ export default function TaskModal({
                         {/* Close */}
                         <button
                             onClick={onClose}
-                            className="rounded-2xl border border-border bg-surface p-3 text-muted transition-all hover:scale-110 hover:text-white active:scale-95"
+                            className="rounded-2xl border p-3 transition-all hover:scale-110 active:scale-95" style={{ borderColor: "rgba(139,94,60,0.2)", bg: "transparent", color: "rgba(10,41,71,0.45)" }}
                         >
                             <X size={24} />
                         </button>
@@ -724,9 +724,9 @@ export default function TaskModal({
                                                 isEditor &&
                                                 handleLabelToggle(label.id)
                                             }
-                                            className={`h-4 w-4 rounded-full ring-2 ring-transparent ring-offset-2 ring-offset-[#0a0a0b] transition-all ${
+                                            className={`h-4 w-4 rounded-full ring-2 ring-transparent ring-offset-2 ring-offset-[#ede0c8] transition-all ${
                                                 isEditor
-                                                    ? "cursor-pointer hover:ring-white/30"
+                                                    ? "cursor-pointer hover:ring-slate-400"
                                                     : "cursor-default"
                                             }`}
                                             style={{
@@ -747,14 +747,14 @@ export default function TaskModal({
                                                         (o) => !o,
                                                     )
                                                 }
-                                                className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-border text-muted transition-all hover:border-accent hover:text-accent"
+                                                className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed text-muted transition-all hover:border-[#8b5e3c] hover:text-[#8b5e3c]" style={{ borderColor: "rgba(139,94,60,0.25)" }}
                                                 title="Add a label"
                                             >
                                                 <Plus size={12} />
                                             </button>
 
                                             {isLabelPickerOpen && (
-                                                <div className="absolute left-0 top-8 z-20 min-w-[200px] rounded-2xl border border-border bg-surface p-2 shadow-2xl animate-in slide-in-from-top-2 duration-200">
+                                                <div className="absolute left-0 top-8 z-20 min-w-[200px] rounded-2xl border p-2 shadow-2xl animate-in slide-in-from-top-2 duration-200" style={{ background: "#f3e4c9", borderColor: "rgba(139,94,60,0.18)" }}>
                                                     {(workspace.labels || [])
                                                         .length === 0 ? (
                                                         <p className="px-3 py-3 text-[10px] text-muted">
@@ -784,7 +784,7 @@ export default function TaskModal({
                                                                             label.id,
                                                                         )
                                                                     }
-                                                                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-bold transition-colors hover:bg-white/5 ${active ? "text-white" : "text-muted"}`}
+                                                                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-bold transition-colors hover:bg-black/5 ${active ? "text-[#0a2947]" : "text-slate-500"}`}
                                                                 >
                                                                     <span
                                                                         className="h-3 w-3 flex-shrink-0 rounded-full"
@@ -811,7 +811,7 @@ export default function TaskModal({
 
                                 {/* Title */}
                                 <input
-                                    className={`w-full border-none bg-transparent p-0 text-5xl font-black tracking-tight text-white outline-none placeholder:text-muted/20 ${!isEditor ? "pointer-events-none opacity-80" : ""}`}
+                                    className={`w-full border-none bg-transparent p-0 text-5xl font-black tracking-tight outline-none placeholder:text-slate-350 ${!isEditor ? "pointer-events-none opacity-80" : ""}`} style={{ color: "#0a2947" }}
                                     value={data.title}
                                     onChange={(e) =>
                                         handleFieldChange(
@@ -826,7 +826,7 @@ export default function TaskModal({
                                 {/* Status, Priority, Due Date, Assignee */}
                                 <div className="flex flex-wrap items-center gap-3">
                                     <select
-                                        className={`rounded-2xl border border-border bg-surface px-4 py-2 text-xs font-black uppercase tracking-widest text-white outline-none transition-colors focus:border-accent ${!isEditor ? "pointer-events-none opacity-60" : ""}`}
+                                        className={`rounded-2xl border px-4 py-2 text-xs font-black uppercase tracking-widest outline-none transition-colors ${!isEditor ? "pointer-events-none opacity-60" : ""}`} style={{ borderColor: "rgba(139,94,60,0.18)", background: "#f3e4c9", color: "#0a2947" }}
                                         value={data.status}
                                         onChange={(e) =>
                                             handleFieldChange(
@@ -869,15 +869,15 @@ export default function TaskModal({
 
                                     {/* Due date */}
                                     <div
-                                        className={`flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 ${!isEditor ? "opacity-60" : ""}`}
+                                        className={`flex items-center gap-2 rounded-2xl border px-4 py-2 ${!isEditor ? "opacity-60" : ""}`} style={{ borderColor: "rgba(139,94,60,0.18)", background: "#f3e4c9" }}
                                     >
                                         <Calendar
                                             size={13}
-                                            className="text-muted"
+                                            style={{ color: "rgba(10,41,71,0.45)" }}
                                         />
                                         <input
                                             type="date"
-                                            className={`bg-transparent text-xs font-bold text-white outline-none ${!isEditor ? "pointer-events-none" : ""}`}
+                                            className={`bg-transparent text-xs font-bold outline-none ${!isEditor ? "pointer-events-none" : ""}`} style={{ color: "#0a2947" }}
                                             value={data.due_date || ""}
                                             onChange={(e) =>
                                                 handleFieldChange(
@@ -895,10 +895,10 @@ export default function TaskModal({
                                     >
                                         <User
                                             size={13}
-                                            className="text-muted"
+                                            style={{ color: "rgba(10,41,71,0.45)" }}
                                         />
                                         <select
-                                            className={`bg-transparent text-xs font-bold text-white outline-none ${!isEditor ? "pointer-events-none" : ""}`}
+                                            className={`bg-transparent text-xs font-bold outline-none ${!isEditor ? "pointer-events-none" : ""}`} style={{ color: "#0a2947" }}
                                             value={data.assignee_id || ""}
                                             onChange={(e) =>
                                                 handleFieldChange(
@@ -923,10 +923,7 @@ export default function TaskModal({
                             <section className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.24em] text-muted">
-                                        <ChevronRight
-                                            size={14}
-                                            className="text-accent"
-                                        />
+                                        <ChevronRight size={14} style={{ color: "#8b5e3c" }} />
                                         Description
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -960,7 +957,7 @@ export default function TaskModal({
                                 </div>
                                 {descriptionMode === "write" ? (
                                     <div className="space-y-3">
-                                        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-surface/30 px-3 py-2">
+                                        <div className="flex flex-wrap items-center gap-2 rounded-2xl border px-3 py-2 animate-in duration-300" style={{ borderColor: "rgba(139,94,60,0.18)", background: "rgba(139,94,60,0.04)" }}>
                                             <button
                                                 type="button"
                                                 onClick={() =>
@@ -969,7 +966,7 @@ export default function TaskModal({
                                                     )
                                                 }
                                                 disabled={!isEditor}
-                                                className="rounded-md border border-border/60 px-2 py-1 text-[10px] font-black text-white hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="rounded-md border px-2 py-1 text-[10px] font-bold text-slate-600 hover:border-[#8b5e3c]/50 hover:text-[#8b5e3c] disabled:cursor-not-allowed disabled:opacity-50" style={{ borderColor: "rgba(139,94,60,0.18)" }}
                                             >
                                                 B
                                             </button>
@@ -979,7 +976,7 @@ export default function TaskModal({
                                                     wrapDescriptionSelection("*")
                                                 }
                                                 disabled={!isEditor}
-                                                className="rounded-md border border-border/60 px-2 py-1 text-[10px] italic font-black text-white hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="rounded-md border px-2 py-1 text-[10px] italic font-bold text-slate-600 hover:border-[#8b5e3c]/50 hover:text-[#8b5e3c] disabled:cursor-not-allowed disabled:opacity-50" style={{ borderColor: "rgba(139,94,60,0.18)" }}
                                             >
                                                 I
                                             </button>
@@ -992,11 +989,11 @@ export default function TaskModal({
                                                     )
                                                 }
                                                 disabled={!isEditor}
-                                                className="rounded-md border border-border/60 px-2 py-1 text-[10px] underline font-black text-white hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="rounded-md border px-2 py-1 text-[10px] underline font-bold text-slate-600 hover:border-[#8b5e3c]/50 hover:text-[#8b5e3c] disabled:cursor-not-allowed disabled:opacity-50" style={{ borderColor: "rgba(139,94,60,0.18)" }}
                                             >
                                                 U
                                             </button>
-                                            <span className="mx-1 h-4 w-px bg-border/60" />
+                                            <span className="mx-1 h-4 w-px" style={{ background: "rgba(139,94,60,0.18)" }} />
                                             {[1, 2, 3].map((level) => (
                                                 <button
                                                     key={level}
@@ -1018,7 +1015,7 @@ export default function TaskModal({
                                         </div>
                                         <textarea
                                             ref={descriptionRef}
-                                            className={`min-h-[200px] w-full resize-none rounded-3xl border border-border bg-surface/50 p-6 text-base leading-relaxed text-white outline-none transition-all focus:border-accent focus:bg-surface ${!isEditor ? "pointer-events-none opacity-80" : ""}`}
+                                            className={`min-h-[200px] w-full resize-none rounded-3xl border p-6 text-sm leading-relaxed outline-none transition-all focus:bg-white/40 ${!isEditor ? "pointer-events-none opacity-80" : ""}`} style={{ borderColor: "rgba(139,94,60,0.18)", background: "rgba(139,94,60,0.03)", color: "#0a2947" }}
                                             value={data.description}
                                             onChange={(e) =>
                                                 updateDescription(
@@ -1033,8 +1030,8 @@ export default function TaskModal({
                                         />
                                     </div>
                                 ) : (
-                                    <div className="min-h-[200px] rounded-3xl border border-border bg-surface/30 p-6">
-                                        <div className="task-description-preview max-w-none whitespace-pre-wrap break-words text-white/90">
+                                    <div className="min-h-[200px] rounded-3xl border p-6" style={{ borderColor: "rgba(139,94,60,0.18)", background: "rgba(139,94,60,0.02)" }}>
+                                        <div className="task-description-preview max-w-none whitespace-pre-wrap break-words text-slate-800">
                                             {data.description?.trim() ? (
                                                 <ReactMarkdown
                                                     remarkPlugins={[remarkGfm]}
@@ -1060,10 +1057,7 @@ export default function TaskModal({
                             <section className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.24em] text-muted">
-                                        <CheckCircle2
-                                            size={14}
-                                            className="text-accent"
-                                        />
+                                        <CheckCircle2 size={14} style={{ color: "#8b5e3c" }} />
                                         Checklist
                                     </div>
                                     {totalCount > 0 && (
@@ -1075,10 +1069,10 @@ export default function TaskModal({
 
                                 {/* Progress bar */}
                                 {totalCount > 0 && (
-                                    <div className="h-1 w-full overflow-hidden rounded-full bg-border/50">
+                                    <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(139,94,60,0.18)" }}>
                                         <div
-                                            className="h-full rounded-full bg-accent transition-all duration-500"
-                                            style={{ width: `${progressPct}%` }}
+                                            className="h-full rounded-full transition-all duration-500"
+                                            style={{ width: `${progressPct}%`, background: "#8b5e3c" }}
                                         />
                                     </div>
                                 )}
@@ -1091,7 +1085,7 @@ export default function TaskModal({
                                         return (
                                             <div
                                                 key={idx}
-                                                className="group flex items-center gap-4 rounded-2xl border border-border/50 bg-surface/30 p-4 transition-all hover:border-accent/30 hover:bg-surface"
+                                                className="group flex items-center gap-4 rounded-2xl border p-4 transition-all hover:bg-black/[0.02]" style={{ borderColor: "rgba(139,94,60,0.18)", background: "rgba(139,94,60,0.03)" }}
                                             >
                                                 <input
                                                     type="checkbox"
@@ -1113,9 +1107,9 @@ export default function TaskModal({
                                                             newList,
                                                         );
                                                     }}
-                                                    className="h-5 w-5 flex-shrink-0 rounded border-border bg-transparent text-accent ring-offset-0 focus:ring-0"
+                                                    className="h-5 w-5 flex-shrink-0 rounded text-[#8b5e3c] focus:ring-0" style={{ borderColor: "rgba(139,94,60,0.35)", background: "transparent" }}
                                                 />
-                                                <span className="flex-1 text-sm font-bold text-white">
+                                                <span className="flex-1 text-sm font-bold" style={{ color: "#0a2947" }}>
                                                     {item.text}
                                                 </span>
                                                 {isEditor && (
@@ -1132,7 +1126,7 @@ export default function TaskModal({
                                                                 newList,
                                                             );
                                                         }}
-                                                        className="text-muted opacity-0 transition-all group-hover:opacity-100 hover:text-red-400"
+                                                        className="text-muted opacity-0 transition-all group-hover:opacity-100 hover:text-red-700"
                                                     >
                                                         <X size={14} />
                                                     </button>
@@ -1145,7 +1139,7 @@ export default function TaskModal({
                                     {isEditor && (
                                         <div className="relative">
                                             <input
-                                                className="w-full rounded-2xl border border-dashed border-border/50 bg-transparent px-12 py-4 text-sm font-bold text-white outline-none transition-all focus:border-accent focus:bg-surface"
+                                                className="w-full rounded-2xl border border-dashed px-12 py-4 text-sm font-bold outline-none transition-all focus:bg-white/40" style={{ borderColor: "rgba(139,94,60,0.25)", background: "transparent", color: "#0a2947" }}
                                                 placeholder="Enter a new checkpoint…"
                                                 value={newChecklistItem}
                                                 onChange={(e) => {
@@ -1199,9 +1193,9 @@ export default function TaskModal({
 
                                     {/* Ghost item — live typing indicator for viewers */}
                                     {ghostChecklistItem?.text && (
-                                        <div className="flex items-center gap-4 rounded-2xl border border-dashed border-accent/30 bg-accent/5 p-4 animate-pulse">
-                                            <div className="h-5 w-5 flex-shrink-0 rounded border border-accent/30 bg-transparent" />
-                                            <span className="text-sm font-bold text-accent/70">
+                                        <div className="flex items-center gap-4 rounded-2xl border border-dashed p-4 animate-pulse" style={{ borderColor: "rgba(180,83,9,0.3)", background: "rgba(180,83,9,0.04)" }}>
+                                            <div className="h-5 w-5 flex-shrink-0 rounded border bg-transparent" style={{ borderColor: "rgba(180,83,9,0.3)" }} />
+                                            <span className="text-sm font-bold" style={{ color: "#b45309" }}>
                                                 {ghostChecklistItem.user} is
                                                 typing:{" "}
                                                 {ghostChecklistItem.text}
@@ -1216,7 +1210,7 @@ export default function TaskModal({
                                                 onClick={() =>
                                                     setShowDoneItems((o) => !o)
                                                 }
-                                                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted transition-colors hover:text-white"
+                                                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors hover:text-[#8b5e3c]" style={{ color: "rgba(10,41,71,0.45)" }}
                                             >
                                                 <ChevronDown
                                                     size={12}
@@ -1238,7 +1232,7 @@ export default function TaskModal({
                                                     return (
                                                         <div
                                                             key={idx}
-                                                            className="group flex items-center gap-4 rounded-2xl border border-border/30 bg-surface/10 p-4 transition-all hover:border-border/50"
+                                                            className="group flex items-center gap-4 rounded-2xl border p-4 transition-all" style={{ borderColor: "rgba(139,94,60,0.1)", background: "rgba(139,94,60,0.01)" }} onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(139,94,60,0.25)"} onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(139,94,60,0.1)"}
                                                         >
                                                             <input
                                                                 type="checkbox"
@@ -1268,7 +1262,7 @@ export default function TaskModal({
                                                                 }}
                                                                 className="h-5 w-5 flex-shrink-0 rounded border-border bg-transparent text-accent ring-offset-0 focus:ring-0"
                                                             />
-                                                            <span className="flex-1 text-sm font-bold text-muted line-through">
+                                                            <span className="flex-1 text-sm font-bold line-through" style={{ color: "rgba(10,41,71,0.45)" }}>
                                                                 {item.text}
                                                             </span>
                                                             {isEditor && (
@@ -1309,10 +1303,7 @@ export default function TaskModal({
                             <section className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.24em] text-muted">
-                                        <Lock
-                                            size={14}
-                                            className="text-accent"
-                                        />
+                                        <Lock size={14} style={{ color: "#8b5e3c" }} />
                                         Blockers
                                     </div>
                                     {isEditor && (
@@ -1322,7 +1313,7 @@ export default function TaskModal({
                                                     (o) => !o,
                                                 )
                                             }
-                                            className="text-[10px] font-black uppercase text-accent hover:underline"
+                                            className="text-[10px] font-black uppercase hover:underline" style={{ color: "#8b5e3c" }}
                                         >
                                             {isDependencyListOpen
                                                 ? "Close Picker"
@@ -1341,7 +1332,7 @@ export default function TaskModal({
                                     {activeDeps.map((dep) => (
                                         <div
                                             key={dep.id}
-                                            className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs font-bold text-red-400"
+                                            className="flex items-center gap-2 rounded-xl border border-red-650/20 bg-red-650/[0.04] px-3 py-2 text-xs font-bold text-red-700"
                                         >
                                             <span className="opacity-60">
                                                 #{dep.id}
@@ -1354,7 +1345,7 @@ export default function TaskModal({
                                                     onClick={() =>
                                                         toggleDependency(dep.id)
                                                     }
-                                                    className="ml-1 transition-colors hover:text-white"
+                                                    className="ml-1 transition-colors hover:text-red-900"
                                                 >
                                                     <X size={12} />
                                                 </button>
@@ -1364,10 +1355,10 @@ export default function TaskModal({
                                 </div>
 
                                 {isDependencyListOpen && isEditor && (
-                                    <div className="space-y-4 rounded-3xl border border-border bg-surface p-6 animate-in slide-in-from-top-4 duration-300">
+                                    <div className="space-y-4 rounded-3xl border p-6 animate-in slide-in-from-top-4 duration-300" style={{ borderColor: "rgba(139,94,60,0.18)", background: "#f3e4c9" }}>
                                         <div className="relative">
                                             <input
-                                                className="w-full rounded-2xl border border-border bg-[#0a0a0b] px-10 py-3 text-sm font-bold text-white outline-none focus:border-accent"
+                                                className="w-full rounded-2xl border px-10 py-3 text-sm font-bold outline-none" style={{ borderColor: "rgba(139,94,60,0.18)", background: "rgba(139,94,60,0.03)", color: "#0a2947" }}
                                                 placeholder="Search by title, ID, or assignee…"
                                                 value={dependencySearch}
                                                 onChange={(e) =>
@@ -1395,10 +1386,10 @@ export default function TaskModal({
                                                                 t.id,
                                                             )
                                                         }
-                                                        className="flex w-full items-center justify-between rounded-xl p-3 text-left transition-colors hover:bg-white/5"
+                                                        className="flex w-full items-center justify-between rounded-xl p-3 text-left transition-colors hover:bg-black/5"
                                                     >
                                                         <div className="flex flex-col">
-                                                            <span className="text-xs font-black text-white">
+                                                            <span className="text-xs font-black" style={{ color: "#0a2947" }}>
                                                                 #{t.id}{" "}
                                                                 {t.title}
                                                             </span>
@@ -1425,15 +1416,15 @@ export default function TaskModal({
 
                     {/* ── ASIDE ── Project Stream ──────────────────────────── */}
                     {isSidePanelOpen && (
-                        <aside className="flex w-96 shrink-0 flex-col border-l border-border">
+                        <aside className="flex w-96 shrink-0 flex-col border-l" style={{ borderColor: "rgba(139,94,60,0.18)", background: "#f3e4c9" }}>
                             {/* Panel header */}
-                            <div className="flex h-14 items-center justify-between border-b border-border/50 px-6">
+                            <div className="flex h-14 items-center justify-between border-b px-6" style={{ borderColor: "rgba(139,94,60,0.18)" }}>
                                 <span className="text-[10px] font-black uppercase tracking-[0.24em] text-muted">
                                     Project Stream
                                 </span>
                                 <button
                                     onClick={() => setIsSidePanelOpen(false)}
-                                    className="rounded-lg p-1.5 text-muted transition-colors hover:text-white"
+                                    className="rounded-lg p-1.5 text-muted transition-colors hover:text-[#8b5e3c]"
                                     title="Collapse panel"
                                 >
                                     <PanelRightClose size={16} />
@@ -1458,7 +1449,7 @@ export default function TaskModal({
                                                                 `/storage/${file.file_path}`,
                                                         )
                                                     }
-                                                    className="group flex items-center gap-2 rounded-xl border border-border/50 bg-surface/30 px-3 py-2 text-[10px] font-bold text-muted transition-all hover:border-accent/40 hover:bg-accent/5 hover:text-accent"
+                                                    className="group flex items-center gap-2 rounded-xl border px-3 py-2 text-[10px] font-bold transition-all hover:bg-[#8b5e3c]/5 hover:text-[#8b5e3c]" style={{ borderColor: "rgba(139,94,60,0.18)", background: "rgba(139,94,60,0.03)", color: "rgba(10,41,71,0.45)" }}
                                                 >
                                                     <ImageIcon size={14} />
                                                     <span className="max-w-[120px] truncate">
@@ -1488,12 +1479,12 @@ export default function TaskModal({
                                         className="flex flex-col gap-2 animate-in slide-in-from-bottom-2 duration-300"
                                     >
                                         <div className="flex items-center gap-2">
-                                            <div className="flex h-6 w-6 items-center justify-center rounded-full border border-accent/20 bg-surface text-[10px] font-black text-accent">
+                                            <div className="flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-black" style={{ borderColor: "rgba(139,94,60,0.25)", background: "rgba(139,94,60,0.05)", color: "#8b5e3c" }}>
                                                 {comment.user?.name?.charAt(
                                                     0,
                                                 ) ?? "?"}
                                             </div>
-                                            <span className="text-[10px] font-black uppercase tracking-wider text-white">
+                                            <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#0a2947" }}>
                                                 {comment.user?.name ??
                                                     "Unknown"}
                                             </span>
@@ -1530,9 +1521,9 @@ export default function TaskModal({
 
                             {/* Comment input */}
                             <div className="p-6 pt-0">
-                                <div className="relative rounded-3xl border border-border bg-surface p-4 transition-all focus-within:border-accent">
+                                <div className="relative rounded-3xl border p-4 transition-all focus-within:border-[#8b5e3c]" style={{ borderColor: "rgba(139,94,60,0.25)", background: "rgba(139,94,60,0.03)" }}>
                                     <textarea
-                                        className="w-full resize-none bg-transparent pb-10 text-xs text-white outline-none placeholder:text-muted/50"
+                                        className="w-full resize-none bg-transparent pb-10 text-xs outline-none placeholder:text-muted/50" style={{ color: "#1e293b" }}
                                         placeholder="Broadcast a message…"
                                         rows={2}
                                         value={newComment}
@@ -1552,7 +1543,7 @@ export default function TaskModal({
                                     <button
                                         onClick={handleCommentSubmit}
                                         disabled={!newComment.trim()}
-                                        className="absolute bottom-4 right-4 flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-white shadow-lg shadow-accent/20 transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+                                        className="absolute bottom-4 right-4 flex h-10 w-10 items-center justify-center rounded-xl text-white transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100" style={{ background: "#8b5e3c" }}
                                     >
                                         <Send size={16} />
                                     </button>

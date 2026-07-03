@@ -78,7 +78,7 @@
 
 .task-description-preview :where(h1, h2, h3) {
     margin: 1.25rem 0 0.65rem;
-    color: #ffffff;
+    color: #0a2947;
     font-family: var(--font-display);
     font-weight: 900;
     line-height: 1.15;
@@ -126,13 +126,13 @@
 
 /* Controls panel buttons */
 .react-flow__controls-button {
-    background: #0d3260;
-    border-color: #1a3f6e;
-    color: #d3d4c0;
-    fill: #d3d4c0;
+    background: #f3e4c9;
+    border-color: rgba(139, 94, 60, 0.18);
+    color: #0a2947;
+    fill: #0a2947;
 }
 .react-flow__controls-button:hover {
-    background: #0f3a70;
+    background: #8b5e3c;
     color: #f3e4c9;
     fill: #f3e4c9;
 }
@@ -187,24 +187,25 @@ body::-webkit-scrollbar {
 /* Inner containers custom thin scrollbar */
 * {
     scrollbar-width: thin;
-    scrollbar-color: #1a3f6e #0a2947;
+    scrollbar-color: #8b5e3c #ede0c8;
 }
 
 ::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    background: transparent;
+    background: #ede0c8;
+    border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #1a3f6e;
+    background: #8b5e3c;
     border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #8b5e3c;
+    background: #a06b43;
 }
 

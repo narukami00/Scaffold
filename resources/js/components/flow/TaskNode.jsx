@@ -2,29 +2,41 @@ import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
 import { Lock, Calendar, ExternalLink, Trash2 } from "lucide-react";
 
+// ── Palette tokens ────────────────────────────────────────────────────────────
+const C = {
+    bg:      "#ede0c8",
+    card:    "#f3e4c9",
+    navy:    "#0a2947",
+    brown:   "#8b5e3c",
+    sage:    "#d3d4c0",
+    border:  "rgba(139,94,60,0.18)",
+    muted:   "rgba(10,41,71,0.45)",
+    faint:   "rgba(10,41,71,0.25)",
+};
+
 const PRIORITY_COLORS = {
-    urgent: "bg-red-500",
-    high: "bg-orange-500",
-    medium: "bg-yellow-500",
-    low: "bg-blue-500",
+    urgent: "bg-red-700",
+    high: "bg-amber-600",
+    medium: "bg-yellow-600",
+    low: "bg-blue-600",
 };
 
 const STATUS_CONFIG = {
-    backlog: { label: "Backlog", color: "text-muted", ring: "border-border" },
+    backlog: {
+        label: "Backlog",
+        color: "text-[#1a5f8a]",
+    },
     in_progress: {
         label: "In Progress",
-        color: "text-[#40c8ff]",
-        ring: "border-[#40c8ff]/30",
+        color: "text-[#b45309]",
     },
     in_review: {
         label: "In Review",
-        color: "text-[#ffa040]",
-        ring: "border-[#ffa040]/30",
+        color: "text-[#7c5c1e]",
     },
     done: {
         label: "Done",
-        color: "text-[#4fffb0]",
-        ring: "border-emerald-500/20",
+        color: "text-[#2d6a4f]",
     },
 };
 
@@ -47,21 +59,31 @@ export default memo(function TaskNode({ data }) {
     return (
         <div
             className={`
-                group relative min-h-[188px] w-[240px] rounded-3xl border p-4 shadow-xl sm:w-[260px]
-                cursor-pointer select-none transition-[border-color,box-shadow,opacity] duration-200
-                ${
-                    isDone
-                        ? "border-emerald-500/20 bg-emerald-500/[0.05] shadow-[0_12px_30px_rgba(16,185,129,0.08)]"
-                        : "border-border bg-surface hover:border-accent/40 hover:shadow-[0_0_16px_rgba(124,106,255,0.08)]"
-                }
+                group relative min-h-[188px] w-[240px] rounded-3xl border p-4 shadow-md sm:w-[260px]
+                cursor-pointer select-none transition-all duration-200
                 ${isBlocked ? "opacity-60" : ""}
                 ${isLocked ? "opacity-90" : ""}
                 ${isRecent ? "task-pop-in" : ""}
                 ${isDeleting ? "task-pop-out pointer-events-none" : ""}
             `}
             style={{
-                borderColor: isLocked ? occupantColor : undefined,
-                boxShadow: isLocked ? `0 0 20px ${occupantColor}44` : undefined,
+                borderColor: isLocked ? occupantColor : (isDone ? "rgba(45,106,79,0.25)" : C.border),
+                background: isDone ? "rgba(45,106,79,0.03)" : C.card,
+                boxShadow: isLocked 
+                    ? `0 0 20px ${occupantColor}44` 
+                    : (isDone ? "0 4px 12px rgba(45,106,79,0.05)" : "0 4px 12px rgba(139,94,60,0.06)"),
+            }}
+            onMouseEnter={e => {
+                if (!isLocked) {
+                    e.currentTarget.style.borderColor = isDone ? "rgba(45,106,79,0.45)" : "rgba(139,94,60,0.4)";
+                    e.currentTarget.style.boxShadow = isDone ? "0 6px 16px rgba(45,106,79,0.08)" : "0 6px 16px rgba(139,94,60,0.12)";
+                }
+            }}
+            onMouseLeave={e => {
+                if (!isLocked) {
+                    e.currentTarget.style.borderColor = isDone ? "rgba(45,106,79,0.25)" : C.border;
+                    e.currentTarget.style.boxShadow = isDone ? "0 4px 12px rgba(45,106,79,0.05)" : "0 4px 12px rgba(139,94,60,0.06)";
+                }
             }}
             title={isLocked ? `${occupantName} is editing...` : ""}
         >
@@ -83,7 +105,8 @@ export default memo(function TaskNode({ data }) {
                         e.stopPropagation();
                         onTaskDelete(task.id);
                     }}
-                    className="absolute -right-2 -top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-accent-red/30 bg-surface text-accent-red opacity-0 shadow-lg transition-all hover:bg-accent-red hover:text-white group-hover:opacity-100"
+                    className="absolute -right-2 -top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border opacity-0 shadow-md transition-all hover:bg-[#c0392b] hover:text-white group-hover:opacity-100"
+                    style={{ borderColor: "rgba(192,57,43,0.25)", background: C.card, color: "#c0392b" }}
                     title="Delete task"
                 >
                     <Trash2 size={14} />
@@ -95,8 +118,8 @@ export default memo(function TaskNode({ data }) {
                 type="target"
                 position={Position.Top}
                 style={{
-                    background: "#7c6aff",
-                    border: "2px solid #0a0a0b",
+                    background: C.brown,
+                    border: `2px solid ${C.card}`,
                     width: 12,
                     height: 12,
                     top: -6,
@@ -108,25 +131,28 @@ export default memo(function TaskNode({ data }) {
                 {/* Title row */}
                 <div className="flex items-start justify-between gap-3">
                     <h4
-                        className={`
-                        line-clamp-2 flex-1 text-sm font-bold leading-snug transition-colors
-                        ${isDone ? "text-white/70" : "text-white group-hover:text-accent"}
-                    `}
+                        className="line-clamp-2 flex-1 text-sm font-bold leading-snug transition-colors"
+                        style={{
+                            color: C.navy,
+                            textDecoration: isDone ? "line-through" : "none",
+                            opacity: isDone ? 0.6 : 1
+                        }}
                     >
                         {task.title}
                     </h4>
 
                     <div className="flex shrink-0 items-center gap-1.5">
                         {isBlocked && (
-                            <Lock size={12} className="text-red-400/80" />
+                            <Lock size={12} style={{ color: "#c0392b" }} />
                         )}
                         {isDone ? (
-                            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.2em] text-emerald-300">
+                            <span className="rounded border px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.2em]"
+                                style={{ color: "#2d6a4f", background: "rgba(45,106,79,0.1)", borderColor: "rgba(45,106,79,0.2)" }}>
                                 Done
                             </span>
                         ) : (
                             <div
-                                className={`h-6 w-1.5 rounded-full ${PRIORITY_COLORS[task.priority] ?? "bg-blue-500"}`}
+                                className={`h-6 w-1.5 rounded-full ${PRIORITY_COLORS[task.priority] ?? "bg-blue-600"}`}
                             />
                         )}
                     </div>
@@ -134,34 +160,29 @@ export default memo(function TaskNode({ data }) {
 
                 {/* Meta row */}
                 <div
-                    className={`flex items-center justify-between border-t pt-2.5 ${isDone ? "border-emerald-400/10" : "border-border/40"}`}
+                    className="flex items-center justify-between border-t pt-2.5"
+                    style={{ borderColor: isDone ? "rgba(45,106,79,0.12)" : C.border }}
                 >
                     <div className="flex items-center gap-2">
                         {/* Assignee avatar */}
                         <div
-                            className={`
-                            flex h-6 w-6 items-center justify-center rounded-full border-2
-                            text-[9px] font-black uppercase shadow-sm
-                            ${
-                                isDone
-                                    ? "border-emerald-900 bg-emerald-300 text-emerald-950"
-                                    : "border-surface bg-accent text-black"
-                            }
-                        `}
+                            className="flex h-6 w-6 items-center justify-center rounded-full border text-[9px] font-black uppercase shadow-sm"
+                            style={{
+                                borderColor: isDone ? "rgba(45,106,79,0.2)" : C.border,
+                                background: isDone ? "rgba(45,106,79,0.1)" : C.brown,
+                                color: isDone ? "#2d6a4f" : "#f3e4c9"
+                            }}
                         >
                             {task.assignee?.name?.substring(0, 2) ?? "??"}
                         </div>
 
                         {/* Due date */}
                         {task.due_date && (
-                            <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-muted">
+                            <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest"
+                                style={{ color: C.muted }}>
                                 <Calendar
                                     size={10}
-                                    className={
-                                        isDone
-                                            ? "text-emerald-300"
-                                            : "text-accent"
-                                    }
+                                    style={{ color: isDone ? "#2d6a4f" : C.brown }}
                                 />
                                 {new Date(task.due_date).toLocaleDateString(
                                     [],
@@ -189,11 +210,27 @@ export default memo(function TaskNode({ data }) {
                             }
                         }}
                         disabled={isLocked}
-                        className={`flex w-full items-center justify-center gap-1.5 rounded-xl border py-1 text-[10px] font-black uppercase tracking-widest transition-[border-color,background-color,color,opacity] duration-150 ${
+                        className={`flex w-full items-center justify-center gap-1.5 rounded-xl border py-1 text-[10px] font-black uppercase tracking-widest transition-all duration-150 ${
                             isLocked
                                 ? "border-transparent bg-transparent text-transparent opacity-0"
-                                : "border-border/20 bg-surface2/30 text-muted/70 hover:border-accent/40 hover:text-accent"
+                                : "border-transparent text-slate-500 hover:text-[#8b5e3c]"
                         }`}
+                        style={{
+                            background: isLocked ? "transparent" : "rgba(139,94,60,0.05)",
+                            border: isLocked ? "none" : `1px solid ${C.border}`
+                        }}
+                        onMouseEnter={e => {
+                            if (!isLocked) {
+                                e.currentTarget.style.borderColor = C.brown;
+                                e.currentTarget.style.background = "rgba(139,94,60,0.1)";
+                            }
+                        }}
+                        onMouseLeave={e => {
+                            if (!isLocked) {
+                                e.currentTarget.style.borderColor = C.border;
+                                e.currentTarget.style.background = "rgba(139,94,60,0.05)";
+                            }
+                        }}
                     >
                         <ExternalLink size={10} />
                         Open
@@ -206,8 +243,8 @@ export default memo(function TaskNode({ data }) {
                 type="source"
                 position={Position.Bottom}
                 style={{
-                    background: "#7c6aff",
-                    border: "2px solid #0a0a0b",
+                    background: C.brown,
+                    border: `2px solid ${C.card}`,
                     width: 12,
                     height: 12,
                     bottom: -6,

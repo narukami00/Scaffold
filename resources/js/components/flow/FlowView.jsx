@@ -18,14 +18,24 @@ import TaskNode from "@/components/flow/TaskNode";
 import { wouldCreateCycle } from "@/utils/cycleDetection";
 import { getResolvableDependencies } from "@/utils/taskDependencies";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ── Palette tokens ────────────────────────────────────────────────────────────
+const C = {
+    bg:      "#ede0c8",
+    card:    "#f3e4c9",
+    navy:    "#0a2947",
+    brown:   "#8b5e3c",
+    sage:    "#d3d4c0",
+    border:  "rgba(139,94,60,0.18)",
+    muted:   "rgba(10,41,71,0.45)",
+    faint:   "rgba(10,41,71,0.25)",
+};
 
 const nodeTypes = { customTaskNode: TaskNode };
 
 const STATUS_ORDER = { backlog: 0, in_progress: 1, in_review: 2, done: 3 };
 const COL_WIDTH = 320;
 const ROW_HEIGHT = 220;
-const COL_OFFSET = 40; // slight diagonal cascade per row
+const COL_OFFSET = 40;
 
 const STATUS_OPTIONS = [
     { status: "backlog", label: "Backlog" },
@@ -33,8 +43,6 @@ const STATUS_OPTIONS = [
     { status: "in_review", label: "In Review" },
     { status: "done", label: "Done" },
 ];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getAutoPosition(task, indexInColumn) {
     const col = STATUS_ORDER[task.status] ?? 0;
@@ -78,7 +86,7 @@ function buildNodes(
                 onTaskDelete,
                 isLocked: !!userId,
                 occupantName: occupantMember?.name || "Someone",
-                occupantColor: occupantMember?.pivot?.color || "#3b82f6",
+                occupantColor: occupantMember?.pivot?.color || "#8b5e3c",
                 isRecent: recentTaskIds.includes(task.id),
                 isDeleting: deletingTaskIds.includes(task.id),
                 isBlocked: getResolvableDependencies(task, tasks).some(
@@ -95,6 +103,7 @@ function buildEdges(tasks) {
     tasks.forEach((task) => {
         getResolvableDependencies(task, tasks).forEach((dep) => {
             const isDone = dep.status === "done";
+            const edgeColor = isDone ? "#2d6a4f" : "#8b5e3c";
             edges.push({
                 id: `e${dep.id}-${task.id}`,
                 source: dep.id.toString(),
@@ -102,12 +111,12 @@ function buildEdges(tasks) {
                 type: "smoothstep",
                 animated: !isDone,
                 style: {
-                    stroke: isDone ? "#4fffb0" : "#7c6aff",
-                    strokeWidth: 2,
+                    stroke: edgeColor,
+                    strokeWidth: 2.5,
                 },
                 markerEnd: {
                     type: MarkerType.ArrowClosed,
-                    color: isDone ? "#4fffb0" : "#7c6aff",
+                    color: edgeColor,
                     width: 16,
                     height: 16,
                 },
@@ -139,8 +148,6 @@ function FlowViewInner({
     const [contextMenu, setContextMenu] = useState(null);
     const [isCreating, setIsCreating] = useState(false);
     const [errorToast, setErrorToast] = useState(null);
-
-
 
     const patchTask = useCallback(
         async (taskId, payload) => {
@@ -186,7 +193,6 @@ function FlowViewInner({
         deletingTaskIds,
     ]);
 
-    // ── Dragging Presence: Notify others we are touching the node
     const onNodeDragStart = useCallback(
         (_event, node) => {
             axios.post(
@@ -196,7 +202,6 @@ function FlowViewInner({
         [workspace.slug, project.slug],
     );
 
-    // ── Drag-stop: persist position and unlock
     const onNodeDragStop = useCallback(
         (_event, node) => {
             const nextPosition = {
@@ -224,12 +229,10 @@ function FlowViewInner({
         [onTaskUpdated, patchTask, workspace.slug, project.slug],
     );
 
-    // ── Connect: drag from one handle to another → create dependency
     const onConnect = useCallback(
         (params) => {
             const { source, target } = params;
 
-            // Prevent self-loops
             if (source === target) return;
 
             const targetTask = tasks.find((t) => t.id.toString() === target);
@@ -240,9 +243,8 @@ function FlowViewInner({
             );
             const sourceId = parseInt(source, 10);
 
-            if (existingDepIds.includes(sourceId)) return; // already linked
+            if (existingDepIds.includes(sourceId)) return;
 
-            // Frontend cycle guard — immediate feedback without a server round-trip
             if (
                 wouldCreateCycle(
                     tasks,
@@ -254,7 +256,6 @@ function FlowViewInner({
                     "Circular dependency detected — this connection would create a deadlock.",
                 );
                 const timer = setTimeout(() => setErrorToast(null), 4500);
-                // Clean up the timer reference if the component unmounts
                 return () => clearTimeout(timer);
             }
 
@@ -272,12 +273,12 @@ function FlowViewInner({
                     type: "smoothstep",
                     animated: true,
                     style: {
-                        stroke: "#7c6aff",
-                        strokeWidth: 2,
+                        stroke: C.brown,
+                        strokeWidth: 2.5,
                     },
                     markerEnd: {
                         type: MarkerType.ArrowClosed,
-                        color: "#7c6aff",
+                        color: C.brown,
                         width: 16,
                         height: 16,
                     },
@@ -307,7 +308,6 @@ function FlowViewInner({
         [tasks, onTaskUpdated, patchTask],
     );
 
-    // ── Edge delete: remove the dependency from the database
     const onEdgesDelete = useCallback(
         (deletedEdges) => {
             deletedEdges.forEach((edge) => {
@@ -344,7 +344,6 @@ function FlowViewInner({
         [tasks, onTaskUpdated, patchTask],
     );
 
-    // ── Right-click context menu
     const onPaneContextMenu = useCallback(
         (event) => {
             event.preventDefault();
@@ -364,7 +363,6 @@ function FlowViewInner({
 
     const closeContextMenu = useCallback(() => setContextMenu(null), []);
 
-    // ── Create task from context menu at canvas position
     const createTaskAtPosition = useCallback(
         (status) => {
             if (!contextMenu || isCreating) return;
@@ -402,21 +400,19 @@ function FlowViewInner({
         [contextMenu, isCreating, onTaskUpdated, workspace.slug, project.slug],
     );
 
-    // ── Auto-layout (fit-to-screen shortcut)
     const handleFitView = useCallback(() => {
         fitView({ padding: 0.15, duration: 600 });
     }, [fitView]);
-
-    // ─────────────────────────────────────────────────────────────────────────
 
     return (
         <div className="relative h-full w-full" onClick={closeContextMenu}>
             {/* ── Cycle detection error toast ── */}
             {errorToast && (
                 <div className="pointer-events-none absolute inset-x-0 top-6 z-50 flex justify-center px-6">
-                    <div className="flex items-center gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-3 shadow-2xl backdrop-blur-sm">
-                        <div className="h-2 w-2 shrink-0 rounded-full bg-red-400 animate-pulse" />
-                        <p className="text-xs font-black uppercase tracking-widest text-red-300">
+                    <div className="flex items-center gap-3 rounded-2xl border px-5 py-3 shadow-2xl backdrop-blur-sm"
+                        style={{ borderColor: "rgba(192,57,43,0.25)", background: "rgba(192,57,43,0.08)", color: "#c0392b" }}>
+                        <div className="h-2 w-2 shrink-0 rounded-full bg-red-600 animate-pulse" />
+                        <p className="text-xs font-black uppercase tracking-widest">
                             {errorToast}
                         </p>
                     </div>
@@ -439,70 +435,75 @@ function FlowViewInner({
                 minZoom={0.15}
                 maxZoom={2.5}
                 deleteKeyCode={["Delete", "Backspace"]}
-                style={{ background: "#0a0a0b" }}
+                style={{ background: C.bg }}
                 proOptions={{ hideAttribution: true }}
             >
-                {/* Dot-grid background matching the dark theme */}
+                {/* Dot-grid background matching the parchment theme */}
                 <Background
                     variant={BackgroundVariant.Dots}
                     gap={28}
                     size={1.2}
-                    color="#252528"
+                    color="rgba(139,94,60,0.18)"
                 />
 
-                {/* Controls — dark-styled */}
+                {/* Controls — styled */}
                 <Controls
                     showInteractive={false}
                     style={{
-                        background: "#111113",
-                        border: "1px solid #252528",
+                        background: C.card,
+                        border: `1px solid ${C.border}`,
                         borderRadius: "16px",
                         padding: "4px",
-                        boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                        boxShadow: "0 4px 12px rgba(139,94,60,0.1)",
                     }}
                 />
 
-                {/* Mini-map — dark-styled */}
+                {/* Mini-map — styled */}
                 <MiniMap
                     style={{
-                        background: "#111113",
-                        border: "1px solid #252528",
+                        background: C.card,
+                        border: `1px solid ${C.border}`,
                         borderRadius: "16px",
-                        boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                        boxShadow: "0 4px 12px rgba(139,94,60,0.1)",
                     }}
                     nodeColor={(node) => {
                         const status = node.data?.task?.status;
-                        if (status === "done") return "#4fffb0";
-                        if (status === "in_progress") return "#40c8ff";
-                        if (status === "in_review") return "#ffa040";
-                        return "#7c6aff";
+                        if (status === "done") return "#2d6a4f";
+                        if (status === "in_progress") return "#b45309";
+                        if (status === "in_review") return "#7c5c1e";
+                        return "#0a2947";
                     }}
-                    maskColor="rgba(0,0,0,0.65)"
+                    maskColor="rgba(237,224,200,0.6)"
                 />
             </ReactFlow>
 
             {/* ── Canvas toolbar overlay ── */}
             <div className="pointer-events-none absolute left-4 top-4 z-10 flex items-center gap-2">
-                <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-border bg-surface/90 px-4 py-2 shadow-xl backdrop-blur-sm">
-                    <Zap size={13} className="text-accent" strokeWidth={2.5} />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">
+                <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border px-4 py-2 shadow-sm backdrop-blur-sm"
+                    style={{ background: "rgba(243,228,201,0.9)", borderColor: C.border }}>
+                    <Zap size={13} style={{ color: C.brown }} strokeWidth={2.5} />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: C.muted }}>
                         Flow Canvas
                     </span>
-                    <span className="mx-1 h-4 w-px bg-border" />
+                    <span className="mx-1 h-4 w-px" style={{ background: C.border }} />
                     <button
                         onClick={handleFitView}
-                        className="flex items-center gap-1.5 rounded-xl border border-border/60 bg-surface2/80 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted transition-all hover:border-accent/40 hover:text-accent"
+                        className="flex items-center gap-1.5 rounded-xl border px-3 py-1 text-[10px] font-black uppercase tracking-widest transition-all"
+                        style={{ borderColor: "rgba(139,94,60,0.2)", bg: "transparent", color: C.muted }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = C.brown; e.currentTarget.style.color = C.brown; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(139,94,60,0.2)"; e.currentTarget.style.color = C.muted; }}
                     >
                         <LayoutGrid size={11} strokeWidth={2.5} />
                         Fit
                     </button>
                 </div>
 
-                <div className="pointer-events-auto rounded-2xl border border-border bg-surface/90 px-4 py-2 shadow-xl backdrop-blur-sm">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted">
-                        <span className="text-accent">{tasks.length}</span>{" "}
+                <div className="pointer-events-auto rounded-2xl border px-4 py-2 shadow-sm backdrop-blur-sm"
+                    style={{ background: "rgba(243,228,201,0.9)", borderColor: C.border }}>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: C.muted }}>
+                        <span style={{ color: C.brown }}>{tasks.length}</span>{" "}
                         tasks ·{" "}
-                        <span className="text-accent">{edges.length}</span>{" "}
+                        <span style={{ color: C.brown }}>{edges.length}</span>{" "}
                         links
                     </p>
                 </div>
@@ -510,26 +511,27 @@ function FlowViewInner({
 
             {/* ── Legend overlay ── */}
             <div className="pointer-events-none absolute bottom-4 left-4 z-10">
-                <div className="rounded-2xl border border-border bg-surface/80 px-4 py-3 shadow-xl backdrop-blur-sm">
-                    <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-muted">
+                <div className="rounded-2xl border px-4 py-3 shadow-sm backdrop-blur-sm"
+                    style={{ background: "rgba(243,228,201,0.9)", borderColor: C.border }}>
+                    <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em]" style={{ color: C.brown }}>
                         Tip
                     </p>
-                    <ul className="space-y-1 text-[10px] text-muted">
+                    <ul className="space-y-1 text-[10px]" style={{ color: C.muted }}>
                         <li>
-                            <span className="text-accent">Drag handle</span> →
-                            create dependency
+                            <span style={{ color: C.brown }}>Drag handle</span> →
+                            dependency
                         </li>
                         <li>
-                            <span className="text-accent">Right-click</span> →
+                            <span style={{ color: C.brown }}>Right-click</span> →
                             new task here
                         </li>
                         <li>
-                            <span className="text-accent">Delete</span> → remove
-                            selected edge
+                            <span style={{ color: C.brown }}>Delete</span> → remove
+                            selected link
                         </li>
                         <li>
-                            <span className="text-accent">Open</span> → edit
-                            task details
+                            <span style={{ color: C.brown }}>Open</span> → edit
+                            details
                         </li>
                     </ul>
                 </div>
@@ -538,21 +540,22 @@ function FlowViewInner({
             {/* ── Right-click context menu ── */}
             {contextMenu && (
                 <div
-                    className="fixed z-50 min-w-[220px] overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl"
+                    className="fixed z-50 min-w-[220px] overflow-hidden rounded-2xl border shadow-2xl"
                     style={{
                         top: contextMenu.screenY,
                         left: contextMenu.screenX,
-                        // Nudge left/up if near the right/bottom edge
                         transform: "translate(-4px, -4px)",
+                        background: C.card,
+                        borderColor: C.border
                     }}
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Header */}
-                    <div className="border-b border-border px-4 py-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-muted">
+                    <div className="border-b px-4 py-3" style={{ borderColor: C.border }}>
+                        <p className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: C.muted }}>
                             Create Task
                         </p>
-                        <p className="mt-0.5 text-[9px] text-muted/60 font-mono">
+                        <p className="mt-0.5 text-[9px] font-mono" style={{ color: C.muted }}>
                             at ({contextMenu.flowX}, {contextMenu.flowY})
                         </p>
                     </div>
@@ -562,19 +565,20 @@ function FlowViewInner({
                         {STATUS_OPTIONS.map(({ status, label }) => {
                             const dotColor =
                                 status === "done"
-                                    ? "bg-[#4fffb0]"
+                                    ? "bg-[#2d6a4f]"
                                     : status === "in_progress"
-                                      ? "bg-[#40c8ff]"
+                                      ? "bg-[#b45309]"
                                       : status === "in_review"
-                                        ? "bg-[#ffa040]"
-                                        : "bg-muted";
+                                        ? "bg-[#7c5c1e]"
+                                        : "bg-slate-400";
 
                             return (
                                 <button
                                     key={status}
                                     disabled={isCreating}
                                     onClick={() => createTaskAtPosition(status)}
-                                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-surface2 disabled:opacity-40"
+                                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-colors hover:bg-black/5 disabled:opacity-40"
+                                    style={{ color: C.navy }}
                                 >
                                     <div
                                         className={`h-2 w-2 shrink-0 rounded-full ${dotColor}`}
@@ -582,7 +586,8 @@ function FlowViewInner({
                                     {label}
                                     <Plus
                                         size={13}
-                                        className="ml-auto text-accent opacity-0 transition-opacity group-hover:opacity-100"
+                                        className="ml-auto opacity-0 transition-opacity group-hover:opacity-100"
+                                        style={{ color: C.brown }}
                                     />
                                 </button>
                             );
