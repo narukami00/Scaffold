@@ -1,20 +1,14 @@
-import { Link, usePage, useForm } from "@inertiajs/react";
+import { usePage, useForm, router } from "@inertiajs/react";
 import AppLayout from "@/layouts/AppLayout";
-import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
-import { ChevronLeft, ChevronRight, FolderKanban, Plus, Settings } from "lucide-react";
 import { useState } from "react";
+import { Plus, X } from "lucide-react";
 import CommandPalette from "@/components/ui/CommandPalette";
 
 export default function WorkspaceLayout({ children }) {
-    // Get the shared data from our Middleware
-    const { workspace, workspaceProjects, auth, project } = usePage().props;
+    const { workspace, project } = usePage().props;
     const [showingNewProject, setShowingNewProject] = useState(false);
-    const [isWorkspaceSidebarOpen, setIsWorkspaceSidebarOpen] = useState(true);
 
-    const projectForm = useForm({
-        name: "",
-    });
+    const projectForm = useForm({ name: "" });
 
     const submitNewProject = (e) => {
         e.preventDefault();
@@ -29,140 +23,83 @@ export default function WorkspaceLayout({ children }) {
     return (
         <AppLayout>
             <CommandPalette workspace={workspace} project={project || null} />
-            <div className="flex h-auto flex-col overflow-hidden lg:h-[calc(100vh-64px)] lg:flex-row">
-                {/* 1. Sidebar */}
-                <aside
-                    className={`w-full border-b border-border bg-surface2/30 transition-all lg:border-b-0 lg:border-r lg:flex lg:flex-col ${
-                        isWorkspaceSidebarOpen ? "lg:w-72" : "lg:w-[92px]"
-                    }`}
+
+            {/* Full-width content — no secondary sidebar */}
+            {children}
+
+            {/* ── New Project Modal ─────────────────────────────────────────── */}
+            {showingNewProject && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    style={{ background: "rgba(10,41,71,0.7)", backdropFilter: "blur(10px)" }}
+                    onClick={e => { if (e.target === e.currentTarget) setShowingNewProject(false); }}
                 >
-                    <div className={`flex items-center justify-between border-b border-border p-4 ${isWorkspaceSidebarOpen ? "sm:p-6" : "lg:p-4 lg:justify-center"}`}>
-                        {isWorkspaceSidebarOpen && (
-                            <div className="overflow-hidden transition-all max-w-[220px]">
-                                <Link href={`/workspaces/${workspace.slug}`}>
-                                    <h2 className="text-sm font-black uppercase tracking-widest text-white hover:text-accent transition-colors">
-                                        {workspace.name}
-                                    </h2>
-                                </Link>
-                                <p className="mt-1 text-[10px] uppercase text-muted">
-                                    Workspace Level
+                    <div
+                        className="w-full max-w-sm rounded-2xl p-7 space-y-6 shadow-2xl"
+                        style={{ background: "#0d3260", border: "1px solid #1a3f6e" }}
+                    >
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <h3 className="font-display font-black text-xl"
+                                    style={{ color: "#f3e4c9", letterSpacing: "0.03em" }}>
+                                    New Project
+                                </h3>
+                                <p className="text-xs" style={{ color: "rgba(211,212,192,0.5)" }}>
+                                    A task board for your team.
                                 </p>
                             </div>
-                        )}
-                        <button
-                            type="button"
-                            onClick={() =>
-                                setIsWorkspaceSidebarOpen((current) => !current)
-                            }
-                            className="rounded-xl border border-border bg-surface2 p-2 text-muted transition-colors hover:border-accent/40 hover:text-accent"
-                        >
-                            {isWorkspaceSidebarOpen ? (
-                                <ChevronLeft size={16} />
-                            ) : (
-                                <ChevronRight size={16} />
-                            )}
-                        </button>
-                    </div>
+                            <button onClick={() => setShowingNewProject(false)}
+                                className="rounded-lg p-1.5 transition-colors duration-150"
+                                style={{ color: "rgba(211,212,192,0.4)" }}
+                                onMouseEnter={e => e.currentTarget.style.color = "#f3e4c9"}
+                                onMouseLeave={e => e.currentTarget.style.color = "rgba(211,212,192,0.4)"}>
+                                <X size={15} />
+                            </button>
+                        </div>
 
-                    <div className="overflow-x-auto p-4 lg:flex-1 lg:overflow-y-auto lg:space-y-8">
-                        {/* Projects List */}
-                        <div className="space-y-4 lg:space-y-4">
-                            <div className={`flex items-center justify-between px-2 ${!isWorkspaceSidebarOpen ? "justify-center" : ""}`}>
-                                {isWorkspaceSidebarOpen ? (
-                                    <h3 className="text-[10px] font-black uppercase tracking-widest text-muted">
-                                        Projects
-                                    </h3>
-                                ) : (
-                                    <FolderKanban size={14} className="text-muted" />
-                                )}
-                                {isWorkspaceSidebarOpen && (
-                                    <button
-                                        onClick={() => setShowingNewProject(true)}
-                                        className="p-1 hover:bg-surface2 rounded text-accent transition-colors"
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                    </button>
+                        <form onSubmit={submitNewProject} className="space-y-5">
+                            <div className="space-y-1.5">
+                                <label className="block text-[10px] font-black uppercase tracking-widest"
+                                    style={{ color: "#8b5e3c" }}>
+                                    Project Name
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Marketing Ops"
+                                    value={projectForm.data.name}
+                                    onChange={e => projectForm.setData("name", e.target.value)}
+                                    autoFocus
+                                    className="w-full rounded-xl px-4 py-3 text-sm font-medium outline-none transition-all duration-200 placeholder:opacity-40"
+                                    style={{
+                                        background: "rgba(10,41,71,0.8)",
+                                        border: `1.5px solid ${projectForm.errors.name ? "#c0392b" : "rgba(139,94,60,0.3)"}`,
+                                        color: "#f3e4c9",
+                                    }}
+                                    onFocus={e => { e.currentTarget.style.borderColor = "#8b5e3c"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(139,94,60,0.15)"; }}
+                                    onBlur={e => { e.currentTarget.style.borderColor = projectForm.errors.name ? "#c0392b" : "rgba(139,94,60,0.3)"; e.currentTarget.style.boxShadow = "none"; }}
+                                />
+                                {projectForm.errors.name && (
+                                    <p className="text-xs" style={{ color: "#c0392b" }}>{projectForm.errors.name}</p>
                                 )}
                             </div>
-
-                            <div className="flex gap-2 lg:block lg:space-y-1">
-                                {workspaceProjects.map((project) => (
-                                    <Link
-                                        key={project.id}
-                                        href={`/workspaces/${workspace.slug}/projects/${project.slug}`}
-                                        className={`block shrink-0 rounded-xl px-3 py-2 text-sm font-medium text-muted transition-all hover:bg-surface2 hover:text-white lg:mb-1 ${!isWorkspaceSidebarOpen ? "text-center px-0 font-black text-accent" : ""}`}
-                                    >
-                                        {isWorkspaceSidebarOpen ? (
-                                            <>
-                                                <span className="mr-2 opacity-50">
-                                                    #
-                                                </span>
-                                                {project.name}
-                                            </>
-                                        ) : (
-                                            "#"
-                                        )}
-                                    </Link>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Settings Link */}
-                        <div className="mt-4 border-t border-border pt-4">
-                            <Link
-                                href={`/workspaces/${workspace.slug}?tab=settings`}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted hover:text-white hover:bg-surface2 transition-all font-medium ${!isWorkspaceSidebarOpen ? "justify-center px-0" : ""}`}
-                            >
-                                <Settings className="h-4 w-4 opacity-50" />
-                                {isWorkspaceSidebarOpen ? "Settings" : null}
-                            </Link>
-                        </div>
-                    </div>
-                </aside>
-
-                {/* 2. Content Area */}
-                <main className="min-h-[70vh] flex-1 overflow-y-auto bg-surface p-4 sm:p-6 lg:min-h-0 lg:p-8">
-                    {children}
-                </main>
-            </div>
-
-            {/* Simple Create Project Inline Modal/Overlay */}
-            {showingNewProject && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="bg-surface2 border border-border p-8 rounded-3xl w-full max-w-sm space-y-6 shadow-2xl">
-                        <div className="space-y-2">
-                            <h3 className="text-xl font-bold text-white uppercase tracking-tight">
-                                New Project
-                            </h3>
-                            <p className="text-xs text-muted">
-                                Internal task board for your team.
-                            </p>
-                        </div>
-                        <form onSubmit={submitNewProject} className="space-y-4">
-                            <Input
-                                label="PROJECT NAME"
-                                placeholder="Marketing Ops"
-                                value={projectForm.data.name}
-                                onChange={(e) =>
-                                    projectForm.setData("name", e.target.value)
-                                }
-                                error={projectForm.errors.name}
-                                autoFocus
-                            />
-                            <div className="flex items-center gap-3">
-                                <Button
-                                    loading={projectForm.processing}
-                                    className="flex-1"
-                                >
-                                    Create
-                                </Button>
-                                <Button
-                                    type="button"
-                                    onClick={() => setShowingNewProject(false)}
-                                    className="bg-surface hover:bg-surface2 border-border"
-                                >
+                            <div className="flex gap-3">
+                                <button type="submit" disabled={projectForm.processing}
+                                    className="flex-1 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all duration-200 active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
+                                    style={{ background: "#8b5e3c", color: "#f3e4c9" }}
+                                    onMouseEnter={e => { if (!projectForm.processing) e.currentTarget.style.background = "#a06b43"; }}
+                                    onMouseLeave={e => { if (!projectForm.processing) e.currentTarget.style.background = "#8b5e3c"; }}>
+                                    {projectForm.processing
+                                        ? <div className="w-4 h-4 rounded-full border-2 animate-spin"
+                                            style={{ borderColor: "rgba(243,228,201,0.3)", borderTopColor: "#f3e4c9" }} />
+                                        : <><Plus size={13} /> Create</>}
+                                </button>
+                                <button type="button" onClick={() => setShowingNewProject(false)}
+                                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                                    style={{ background: "rgba(243,228,201,0.06)", border: "1px solid rgba(243,228,201,0.12)", color: "rgba(211,212,192,0.6)" }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(243,228,201,0.1)"; e.currentTarget.style.color = "#f3e4c9"; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = "rgba(243,228,201,0.06)"; e.currentTarget.style.color = "rgba(211,212,192,0.6)"; }}>
                                     Cancel
-                                </Button>
+                                </button>
                             </div>
                         </form>
                     </div>

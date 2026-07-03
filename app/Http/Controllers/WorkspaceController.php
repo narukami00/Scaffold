@@ -19,12 +19,23 @@ class WorkspaceController extends Controller
     {
         $workspaces = Workspace::whereHas('members', function ($query) {
             $query->where('users.id', Auth::id());
-        })->latest()->get();
+        })
+        ->withCount(['members', 'projects'])
+        ->with(['members' => function ($query) {
+            $query->where('users.id', Auth::id())->select('users.id');
+        }])
+        ->latest()
+        ->get()
+        ->map(function ($workspace) {
+            $workspace->user_role = $workspace->members->first()?->pivot?->role ?? 'member';
+            return $workspace;
+        });
 
         return Inertia::render("Workspace/Index", [
             "workspaces" => $workspaces,
         ]);
     }
+
 
     /**
      * Store a newly created workspace in storage.

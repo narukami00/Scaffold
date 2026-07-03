@@ -1,880 +1,850 @@
 import WorkspaceLayout from "@/layouts/WorkspaceLayout";
 import { Head, usePage, useForm, Link, router } from "@inertiajs/react";
-import Input from "@/components/ui/Input";
-import Button from "@/components/ui/Button";
 import ProjectEditModal from "@/components/workspace/ProjectEditModal";
 import { useState, useEffect } from "react";
 import {
-    BarChart3,
-    FolderKanban,
-    Users,
-    Settings as SettingsIcon,
-    Plus,
-    Pencil,
-    Trash2,
-    Mail,
-    Lock,
-    ExternalLink,
-    AlertTriangle,
-    CheckCircle2,
-    Inbox,
-    Clock,
-    Eye
+    BarChart3, FolderKanban, Users, Settings as SettingsIcon,
+    Plus, Pencil, Trash2, Mail, AlertTriangle, CheckCircle2,
+    Inbox, Clock, Eye, ExternalLink, Crown, X
 } from "lucide-react";
 
+// ── Palette tokens ────────────────────────────────────────────────────────────
+const C = {
+    bg:      "#ede0c8",
+    card:    "#f3e4c9",
+    navy:    "#0a2947",
+    brown:   "#8b5e3c",
+    sage:    "#d3d4c0",
+    border:  "rgba(139,94,60,0.18)",
+    borderHover: "rgba(139,94,60,0.4)",
+    muted:   "rgba(10,41,71,0.45)",
+    faint:   "rgba(10,41,71,0.25)",
+};
+
+// Status semantic colors (warm tones, no neon)
+const STATUS = {
+    backlog:     { color: "#1a5f8a", bg: "rgba(26,95,138,0.1)",  border: "rgba(26,95,138,0.2)",  icon: Inbox },
+    in_progress: { color: "#b45309", bg: "rgba(180,83,9,0.1)",   border: "rgba(180,83,9,0.2)",   icon: Clock },
+    in_review:   { color: "#7c5c1e", bg: "rgba(124,92,30,0.1)",  border: "rgba(124,92,30,0.2)",  icon: Eye },
+    done:        { color: "#2d6a4f", bg: "rgba(45,106,79,0.1)",  border: "rgba(45,106,79,0.2)",  icon: CheckCircle2 },
+};
+
+// Segmented bar segment colors
+const SEG = {
+    backlog:     "#1a5f8a",
+    in_progress: "#b45309",
+    in_review:   "#c69c3a",
+    done:        "#2d6a4f",
+};
+
+// ── Reusable card shell ───────────────────────────────────────────────────────
+function Card({ children, className = "", style = {} }) {
+    return (
+        <div
+            className={`rounded-2xl p-6 ${className}`}
+            style={{ background: C.card, border: `1px solid ${C.border}`, boxShadow: "0 2px 12px rgba(139,94,60,0.07)", ...style }}
+        >
+            {children}
+        </div>
+    );
+}
+
+// ── Section label ─────────────────────────────────────────────────────────────
+function Label({ children }) {
+    return (
+        <p className="text-[9px] font-black uppercase tracking-[0.22em] mb-3"
+            style={{ color: "rgba(139,94,60,0.65)" }}>
+            {children}
+        </p>
+    );
+}
+
+// ── Status badge ──────────────────────────────────────────────────────────────
+function StatusBadge({ status }) {
+    const map = {
+        New:       { color: "#1a5f8a", bg: "rgba(26,95,138,0.1)",  border: "rgba(26,95,138,0.25)" },
+        Ongoing:   { color: "#b45309", bg: "rgba(180,83,9,0.1)",   border: "rgba(180,83,9,0.25)" },
+        Completed: { color: "#2d6a4f", bg: "rgba(45,106,79,0.1)",  border: "rgba(45,106,79,0.25)" },
+    };
+    const s = map[status] || { color: C.muted, bg: "rgba(10,41,71,0.05)", border: "rgba(10,41,71,0.12)" };
+    return (
+        <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shrink-0"
+            style={{ color: s.color, background: s.bg, border: `1px solid ${s.border}` }}>
+            {status}
+        </span>
+    );
+}
+
+// ── Segmented progress bar ────────────────────────────────────────────────────
+function SegBar({ backlog, in_progress, in_review, done, total }) {
+    if (total === 0) return (
+        <div className="h-2 w-full rounded-full" style={{ background: "rgba(139,94,60,0.1)", border: `1px dashed ${C.border}` }} />
+    );
+    const pct = (n) => `${(n / total) * 100}%`;
+    return (
+        <div className="h-2 w-full rounded-full overflow-hidden flex" style={{ background: "rgba(139,94,60,0.08)" }}>
+            {backlog     > 0 && <div style={{ width: pct(backlog),     background: SEG.backlog }}     title={`Backlog: ${backlog}`} />}
+            {in_progress > 0 && <div style={{ width: pct(in_progress), background: SEG.in_progress }} title={`In Progress: ${in_progress}`} />}
+            {in_review   > 0 && <div style={{ width: pct(in_review),   background: SEG.in_review }}   title={`In Review: ${in_review}`} />}
+            {done        > 0 && <div style={{ width: pct(done),        background: SEG.done }}        title={`Done: ${done}`} />}
+        </div>
+    );
+}
+
+// ── Horizontal priority pill bar ──────────────────────────────────────────────
+function PriorityBars({ priority_counts }) {
+    const bars = [
+        { label: "Urgent", count: priority_counts.urgent, color: "#c0392b" },
+        { label: "High",   count: priority_counts.high,   color: "#b45309" },
+        { label: "Medium", count: priority_counts.medium, color: "#7c5c1e" },
+        { label: "Low",    count: priority_counts.low,    color: "#1a5f8a" },
+    ];
+    const max = Math.max(...bars.map(b => b.count), 1);
+    return (
+        <div className="space-y-3">
+            {bars.map(b => (
+                <div key={b.label} className="flex items-center gap-3">
+                    <span className="w-14 text-[10px] font-bold uppercase tracking-wider shrink-0"
+                        style={{ color: b.color }}>{b.label}</span>
+                    <div className="flex-1 h-2.5 rounded-full overflow-hidden" style={{ background: "rgba(139,94,60,0.1)" }}>
+                        <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${(b.count / max) * 100}%`, background: b.color, opacity: 0.75 }}
+                        />
+                    </div>
+                    <span className="w-6 text-right text-xs font-bold shrink-0" style={{ color: C.muted }}>{b.count}</span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// ── Member avatar stack ───────────────────────────────────────────────────────
+function AvatarStack({ members, max = 5 }) {
+    const shown = members.slice(0, max);
+    const rest = members.length - max;
+    return (
+        <div className="flex items-center">
+            {shown.map((m, i) => (
+                <div
+                    key={m.id}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black border-2 -ml-2 first:ml-0"
+                    style={{
+                        background: m.pivot?.color || C.brown,
+                        color: "#f3e4c9",
+                        borderColor: C.bg,
+                        zIndex: shown.length - i,
+                    }}
+                    title={m.name}
+                >
+                    {m.name.charAt(0).toUpperCase()}
+                </div>
+            ))}
+            {rest > 0 && (
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border-2 -ml-2"
+                    style={{ background: "rgba(139,94,60,0.15)", color: C.brown, borderColor: C.bg }}>
+                    +{rest}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ── New project inline modal ──────────────────────────────────────────────────
+function NewProjectModal({ workspace, onClose }) {
+    const form = useForm({ name: "" });
+    const [focused, setFocused] = useState(false);
+
+    const submit = (e) => {
+        e.preventDefault();
+        form.post(`/workspaces/${workspace.slug}/projects`, {
+            onSuccess: () => { onClose(); form.reset(); },
+        });
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(10,41,71,0.7)", backdropFilter: "blur(10px)" }}
+            onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+            <div className="w-full max-w-sm rounded-2xl p-7 space-y-6 shadow-2xl"
+                style={{ background: "#0d3260", border: "1px solid #1a3f6e" }}>
+                <div className="flex items-start justify-between">
+                    <div>
+                        <h3 className="font-display font-black text-xl" style={{ color: "#f3e4c9", letterSpacing: "0.03em" }}>
+                            New Project
+                        </h3>
+                        <p className="text-xs mt-1" style={{ color: "rgba(211,212,192,0.45)" }}>
+                            A task board for your team.
+                        </p>
+                    </div>
+                    <button onClick={onClose} className="rounded-lg p-1.5" style={{ color: "rgba(211,212,192,0.4)" }}
+                        onMouseEnter={e => e.currentTarget.style.color = "#f3e4c9"}
+                        onMouseLeave={e => e.currentTarget.style.color = "rgba(211,212,192,0.4)"}>
+                        <X size={15} />
+                    </button>
+                </div>
+                <form onSubmit={submit} className="space-y-5">
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest block" style={{ color: "#8b5e3c" }}>
+                            Project Name
+                        </label>
+                        <input
+                            autoFocus type="text" placeholder="e.g. Marketing Ops"
+                            value={form.data.name} onChange={e => form.setData("name", e.target.value)}
+                            className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all duration-200 placeholder:opacity-40"
+                            style={{
+                                background: "rgba(10,41,71,0.7)",
+                                border: `1.5px solid ${form.errors.name ? "#c0392b" : focused ? "#8b5e3c" : "rgba(139,94,60,0.25)"}`,
+                                color: "#f3e4c9",
+                                boxShadow: focused ? "0 0 0 3px rgba(139,94,60,0.15)" : "none",
+                            }}
+                            onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+                        />
+                        {form.errors.name && <p className="text-xs" style={{ color: "#c0392b" }}>{form.errors.name}</p>}
+                    </div>
+                    <div className="flex gap-3">
+                        <button type="submit" disabled={form.processing}
+                            className="flex-1 py-3 rounded-xl text-sm font-bold transition-all duration-200 active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
+                            style={{ background: "#8b5e3c", color: "#f3e4c9" }}
+                            onMouseEnter={e => { if (!form.processing) e.currentTarget.style.background = "#a06b43"; }}
+                            onMouseLeave={e => { if (!form.processing) e.currentTarget.style.background = "#8b5e3c"; }}>
+                            {form.processing
+                                ? <div className="w-4 h-4 rounded-full border-2 animate-spin"
+                                    style={{ borderColor: "rgba(243,228,201,0.3)", borderTopColor: "#f3e4c9" }} />
+                                : <><Plus size={14} /> Create</>}
+                        </button>
+                        <button type="button" onClick={onClose}
+                            className="px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
+                            style={{ background: "rgba(243,228,201,0.06)", border: "1px solid rgba(243,228,201,0.12)", color: "rgba(211,212,192,0.5)" }}
+                            onMouseEnter={e => { e.currentTarget.style.background = "rgba(243,228,201,0.1)"; e.currentTarget.style.color = "#f3e4c9"; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = "rgba(243,228,201,0.06)"; e.currentTarget.style.color = "rgba(211,212,192,0.5)"; }}>
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function Show({ workspace, stats, defaultTab }) {
     const { auth } = usePage().props;
     const isOwner = workspace.owner_id === auth.user.id;
-    const currentMemberColor = workspace.members.find(
-        (m) => m.id === auth.user.id,
-    )?.pivot?.color;
+    const currentMemberColor = workspace.members.find(m => m.id === auth.user.id)?.pivot?.color;
 
-    // Tab State Management
     const [activeTab, setActiveTab] = useState(defaultTab || "insights");
-
-    const handleTabChange = (tabName) => {
-        setActiveTab(tabName);
-        const url = new URL(window.location.href);
-        url.searchParams.set("tab", tabName);
-        window.history.pushState({}, "", url.toString());
-    };
-
-    // Keep state in sync if defaultTab changes (e.g. from direct navigation via Settings link)
-    useEffect(() => {
-        if (defaultTab) {
-            setActiveTab(defaultTab);
-        }
-    }, [defaultTab]);
-
-    // Real-time task modifications synchronization
-    useEffect(() => {
-        if (!workspace.projects || workspace.projects.length === 0) return;
-
-        const channels = workspace.projects.map((project) => {
-            const channel = window.Echo.join(`project.${project.id}`);
-
-            channel
-                .listen(".TaskUpdated", () => {
-                    router.reload({ preserveScroll: true });
-                })
-                .listen(".TaskDeleted", () => {
-                    router.reload({ preserveScroll: true });
-                });
-
-            return { id: project.id, channel };
-        });
-
-        return () => {
-            channels.forEach(({ id, channel }) => {
-                channel.stopListening(".TaskUpdated");
-                channel.stopListening(".TaskDeleted");
-                window.Echo.leave(`project.${id}`);
-            });
-        };
-    }, [workspace.projects]);
-
-    // Modals & Project forms
+    const [showNewProject, setShowNewProject] = useState(false);
     const [editingProject, setEditingProject] = useState(null);
     const [confirmingProjectId, setConfirmingProjectId] = useState(null);
     const [deletingProjectId, setDeletingProjectId] = useState(null);
-    const [showingNewProject, setShowingNewProject] = useState(false);
-
-    const projectForm = useForm({
-        name: "",
-    });
-
-    const submitNewProject = (e) => {
-        e.preventDefault();
-        projectForm.post(`/workspaces/${workspace.slug}/projects`, {
-            onSuccess: () => {
-                setShowingNewProject(false);
-                projectForm.reset();
-            },
-        });
-    };
-
-    const submitProjectDelete = (project) => {
-        setDeletingProjectId(project.id);
-        router.delete(
-            `/workspaces/${workspace.slug}/projects/${project.slug}`,
-            {
-                preserveScroll: true,
-                onFinish: () => {
-                    setDeletingProjectId(null);
-                    setConfirmingProjectId(null);
-                },
-            },
-        );
-    };
-
-    // Forms for Settings Tab
-    const updateWorkspaceForm = useForm({
-        name: workspace.name,
-    });
-
-    const submitWorkspaceUpdate = (e) => {
-        e.preventDefault();
-        updateWorkspaceForm.patch(`/workspaces/${workspace.slug}`);
-    };
-
-    const inviteForm = useForm({
-        email: "",
-        role: "member",
-    });
-
-    const submitInvite = (e) => {
-        e.preventDefault();
-        inviteForm.post(`/workspaces/${workspace.slug}/invitations`, {
-            onSuccess: () => inviteForm.reset(),
-        });
-    };
-
-    const deleteWorkspaceForm = useForm({});
     const [confirmingWorkspaceDelete, setConfirmingWorkspaceDelete] = useState(false);
 
-    const submitWorkspaceDelete = () => {
-        deleteWorkspaceForm.delete(`/workspaces/${workspace.slug}`, {
-            onSuccess: () => router.visit("/workspaces"),
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", tab);
+        window.history.pushState({}, "", url.toString());
+    };
+
+    useEffect(() => { if (defaultTab) setActiveTab(defaultTab); }, [defaultTab]);
+
+    // Real-time sync
+    useEffect(() => {
+        if (!workspace.projects?.length) return;
+        const channels = workspace.projects.map(p => {
+            const ch = window.Echo.join(`project.${p.id}`);
+            ch.listen(".TaskUpdated", () => router.reload({ preserveScroll: true }))
+              .listen(".TaskDeleted", () => router.reload({ preserveScroll: true }));
+            return { id: p.id, ch };
+        });
+        return () => channels.forEach(({ id, ch }) => {
+            ch.stopListening(".TaskUpdated").stopListening(".TaskDeleted");
+            window.Echo.leave(`project.${id}`);
+        });
+    }, [workspace.projects]);
+
+    // Forms
+    const updateWorkspaceForm = useForm({ name: workspace.name });
+    const submitWorkspaceUpdate = (e) => { e.preventDefault(); updateWorkspaceForm.patch(`/workspaces/${workspace.slug}`); };
+
+    const inviteForm = useForm({ email: "", role: "member" });
+    const [inviteEmailFocused, setInviteEmailFocused] = useState(false);
+    const submitInvite = (e) => { e.preventDefault(); inviteForm.post(`/workspaces/${workspace.slug}/invitations`, { onSuccess: () => inviteForm.reset() }); };
+
+    const deleteWorkspaceForm = useForm({});
+    const submitWorkspaceDelete = () => deleteWorkspaceForm.delete(`/workspaces/${workspace.slug}`, { onSuccess: () => router.visit("/workspaces") });
+
+    const submitProjectDelete = (proj) => {
+        setDeletingProjectId(proj.id);
+        router.delete(`/workspaces/${workspace.slug}/projects/${proj.slug}`, {
+            preserveScroll: true,
+            onFinish: () => { setDeletingProjectId(null); setConfirmingProjectId(null); },
         });
     };
 
-    // Stats calculations
-    const completionRate = stats.total_tasks > 0 
-        ? Math.round((stats.status_counts.done / stats.total_tasks) * 100)
-        : 0;
+    // Completion ring
+    const completionRate = stats.total_tasks > 0
+        ? Math.round((stats.status_counts.done / stats.total_tasks) * 100) : 0;
+    const radius = 45, circ = 2 * Math.PI * radius;
+    const dashOffset = circ - (completionRate / 100) * circ;
 
-    // SVG Radial Circle Calculations
-    const radius = 45;
-    const circumference = 2 * Math.PI * radius;
-    const strokeDashoffset = circumference - (completionRate / 100) * circumference;
-
-    // Priority column maximum for chart height scaling
-    const maxPriorityCount = Math.max(
-        ...Object.values(stats.priority_counts), 
-        1 // Prevent division by zero
-    );
+    // Tabs config
+    const TABS = [
+        { id: "insights",  label: "Insights",  icon: BarChart3 },
+        { id: "projects",  label: "Projects",  icon: FolderKanban },
+        { id: "members",   label: "Members",   icon: Users },
+        { id: "settings",  label: "Settings",  icon: SettingsIcon },
+    ];
 
     return (
-        <div className="space-y-8 max-w-6xl mx-auto">
-            <Head title={`${workspace.name} Dashboard`} />
+        <div className="max-w-6xl mx-auto space-y-8">
+            <Head title={`${workspace.name} — Scaffold`} />
 
-            {/* HEADER AREA */}
-            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between border-b border-border/40 pb-6">
-                <div className="space-y-1.5">
-                    <h1 className="text-3xl font-display font-black text-white uppercase tracking-tighter sm:text-4xl">
-                        {workspace.name} Dashboard
-                    </h1>
-                    <p className="text-sm text-muted">
-                        Central command center for monitoring tasks, projects, and team members.
+            {/* ── PAGE HEADER ─────────────────────────────────────────────── */}
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-2">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: "rgba(139,94,60,0.65)" }}>
+                        Workspace
                     </p>
+                    <h1 className="font-display font-black text-4xl leading-tight"
+                        style={{ color: C.navy, letterSpacing: "0.04em" }}>
+                        {workspace.name}
+                    </h1>
+                    <div className="flex items-center gap-3 pt-1">
+                        <AvatarStack members={workspace.members} />
+                        <span className="text-xs" style={{ color: C.muted }}>
+                            {workspace.members.length} {workspace.members.length === 1 ? "member" : "members"}
+                        </span>
+                    </div>
                 </div>
 
-                {/* Tab Switcher */}
-                <div className="flex bg-surface2 border border-border rounded-2xl p-1.5 shadow-xl self-start md:self-auto gap-1">
-                    {[
-                        { id: "insights", label: "Insights", icon: BarChart3 },
-                        { id: "projects", label: "Projects", icon: FolderKanban },
-                        { id: "members", label: "Members", icon: Users },
-                        { id: "settings", label: "Settings", icon: SettingsIcon },
-                    ].map((tab) => {
-                        const Icon = tab.icon;
-                        const isSelected = activeTab === tab.id;
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => handleTabChange(tab.id)}
-                                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200 cursor-pointer ${
-                                    isSelected
-                                        ? "bg-accent text-white shadow-[0_4px_16px_rgba(124,106,255,0.25)] scale-[1.02]"
-                                        : "text-muted hover:text-white hover:bg-surface"
-                                }`}
-                            >
-                                <Icon size={14} strokeWidth={2.5} />
-                                <span className="hidden sm:inline">{tab.label}</span>
-                            </button>
-                        );
-                    })}
-                </div>
+                <button
+                    onClick={() => setShowNewProject(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all duration-200 active:scale-[0.97] self-start shrink-0"
+                    style={{ background: C.brown, color: "#f3e4c9", boxShadow: "0 4px 20px rgba(139,94,60,0.2)" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#a06b43"}
+                    onMouseLeave={e => e.currentTarget.style.background = C.brown}
+                >
+                    <Plus size={15} strokeWidth={2.5} />
+                    New Project
+                </button>
             </div>
 
-            {/* TAB CONTENTS */}
-            
-            {/* 1. INSIGHTS TAB */}
+            {/* ── TAB BAR ─────────────────────────────────────────────────── */}
+            <div className="flex items-center gap-1 p-1 rounded-2xl self-start"
+                style={{ background: "rgba(139,94,60,0.08)", border: `1px solid ${C.border}` }}>
+                {TABS.map(tab => {
+                    const Icon = tab.icon;
+                    const active = activeTab === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            onClick={() => handleTabChange(tab.id)}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200"
+                            style={{
+                                background: active ? C.brown : "transparent",
+                                color: active ? "#f3e4c9" : C.muted,
+                                boxShadow: active ? "0 2px 12px rgba(139,94,60,0.25)" : "none",
+                            }}
+                            onMouseEnter={e => { if (!active) { e.currentTarget.style.background = "rgba(139,94,60,0.1)"; e.currentTarget.style.color = C.navy; } }}
+                            onMouseLeave={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.muted; } }}
+                        >
+                            <Icon size={13} strokeWidth={2.5} />
+                            <span className="hidden sm:inline">{tab.label}</span>
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* ── INSIGHTS TAB ────────────────────────────────────────────── */}
             {activeTab === "insights" && (
-                <div className="space-y-6 animate-in fade-in duration-200">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        
-                        {/* Completion Ring Widget */}
-                        <div className="bg-surface border border-border p-6 rounded-3xl flex flex-col items-center justify-center text-center space-y-4 shadow-xl">
-                            <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em] self-start">
-                                Overall Progress
-                            </h3>
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+                        {/* Completion ring */}
+                        <Card className="flex flex-col items-center justify-center text-center space-y-4">
+                            <Label>Overall Progress</Label>
                             <div className="relative w-36 h-36 flex items-center justify-center">
-                                {/* SVG Ring */}
-                                <svg className="w-full h-full transform -rotate-90">
-                                    <defs>
-                                        <filter id="accent-glow" x="-20%" y="-20%" width="140%" height="140%">
-                                            <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#7c6aff" floodOpacity="0.4" />
-                                        </filter>
-                                    </defs>
-                                    <circle
-                                        cx="72"
-                                        cy="72"
-                                        r={radius}
-                                        className="stroke-surface2 fill-none"
-                                        strokeWidth="12"
-                                    />
-                                    <circle
-                                        cx="72"
-                                        cy="72"
-                                        r={radius}
-                                        className="stroke-accent fill-none transition-all duration-500 ease-out"
-                                        strokeWidth="12"
-                                        strokeDasharray={circumference}
-                                        strokeDashoffset={strokeDashoffset}
+                                <svg className="w-full h-full -rotate-90">
+                                    <circle cx="72" cy="72" r={radius} fill="none"
+                                        stroke="rgba(139,94,60,0.12)" strokeWidth="10" />
+                                    <circle cx="72" cy="72" r={radius} fill="none"
+                                        stroke={C.brown} strokeWidth="10"
+                                        strokeDasharray={circ} strokeDashoffset={dashOffset}
                                         strokeLinecap="round"
-                                        filter="url(#accent-glow)"
+                                        style={{ transition: "stroke-dashoffset 600ms ease-out",
+                                            filter: "drop-shadow(0 0 6px rgba(139,94,60,0.4))" }}
                                     />
                                 </svg>
-                                <div className="absolute flex flex-col items-center justify-center">
-                                    <span className="text-3xl font-display font-black text-white">{completionRate}%</span>
-                                    <span className="text-[9px] uppercase tracking-wider text-muted font-black">Done</span>
+                                <div className="absolute flex flex-col items-center">
+                                    <span className="font-display font-black text-3xl" style={{ color: C.navy }}>
+                                        {completionRate}%
+                                    </span>
+                                    <span className="text-[9px] uppercase tracking-wider font-black" style={{ color: C.muted }}>
+                                        Done
+                                    </span>
                                 </div>
                             </div>
-                            <p className="text-xs text-muted">
-                                <span className="text-accent font-bold">{stats.status_counts.done}</span> of <span className="text-white font-bold">{stats.total_tasks}</span> total workspace tasks completed.
+                            <p className="text-xs" style={{ color: C.muted }}>
+                                <span className="font-bold" style={{ color: C.brown }}>{stats.status_counts.done}</span>
+                                {" "}of{" "}
+                                <span className="font-bold" style={{ color: C.navy }}>{stats.total_tasks}</span>
+                                {" "}tasks completed
                             </p>
-                        </div>
+                        </Card>
 
-                        {/* Status Breakdown Grid */}
+                        {/* Status cards */}
                         <div className="lg:col-span-2 grid grid-cols-2 gap-4">
                             {[
-                                { status: "backlog", label: "Backlog", count: stats.status_counts.backlog, color: "text-accent", bg: "bg-accent/10", border: "border-accent/10", icon: Inbox },
-                                { status: "in_progress", label: "In Progress", count: stats.status_counts.in_progress, color: "text-accent-blue", bg: "bg-accent-blue/10", border: "border-accent-blue/10", icon: Clock },
-                                { status: "in_review", label: "In Review", count: stats.status_counts.in_review, color: "text-accent-orange", bg: "bg-accent-orange/10", border: "border-accent-orange/10", icon: Eye },
-                                { status: "done", label: "Done", count: stats.status_counts.done, color: "text-accent-green", bg: "bg-accent-green/10", border: "border-accent-green/10", icon: CheckCircle2 }
-                            ].map((item) => {
-                                const CardIcon = item.icon;
+                                { key: "backlog",     label: "Backlog",     count: stats.status_counts.backlog },
+                                { key: "in_progress", label: "In Progress", count: stats.status_counts.in_progress },
+                                { key: "in_review",   label: "In Review",   count: stats.status_counts.in_review },
+                                { key: "done",        label: "Done",        count: stats.status_counts.done },
+                            ].map(item => {
+                                const s = STATUS[item.key];
+                                const Icon = s.icon;
+                                const pct = stats.total_tasks > 0 ? (item.count / stats.total_tasks) * 100 : 0;
                                 return (
-                                    <div
-                                        key={item.status}
-                                        className={`group bg-surface border ${item.border} p-6 rounded-3xl flex flex-col justify-between shadow-xl transition-all duration-300 hover:-translate-y-1 hover:border-accent/30 hover:shadow-2xl`}
-                                    >
-                                        <div className="flex justify-between items-start">
+                                    <Card key={item.key} className="flex flex-col justify-between space-y-4">
+                                        <div className="flex items-start justify-between">
                                             <div>
-                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">
+                                                <p className="text-[9px] font-black uppercase tracking-[0.2em]" style={{ color: C.muted }}>
                                                     {item.label}
                                                 </p>
-                                                <p className={`text-4xl font-display font-black ${item.color} mt-2 tracking-tight`}>
+                                                <p className="text-4xl font-display font-black mt-1.5" style={{ color: s.color }}>
                                                     {item.count}
                                                 </p>
                                             </div>
-                                            <div className={`p-2.5 rounded-2xl ${item.bg} ${item.color}`}>
-                                                <CardIcon size={18} strokeWidth={2.5} />
+                                            <div className="p-2.5 rounded-xl" style={{ background: s.bg, color: s.color }}>
+                                                <Icon size={16} strokeWidth={2} />
                                             </div>
                                         </div>
-                                        <div className="w-full bg-surface2 h-2 rounded-full overflow-hidden mt-6">
-                                            <div
-                                                className={`h-full ${item.color.replace('text-', 'bg-')}`}
-                                                style={{
-                                                    width: stats.total_tasks > 0 
-                                                        ? `${(item.count / stats.total_tasks) * 100}%` 
-                                                        : "0%"
-                                                }}
-                                            />
+                                        <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(139,94,60,0.1)" }}>
+                                            <div className="h-full rounded-full transition-all duration-500"
+                                                style={{ width: `${pct}%`, background: s.color, opacity: 0.7 }} />
                                         </div>
-                                    </div>
+                                    </Card>
                                 );
                             })}
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Priority chart */}
-                        <div className="bg-surface border border-border p-6 rounded-3xl space-y-6 shadow-xl">
-                            <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
-                                Tasks Priority Breakdown
-                            </h3>
-                            
-                            {/* Vertical Bar Chart */}
-                            <div className="h-64 flex items-end justify-between px-4 pb-2 border-b border-border/40">
-                                {[
-                                    { label: "Urgent", count: stats.priority_counts.urgent, barColor: "bg-accent-red shadow-[0_0_15px_rgba(255,106,106,0.3)]", text: "text-accent-red" },
-                                    { label: "High", count: stats.priority_counts.high, barColor: "bg-accent-orange shadow-[0_0_15px_rgba(255,160,64,0.3)]", text: "text-accent-orange" },
-                                    { label: "Medium", count: stats.priority_counts.medium, barColor: "bg-accent shadow-[0_0_15px_rgba(124,106,255,0.3)]", text: "text-accent" },
-                                    { label: "Low", count: stats.priority_counts.low, barColor: "bg-accent-blue shadow-[0_0_15px_rgba(64,200,255,0.3)]", text: "text-accent-blue" }
-                                ].map((item) => {
-                                    const heightPct = (item.count / maxPriorityCount) * 100;
-                                    return (
-                                        <div key={item.label} className="flex flex-col items-center gap-2 w-16 group">
-                                            {/* Hover Count Tooltip */}
-                                            <span className="text-xs font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity mb-1 font-mono">
-                                                {item.count}
-                                            </span>
-                                            
-                                            {/* Bar */}
-                                            <div className="w-full bg-surface2 rounded-t-xl overflow-hidden flex items-end h-44">
-                                                <div 
-                                                    className={`w-full rounded-t-xl transition-all duration-500 ${item.barColor}`} 
-                                                    style={{ height: `${heightPct}%` }}
-                                                />
-                                            </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {/* Priority bars */}
+                        <Card>
+                            <Label>Priority Breakdown</Label>
+                            <PriorityBars priority_counts={stats.priority_counts} />
+                        </Card>
 
-                                            {/* Label */}
-                                            <span className={`text-[10px] font-black uppercase tracking-wider ${item.text} mt-1`}>
-                                                {item.label}
-                                            </span>
+                        {/* Project health */}
+                        <Card>
+                            <div className="flex items-center justify-between mb-4">
+                                <Label>Project Health</Label>
+                                <button onClick={() => handleTabChange("projects")}
+                                    className="text-[10px] font-black uppercase tracking-widest transition-colors"
+                                    style={{ color: C.brown }}
+                                    onMouseEnter={e => e.currentTarget.style.color = "#a06b43"}
+                                    onMouseLeave={e => e.currentTarget.style.color = C.brown}>
+                                    View all →
+                                </button>
+                            </div>
+                            <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                                {stats.project_stats.length === 0 ? (
+                                    <p className="text-xs italic" style={{ color: C.muted }}>No projects yet.</p>
+                                ) : stats.project_stats.map(proj => {
+                                    const pct = proj.total > 0 ? Math.round((proj.done / proj.total) * 100) : 0;
+                                    return (
+                                        <div key={proj.id} className="flex items-center justify-between p-3 rounded-xl"
+                                            style={{ background: "rgba(139,94,60,0.06)", border: `1px solid ${C.border}` }}>
+                                            <div className="min-w-0 flex-1 mr-3">
+                                                <p className="text-sm font-semibold truncate" style={{ color: C.navy }}>{proj.name}</p>
+                                                <p className="text-[10px]" style={{ color: C.muted }}>{proj.total} tasks · {pct}% done</p>
+                                            </div>
+                                            <StatusBadge status={proj.status} />
                                         </div>
                                     );
                                 })}
                             </div>
-                            <div className="flex justify-between text-xs text-muted px-4 font-medium">
-                                <span>Low priority makes up the foundation.</span>
-                                <span>Urgent requires immediate action.</span>
-                            </div>
-                        </div>
-
-                        {/* Project status tracker list */}
-                        <div className="bg-surface border border-border p-6 rounded-3xl space-y-6 shadow-xl">
-                            <div className="flex justify-between items-center">
-                                <h3 className="text-xs font-black text-muted uppercase tracking-[0.2em]">
-                                    Project Health Status
-                                </h3>
-                                <Link
-                                    href="#"
-                                    onClick={(e) => { e.preventDefault(); handleTabChange("projects"); }}
-                                    className="text-xs font-bold text-accent hover:underline uppercase tracking-wider"
-                                >
-                                    Manage
-                                </Link>
-                            </div>
-
-                            <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2">
-                                {stats.project_stats.length === 0 ? (
-                                    <p className="text-xs text-muted italic">No projects created yet.</p>
-                                ) : (
-                                    stats.project_stats.map((proj) => {
-                                        let badgeColor = "border-muted/30 bg-muted/5 text-muted";
-                                        if (proj.status === "New") badgeColor = "border-accent-blue/20 bg-accent-blue/5 text-accent-blue";
-                                        else if (proj.status === "Completed") badgeColor = "border-accent-green/20 bg-accent-green/5 text-accent-green";
-                                        else if (proj.status === "Ongoing") badgeColor = "border-accent-orange/30 bg-accent-orange/5 text-accent-orange";
-
-                                        const progress = proj.total > 0 ? Math.round((proj.done / proj.total) * 100) : 0;
-
-                                        return (
-                                            <div key={proj.id} className="p-4 bg-surface2/50 border border-border rounded-2xl flex items-center justify-between">
-                                                <div className="space-y-1">
-                                                    <p className="text-sm font-bold text-white">{proj.name}</p>
-                                                    <div className="flex items-center gap-2 text-[10px] text-muted">
-                                                        <span>{proj.total} tasks</span>
-                                                        <span>·</span>
-                                                        <span>{progress}% done</span>
-                                                    </div>
-                                                </div>
-                                                <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-widest ${badgeColor}`}>
-                                                    {proj.status}
-                                                </span>
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        </div>
+                        </Card>
                     </div>
                 </div>
             )}
 
-            {/* 2. PROJECTS TAB */}
+            {/* ── PROJECTS TAB ────────────────────────────────────────────── */}
             {activeTab === "projects" && (
-                <div className="space-y-6 animate-in fade-in duration-200">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-xl font-bold text-white uppercase tracking-tight">
-                            Workspace Projects
-                        </h2>
-                        <Button
-                            onClick={() => setShowingNewProject(true)}
-                            className="w-auto px-4 py-2 text-xs"
-                        >
-                            <Plus size={14} strokeWidth={2.5} />
-                            New Project
-                        </Button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {stats.project_stats.length === 0 ? (
-                            <div className="md:col-span-2 border border-dashed border-border bg-surface/30 rounded-3xl p-16 text-center space-y-3">
-                                <div className="w-12 h-12 rounded-2xl bg-surface2 border border-border flex items-center justify-center mx-auto text-muted opacity-50">
-                                    <FolderKanban size={20} />
-                                </div>
-                                <h4 className="text-base font-bold text-white uppercase tracking-tight">No Projects Yet</h4>
-                                <p className="text-xs text-muted max-w-sm mx-auto">
-                                    Get started by creating a new project. You can use the "New Project" button in the header or in the sidebar list.
+                <div className="space-y-5">
+                    {stats.project_stats.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-24 rounded-2xl text-center space-y-4"
+                            style={{ background: "rgba(243,228,201,0.5)", border: `1.5px dashed ${C.border}` }}>
+                            <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                                style={{ background: "rgba(139,94,60,0.1)", border: `1px solid ${C.border}` }}>
+                                <FolderKanban size={20} style={{ color: C.brown }} />
+                            </div>
+                            <div>
+                                <p className="font-display font-black text-lg" style={{ color: C.navy, letterSpacing: "0.03em" }}>
+                                    No projects yet
+                                </p>
+                                <p className="text-sm mt-1" style={{ color: C.muted }}>
+                                    Create your first project to get started.
                                 </p>
                             </div>
-                        ) : (
-                            stats.project_stats.map((proj) => {
-                                const backlogPct = proj.total > 0 ? (proj.backlog / proj.total) * 100 : 0;
-                                const inProgressPct = proj.total > 0 ? (proj.in_progress / proj.total) * 100 : 0;
-                                const inReviewPct = proj.total > 0 ? (proj.in_review / proj.total) * 100 : 0;
-                                const donePct = proj.total > 0 ? (proj.done / proj.total) * 100 : 0;
-
-                                let badgeColor = "border-muted/30 bg-muted/5 text-muted";
-                                if (proj.status === "New") badgeColor = "border-accent-blue/20 bg-accent-blue/5 text-accent-blue";
-                                else if (proj.status === "Completed") badgeColor = "border-accent-green/20 bg-accent-green/5 text-accent-green";
-                                else if (proj.status === "Ongoing") badgeColor = "border-accent-orange/30 bg-accent-orange/5 text-accent-orange";
-
+                            <button onClick={() => setShowNewProject(true)}
+                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98]"
+                                style={{ background: C.brown, color: "#f3e4c9" }}
+                                onMouseEnter={e => e.currentTarget.style.background = "#a06b43"}
+                                onMouseLeave={e => e.currentTarget.style.background = C.brown}>
+                                <Plus size={14} /> New Project
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            {stats.project_stats.map(proj => {
+                                const total = proj.total;
                                 return (
-                                    <div
-                                        key={proj.id}
-                                        className="bg-surface border border-border p-6 rounded-3xl space-y-6 shadow-xl flex flex-col justify-between transition-all hover:border-accent/30"
-                                    >
-                                        <div className="space-y-4">
-                                            {/* Name & status */}
-                                            <div className="flex justify-between items-start gap-4">
-                                                <div className="space-y-1">
-                                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <Card key={proj.id} className="flex flex-col justify-between space-y-5">
+                                        {/* Header */}
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="text-base font-bold truncate" style={{ color: C.navy }}>
                                                         {proj.name}
-                                                        {isOwner && (
-                                                            <button
-                                                                onClick={() => setEditingProject(proj)}
-                                                                className="p-1 rounded text-muted hover:text-accent hover:bg-surface2 transition-colors"
-                                                                title="Rename Project"
-                                                            >
-                                                                <Pencil size={11} />
-                                                            </button>
-                                                        )}
                                                     </h3>
-                                                    <p className="text-[10px] text-muted font-mono">{proj.slug}</p>
+                                                    {isOwner && (
+                                                        <button onClick={() => setEditingProject(proj)}
+                                                            className="p-1 rounded transition-colors shrink-0"
+                                                            style={{ color: C.muted }}
+                                                            onMouseEnter={e => e.currentTarget.style.color = C.brown}
+                                                            onMouseLeave={e => e.currentTarget.style.color = C.muted}>
+                                                            <Pencil size={11} />
+                                                        </button>
+                                                    )}
                                                 </div>
-                                                <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-widest shrink-0 ${badgeColor}`}>
-                                                    {proj.status}
-                                                </span>
+                                                <p className="text-[10px] font-mono mt-0.5" style={{ color: C.faint }}>/{proj.slug}</p>
                                             </div>
-
-                                            {/* Task metrics breakdown */}
-                                            <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                                                <div className="bg-surface2/40 p-2 rounded-xl border border-border/30">
-                                                    <p className="text-[9px] font-black uppercase tracking-wider text-muted">Backlog</p>
-                                                    <p className="text-sm font-bold text-white mt-1">{proj.backlog}</p>
-                                                </div>
-                                                <div className="bg-surface2/40 p-2 rounded-xl border border-border/30">
-                                                    <p className="text-[9px] font-black uppercase tracking-wider text-[#40c8ff]">Ongoing</p>
-                                                    <p className="text-sm font-bold text-[#40c8ff] mt-1">{proj.in_progress}</p>
-                                                </div>
-                                                <div className="bg-surface2/40 p-2 rounded-xl border border-border/30">
-                                                    <p className="text-[9px] font-black uppercase tracking-wider text-[#ffa040]">Review</p>
-                                                    <p className="text-sm font-bold text-[#ffa040] mt-1">{proj.in_review}</p>
-                                                </div>
-                                                <div className="bg-surface2/40 p-2 rounded-xl border border-border/30">
-                                                    <p className="text-[9px] font-black uppercase tracking-wider text-[#4fffb0]">Done</p>
-                                                    <p className="text-sm font-bold text-[#4fffb0] mt-1">{proj.done}</p>
-                                                </div>
-                                            </div>
-
-                                            {/* Segmented language/progress bar */}
-                                            {proj.total > 0 ? (
-                                                <div className="space-y-1.5">
-                                                    <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-surface2">
-                                                        {backlogPct > 0 && (
-                                                            <div 
-                                                                className="bg-[#7c6aff]" 
-                                                                style={{ width: `${backlogPct}%` }} 
-                                                                title={`Backlog: ${proj.backlog}`}
-                                                            />
-                                                        )}
-                                                        {inProgressPct > 0 && (
-                                                            <div 
-                                                                className="bg-[#40c8ff]" 
-                                                                style={{ width: `${inProgressPct}%` }} 
-                                                                title={`In Progress: ${proj.in_progress}`}
-                                                            />
-                                                        )}
-                                                        {inReviewPct > 0 && (
-                                                            <div 
-                                                                className="bg-[#ffa040]" 
-                                                                style={{ width: `${inReviewPct}%` }} 
-                                                                title={`In Review: ${proj.in_review}`}
-                                                            />
-                                                        )}
-                                                        {donePct > 0 && (
-                                                            <div 
-                                                                className="bg-[#4fffb0]" 
-                                                                style={{ width: `${donePct}%` }} 
-                                                                title={`Done: ${proj.done}`}
-                                                            />
-                                                        )}
-                                                    </div>
-                                                    <div className="flex justify-between items-center text-[10px] text-muted">
-                                                        <span>Progress</span>
-                                                        <span>{Math.round(donePct)}% Completed</span>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="h-2.5 w-full bg-surface2 rounded-full border border-dashed border-border" />
-                                            )}
+                                            <StatusBadge status={proj.status} />
                                         </div>
 
-                                        {/* Navigation Actions */}
-                                        <div className="flex items-center justify-between border-t border-border/40 pt-4 mt-6">
-                                            <div className="flex items-center gap-2">
-                                                <Link
-                                                    href={`/workspaces/${workspace.slug}/projects/${proj.slug}/board`}
-                                                    className="flex items-center gap-1.5 rounded-xl border border-border/60 bg-surface2/60 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted transition-all hover:border-accent/40 hover:text-accent hover:bg-surface2"
-                                                >
-                                                    <ExternalLink size={11} />
-                                                    Kanban Board
-                                                </Link>
-                                                <Link
-                                                    href={`/workspaces/${workspace.slug}/projects/${proj.slug}/threads`}
-                                                    className="flex items-center gap-1.5 rounded-xl border border-border/60 bg-surface2/60 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted transition-all hover:border-accent/40 hover:text-accent hover:bg-surface2"
-                                                >
-                                                    Threads
-                                                </Link>
-                                            </div>
+                                        {/* Task metric pills */}
+                                        <div className="grid grid-cols-4 gap-2 text-center">
+                                            {[
+                                                { label: "Backlog",  val: proj.backlog,     color: SEG.backlog },
+                                                { label: "Active",   val: proj.in_progress, color: SEG.in_progress },
+                                                { label: "Review",   val: proj.in_review,   color: SEG.in_review },
+                                                { label: "Done",     val: proj.done,        color: SEG.done },
+                                            ].map(m => (
+                                                <div key={m.label} className="rounded-xl py-2"
+                                                    style={{ background: "rgba(139,94,60,0.06)", border: `1px solid ${C.border}` }}>
+                                                    <p className="text-[8px] font-black uppercase tracking-wider" style={{ color: m.color }}>{m.label}</p>
+                                                    <p className="text-sm font-bold mt-0.5" style={{ color: C.navy }}>{m.val}</p>
+                                                </div>
+                                            ))}
+                                        </div>
 
+                                        {/* Segmented bar */}
+                                        <div className="space-y-1.5">
+                                            <SegBar {...proj} />
+                                            <div className="flex justify-between text-[10px]" style={{ color: C.muted }}>
+                                                <span>Progress</span>
+                                                <span>{total > 0 ? Math.round((proj.done / total) * 100) : 0}% done</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
+                                            <div className="flex gap-2">
+                                                {[
+                                                    { href: `/workspaces/${workspace.slug}/projects/${proj.slug}/board`, label: "Kanban" },
+                                                    { href: `/workspaces/${workspace.slug}/projects/${proj.slug}/threads`, label: "Threads" },
+                                                ].map(l => (
+                                                    <Link key={l.label} href={l.href}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                                        style={{ border: `1px solid ${C.border}`, color: C.muted, background: "rgba(139,94,60,0.04)" }}
+                                                        onMouseEnter={e => { e.currentTarget.style.borderColor = C.brown; e.currentTarget.style.color = C.brown; }}
+                                                        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+                                                        <ExternalLink size={10} />{l.label}
+                                                    </Link>
+                                                ))}
+                                            </div>
                                             {isOwner && (
                                                 confirmingProjectId === proj.id ? (
                                                     <div className="flex gap-2">
-                                                        <button
-                                                            onClick={() => submitProjectDelete(proj)}
+                                                        <button onClick={() => submitProjectDelete(proj)}
                                                             disabled={deletingProjectId === proj.id}
-                                                            className="px-3 py-1 bg-accent-red text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-accent-red/90 transition-colors"
-                                                        >
+                                                            className="px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
+                                                            style={{ background: "#c0392b", color: "#fff" }}>
                                                             Confirm
                                                         </button>
-                                                        <button
-                                                            onClick={() => setConfirmingProjectId(null)}
-                                                            disabled={deletingProjectId === proj.id}
-                                                            className="px-3 py-1 bg-surface border border-border text-muted text-[10px] font-black uppercase tracking-wider rounded-xl hover:text-white transition-colors"
-                                                        >
+                                                        <button onClick={() => setConfirmingProjectId(null)}
+                                                            className="px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
+                                                            style={{ border: `1px solid ${C.border}`, color: C.muted }}>
                                                             Cancel
                                                         </button>
                                                     </div>
                                                 ) : (
-                                                    <button
-                                                        onClick={() => setConfirmingProjectId(proj.id)}
-                                                        className="p-2 rounded-xl text-accent-red/60 hover:text-accent-red hover:bg-accent-red/5 border border-transparent hover:border-accent-red/20 transition-all"
-                                                        title="Delete Project"
-                                                    >
+                                                    <button onClick={() => setConfirmingProjectId(proj.id)}
+                                                        className="p-2 rounded-xl transition-all"
+                                                        style={{ color: "rgba(192,57,43,0.5)" }}
+                                                        onMouseEnter={e => { e.currentTarget.style.color = "#c0392b"; e.currentTarget.style.background = "rgba(192,57,43,0.06)"; }}
+                                                        onMouseLeave={e => { e.currentTarget.style.color = "rgba(192,57,43,0.5)"; e.currentTarget.style.background = "transparent"; }}>
                                                         <Trash2 size={13} />
                                                     </button>
                                                 )
                                             )}
                                         </div>
+                                    </Card>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── MEMBERS TAB ─────────────────────────────────────────────── */}
+            {activeTab === "members" && (
+                <div className="space-y-5">
+                    {/* Members list */}
+                    <Card>
+                        <Label>Team Members</Label>
+                        <div className="space-y-2">
+                            {workspace.members.map(member => {
+                                const isMe = member.id === auth.user.id;
+                                const isOwnerMember = member.id === workspace.owner_id;
+                                return (
+                                    <div key={member.id}
+                                        className="flex items-center justify-between p-3.5 rounded-xl transition-all"
+                                        style={{
+                                            background: isMe ? "rgba(139,94,60,0.06)" : "rgba(139,94,60,0.03)",
+                                            border: `1px solid ${isMe ? "rgba(139,94,60,0.25)" : C.border}`,
+                                            borderLeft: isMe ? `3px solid ${C.brown}` : `3px solid transparent`,
+                                        }}>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black"
+                                                style={{ background: member.pivot?.color || C.brown, color: "#f3e4c9" }}>
+                                                {member.name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: C.navy }}>
+                                                    {member.name}
+                                                    {isMe && <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full"
+                                                        style={{ background: "rgba(139,94,60,0.12)", color: C.brown }}>You</span>}
+                                                </p>
+                                                <p className="text-[11px] font-mono" style={{ color: C.muted }}>{member.email}</p>
+                                            </div>
+                                        </div>
+                                        <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest"
+                                            style={{
+                                                background: isOwnerMember ? "rgba(139,94,60,0.12)" : "rgba(10,41,71,0.06)",
+                                                border: `1px solid ${isOwnerMember ? "rgba(139,94,60,0.3)" : "rgba(10,41,71,0.12)"}`,
+                                                color: isOwnerMember ? C.brown : C.muted,
+                                            }}>
+                                            {isOwnerMember && <Crown size={8} />}
+                                            {member.pivot?.role || "member"}
+                                        </span>
                                     </div>
                                 );
-                            })
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* 3. MEMBERS TAB */}
-            {activeTab === "members" && (
-                <div className="space-y-8 animate-in fade-in duration-200">
-                    <div className="bg-surface border border-border p-8 rounded-3xl space-y-6 shadow-xl">
-                        <div>
-                            <h3 className="text-xl font-bold text-white uppercase tracking-tight">
-                                Team Members
-                            </h3>
-                            <p className="text-sm text-muted">
-                                Manage who has access to this workspace.
-                            </p>
+                            })}
                         </div>
+                    </Card>
 
-                        {/* Member List */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {workspace.members.map((member) => (
-                                <div
-                                    key={member.id}
-                                    className="flex items-center justify-between p-4 bg-surface2/40 rounded-2xl border border-border shadow-sm"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div 
-                                            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm"
-                                            style={{ backgroundColor: member.pivot?.color || '#3b82f6' }}
-                                        >
-                                            {member.name.charAt(0).toUpperCase()}
-                                        </div>
-                                        <div>
-                                            <p className="text-white font-semibold">
-                                                {member.name}
-                                            </p>
-                                            <p className="text-xs text-muted font-mono">
-                                                {member.email}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <span className="px-3 py-1 rounded-full bg-border text-[9px] uppercase font-black tracking-widest text-muted">
-                                        {member.pivot?.role || "Owner"}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Pending Invitations */}
-                        {(workspace.invitations || []).filter(invite => invite.status !== 'accepted').length > 0 && (
-                            <div className="space-y-4 pt-6 border-t border-border/40">
-                                <h4 className="text-xs font-black uppercase tracking-[0.2em] text-muted">
-                                    Pending & Recently Declined
-                                </h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {(workspace.invitations || [])
-                                        .filter(invite => invite.status !== 'accepted')
-                                        .map((invite) => (
-                                            <div
-                                                key={invite.id}
-                                                className="flex items-center justify-between p-3 bg-surface2/20 rounded-xl border border-border/50"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center text-muted">
-                                                        <Mail size={14} />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-xs text-white font-semibold">
-                                                            {invite.email}
-                                                        </p>
-                                                        <p className="text-[9px] text-muted uppercase">
-                                                            Role: {invite.role}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${
-                                                    invite.status === 'pending' 
-                                                        ? 'bg-accent/10 text-accent border-accent/20' 
-                                                        : 'bg-red-500/10 text-red-500 border-red-500/20'
-                                                }`}>
-                                                    {invite.status}
-                                                </span>
+                    {/* Pending invitations */}
+                    {(workspace.invitations || []).filter(i => i.status !== "accepted").length > 0 && (
+                        <Card>
+                            <Label>Pending Invitations</Label>
+                            <div className="space-y-2">
+                                {workspace.invitations.filter(i => i.status !== "accepted").map(invite => (
+                                    <div key={invite.id} className="flex items-center justify-between p-3 rounded-xl"
+                                        style={{ background: "rgba(139,94,60,0.04)", border: `1px solid ${C.border}` }}>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                                                style={{ background: "rgba(139,94,60,0.08)", color: C.brown }}>
+                                                <Mail size={13} />
                                             </div>
-                                        ))}
-                                </div>
+                                            <div>
+                                                <p className="text-xs font-semibold" style={{ color: C.navy }}>{invite.email}</p>
+                                                <p className="text-[10px] uppercase tracking-wider" style={{ color: C.muted }}>Role: {invite.role}</p>
+                                            </div>
+                                        </div>
+                                        <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border"
+                                            style={invite.status === "pending"
+                                                ? { background: "rgba(26,95,138,0.08)", color: "#1a5f8a", borderColor: "rgba(26,95,138,0.2)" }
+                                                : { background: "rgba(192,57,43,0.08)", color: "#c0392b", borderColor: "rgba(192,57,43,0.2)" }}>
+                                            {invite.status}
+                                        </span>
+                                    </div>
+                                ))}
                             </div>
-                        )}
+                        </Card>
+                    )}
 
-                        {/* Invite Form */}
-                        <div className="pt-6 border-t border-border/40">
-                            <div className="mb-6">
-                                <h4 className="text-sm font-bold text-white uppercase tracking-wider">
-                                    Invite New Member
-                                </h4>
-                                <p className="text-xs text-muted mt-1">
-                                    Team members will receive a notification instantly if they have a Scaffold account.
-                                </p>
+                    {/* Invite form */}
+                    <Card>
+                        <Label>Invite New Member</Label>
+                        <p className="text-xs mb-5" style={{ color: C.muted }}>
+                            Members receive a notification instantly if they have a Scaffold account.
+                        </p>
+                        <form onSubmit={submitInvite} className="flex flex-wrap items-end gap-3">
+                            <div className="flex-1 min-w-[220px] space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-widest block" style={{ color: C.brown }}>
+                                    Email Address
+                                </label>
+                                <input
+                                    type="email" placeholder="colleague@example.com"
+                                    value={inviteForm.data.email}
+                                    onChange={e => inviteForm.setData("email", e.target.value)}
+                                    className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all duration-200 placeholder:opacity-40"
+                                    style={{
+                                        background: "rgba(139,94,60,0.05)",
+                                        border: `1.5px solid ${inviteForm.errors.email ? "#c0392b" : inviteEmailFocused ? C.brown : C.border}`,
+                                        color: C.navy,
+                                        boxShadow: inviteEmailFocused ? "0 0 0 3px rgba(139,94,60,0.1)" : "none",
+                                    }}
+                                    onFocus={() => setInviteEmailFocused(true)}
+                                    onBlur={() => setInviteEmailFocused(false)}
+                                />
+                                {inviteForm.errors.email && <p className="text-xs" style={{ color: "#c0392b" }}>{inviteForm.errors.email}</p>}
                             </div>
-                            <form
-                                onSubmit={submitInvite}
-                                className="flex flex-wrap items-end gap-4"
-                            >
-                                <div className="flex-1 min-w-[200px]">
-                                    <Input
-                                        label="EMAIL ADDRESS"
-                                        placeholder="colleague@example.com"
-                                        value={inviteForm.data.email}
-                                        onChange={(e) =>
-                                            inviteForm.setData("email", e.target.value)
-                                        }
-                                        error={inviteForm.errors.email}
-                                    />
-                                </div>
-                                <Button
-                                    loading={inviteForm.processing}
-                                    className="w-auto px-8 mb-0.5"
-                                >
-                                    Send Invite
-                                </Button>
-                            </form>
-                        </div>
-                    </div>
+                            <button type="submit" disabled={inviteForm.processing}
+                                className="px-6 py-3 rounded-xl text-sm font-bold tracking-wide transition-all duration-200 active:scale-[0.98] disabled:opacity-60 flex items-center gap-2 mb-0.5"
+                                style={{ background: C.brown, color: "#f3e4c9" }}
+                                onMouseEnter={e => { if (!inviteForm.processing) e.currentTarget.style.background = "#a06b43"; }}
+                                onMouseLeave={e => { if (!inviteForm.processing) e.currentTarget.style.background = C.brown; }}>
+                                {inviteForm.processing
+                                    ? <div className="w-4 h-4 rounded-full border-2 animate-spin"
+                                        style={{ borderColor: "rgba(243,228,201,0.3)", borderTopColor: "#f3e4c9" }} />
+                                    : <><Mail size={14} /> Send Invite</>}
+                            </button>
+                        </form>
+                    </Card>
                 </div>
             )}
 
-            {/* 4. SETTINGS TAB */}
+            {/* ── SETTINGS TAB ────────────────────────────────────────────── */}
             {activeTab === "settings" && (
-                <div className="space-y-6 animate-in fade-in duration-200">
-                    
-                    {/* SECTION 0: Identity selection */}
-                    <div className="bg-surface border border-border p-8 rounded-3xl space-y-6 shadow-xl">
-                        <div>
-                            <h3 className="text-xl font-bold text-white uppercase tracking-tight">
-                                Your Identity
-                            </h3>
-                            <p className="text-sm text-muted">
-                                Pick your signature avatar color for this workspace. This will represent you on tasks, threads, and comments.
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-3">
+                <div className="space-y-5 max-w-2xl">
+                    {/* Identity — avatar color picker */}
+                    <Card>
+                        <Label>Your Identity</Label>
+                        <p className="text-xs mb-5" style={{ color: C.muted }}>
+                            Pick your avatar color for this workspace. Shown on tasks, threads, and comments.
+                        </p>
+                        <div className="flex flex-wrap gap-2.5">
                             {[
-                                "#FF4D4D", "#FF8C42", "#FFD166", "#06D6A0", "#118AB2", "#7400B8",
-                                "#5e60ce", "#4ea8de", "#48bfe3", "#56cfe1", "#64dfdf", "#72efdd",
-                                "#80ffdb", "#ff006e", "#8338ec", "#3a86ff", "#fb5607", "#ffbe0b",
-                                "#e0e1dd", "#778da9", "#415a77", "#1b263b", "#ef4444", "#3b82f6"
-                            ].map((color) => {
-                                const isSelected = currentMemberColor === color;
-                                
+                                "#C0392B","#E67E22","#F1C40F","#27AE60","#1A5F8A","#8B5E3C",
+                                "#5e60ce","#4ea8de","#48bfe3","#2d6a4f","#6d4c41","#455A64",
+                                "#E91E63","#9C27B0","#3F51B5","#009688","#FF5722","#795548",
+                                "#607D8B","#2C3E50","#16213E","#0a2947","#7c5c1e","#b45309",
+                            ].map(color => {
+                                const selected = currentMemberColor === color;
                                 return (
-                                    <button
-                                        key={color}
+                                    <button key={color}
                                         onClick={() => router.patch(`/workspaces/${workspace.slug}/preferences/color`, { color }, { preserveScroll: true })}
-                                        className={`w-10 h-10 rounded-full border-2 transition-all hover:scale-110 ${isSelected ? 'border-white scale-110 shadow-[0_0_15px_rgba(255,255,255,0.5)]' : 'border-transparent'}`}
-                                        style={{ backgroundColor: color }}
+                                        className="w-9 h-9 rounded-full transition-all duration-150 hover:scale-110"
+                                        style={{
+                                            backgroundColor: color,
+                                            border: selected ? `3px solid ${C.navy}` : "3px solid transparent",
+                                            boxShadow: selected ? `0 0 0 2px ${C.bg}, 0 0 0 4px ${color}` : "none",
+                                        }}
                                         title={color}
                                     />
                                 );
                             })}
                         </div>
-                    </div>
+                    </Card>
 
-                    {/* SECTION 1: General settings */}
-                    <div className="bg-surface border border-border p-8 rounded-3xl space-y-6 shadow-xl">
-                        <div>
-                            <h3 className="text-xl font-bold text-white uppercase tracking-tight">
-                                General Settings
-                            </h3>
-                            <p className="text-sm text-muted">
-                                Configure general parameters of this workspace.
-                            </p>
-                        </div>
-
-                        <form onSubmit={submitWorkspaceUpdate} className="space-y-4 max-w-md">
-                            <Input
-                                label="WORKSPACE NAME"
-                                value={updateWorkspaceForm.data.name}
-                                onChange={(e) =>
-                                    updateWorkspaceForm.setData("name", e.target.value)
-                                }
-                                error={updateWorkspaceForm.errors.name}
-                                disabled={!isOwner}
-                            />
+                    {/* General settings */}
+                    <Card>
+                        <Label>General Settings</Label>
+                        <form onSubmit={submitWorkspaceUpdate} className="space-y-4 max-w-sm">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-widest block" style={{ color: C.brown }}>
+                                    Workspace Name
+                                </label>
+                                <input
+                                    type="text"
+                                    value={updateWorkspaceForm.data.name}
+                                    onChange={e => updateWorkspaceForm.setData("name", e.target.value)}
+                                    disabled={!isOwner}
+                                    className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all duration-200 disabled:opacity-50"
+                                    style={{
+                                        background: "rgba(139,94,60,0.05)",
+                                        border: `1.5px solid ${updateWorkspaceForm.errors.name ? "#c0392b" : C.border}`,
+                                        color: C.navy,
+                                    }}
+                                    onFocus={e => { e.currentTarget.style.borderColor = C.brown; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(139,94,60,0.1)"; }}
+                                    onBlur={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.boxShadow = "none"; }}
+                                />
+                            </div>
                             {isOwner ? (
-                                <Button
-                                    loading={updateWorkspaceForm.processing}
-                                    className="w-auto px-8"
-                                >
+                                <button type="submit" disabled={updateWorkspaceForm.processing}
+                                    className="px-6 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] disabled:opacity-60"
+                                    style={{ background: C.brown, color: "#f3e4c9" }}
+                                    onMouseEnter={e => { if (!updateWorkspaceForm.processing) e.currentTarget.style.background = "#a06b43"; }}
+                                    onMouseLeave={e => { if (!updateWorkspaceForm.processing) e.currentTarget.style.background = C.brown; }}>
                                     Save Changes
-                                </Button>
+                                </button>
                             ) : (
-                                <p className="text-xs text-muted italic">
+                                <p className="text-xs italic" style={{ color: C.muted }}>
                                     Only the workspace owner can update the workspace name.
                                 </p>
                             )}
                         </form>
-                    </div>
+                    </Card>
 
-                    {/* SECTION 2: Danger Zone */}
-                    <div className="bg-accent-red/5 border border-accent-red/20 p-8 rounded-3xl space-y-6 shadow-xl">
-                        <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 rounded-full bg-accent-red animate-pulse" />
-                            <h3 className="text-xl font-bold text-accent-red uppercase tracking-tight">
-                                Danger Zone
-                            </h3>
-                        </div>
-
-                        <div className="space-y-6">
-                            <div className="space-y-4">
-                                <p className="text-sm text-muted">
-                                    Deleting a workspace is a permanent action. All projects, tasks, and historical communication data will be permanently wiped.
+                    {/* Danger zone */}
+                    {isOwner && (
+                        <div className="rounded-2xl p-6 space-y-4"
+                            style={{ background: "rgba(192,57,43,0.04)", border: "1px solid rgba(192,57,43,0.2)" }}>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                <p className="text-sm font-black uppercase tracking-widest" style={{ color: "#c0392b" }}>
+                                    Danger Zone
                                 </p>
                             </div>
-
-                            {isOwner ? (
-                                confirmingWorkspaceDelete ? (
-                                    <div className="space-y-4 rounded-2xl border border-accent-red/25 bg-accent-red/10 p-5">
-                                        <div className="flex items-start gap-3">
-                                            <AlertTriangle className="text-accent-red shrink-0" size={20} />
-                                            <p className="text-sm text-white">
-                                                Delete <span className="font-bold">{workspace.name}</span>? This action is absolutely irreversible.
-                                            </p>
-                                        </div>
-                                        <div className="flex flex-wrap gap-3">
-                                            <Button
-                                                type="button"
-                                                onClick={submitWorkspaceDelete}
-                                                loading={deleteWorkspaceForm.processing}
-                                                className="w-auto px-8 bg-accent-red hover:bg-accent-red/80 border-accent-red/20"
-                                            >
-                                                Confirm Delete
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                onClick={() => setConfirmingWorkspaceDelete(false)}
-                                                className="bg-surface hover:bg-surface2 border-border w-auto px-8"
-                                            >
-                                                Cancel
-                                            </Button>
-                                        </div>
+                            <p className="text-sm" style={{ color: C.muted }}>
+                                Deleting this workspace is permanent. All projects, tasks, and communication data will be wiped.
+                            </p>
+                            {confirmingWorkspaceDelete ? (
+                                <div className="space-y-3 rounded-xl p-4"
+                                    style={{ background: "rgba(192,57,43,0.08)", border: "1px solid rgba(192,57,43,0.2)" }}>
+                                    <div className="flex items-start gap-2">
+                                        <AlertTriangle size={16} style={{ color: "#c0392b", flexShrink: 0, marginTop: 2 }} />
+                                        <p className="text-sm" style={{ color: C.navy }}>
+                                            Delete <strong>{workspace.name}</strong>? This is absolutely irreversible.
+                                        </p>
                                     </div>
-                                ) : (
-                                    <Button
-                                        type="button"
-                                        onClick={() => setConfirmingWorkspaceDelete(true)}
-                                        className="w-auto px-8 bg-accent-red hover:bg-accent-red/80 border-accent-red/20"
-                                    >
-                                        Delete Workspace
-                                    </Button>
-                                )
+                                    <div className="flex gap-3">
+                                        <button onClick={submitWorkspaceDelete}
+                                            disabled={deleteWorkspaceForm.processing}
+                                            className="px-5 py-2 rounded-xl text-sm font-bold transition-all"
+                                            style={{ background: "#c0392b", color: "#fff" }}>
+                                            Confirm Delete
+                                        </button>
+                                        <button onClick={() => setConfirmingWorkspaceDelete(false)}
+                                            className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
+                                            style={{ border: `1px solid ${C.border}`, color: C.muted }}>
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
                             ) : (
-                                <p className="text-xs text-muted italic">
-                                    Only the workspace owner can delete the workspace.
-                                </p>
+                                <button onClick={() => setConfirmingWorkspaceDelete(true)}
+                                    className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all"
+                                    style={{ background: "#c0392b", color: "#fff" }}
+                                    onMouseEnter={e => e.currentTarget.style.background = "#a93226"}
+                                    onMouseLeave={e => e.currentTarget.style.background = "#c0392b"}>
+                                    Delete Workspace
+                                </button>
                             )}
                         </div>
-                    </div>
-
+                    )}
                 </div>
             )}
 
-            {/* Rename project dialog modal */}
-            <ProjectEditModal
-                isOpen={!!editingProject}
-                onClose={() => setEditingProject(null)}
-                project={editingProject}
-                workspace={workspace}
-            />
-
-            {/* Create Project Modal Dialog */}
-            {showingNewProject && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="bg-surface2 border border-border p-8 rounded-3xl w-full max-w-sm space-y-6 shadow-2xl">
-                        <div className="space-y-2">
-                            <h3 className="text-xl font-bold text-white uppercase tracking-tight">
-                                New Project
-                            </h3>
-                            <p className="text-xs text-muted">
-                                Internal task board for your team.
-                            </p>
-                        </div>
-                        <form onSubmit={submitNewProject} className="space-y-4">
-                            <Input
-                                label="PROJECT NAME"
-                                placeholder="Marketing Ops"
-                                value={projectForm.data.name}
-                                onChange={(e) =>
-                                    projectForm.setData("name", e.target.value)
-                                }
-                                error={projectForm.errors.name}
-                                autoFocus
-                            />
-                            <div className="flex items-center gap-3">
-                                <Button
-                                    loading={projectForm.processing}
-                                    className="flex-1"
-                                >
-                                    Create
-                                </Button>
-                                <Button
-                                    type="button"
-                                    onClick={() => setShowingNewProject(false)}
-                                    className="bg-surface hover:bg-surface2 border-border"
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            {/* Modals */}
+            <ProjectEditModal isOpen={!!editingProject} onClose={() => setEditingProject(null)}
+                project={editingProject} workspace={workspace} />
+            {showNewProject && <NewProjectModal workspace={workspace} onClose={() => setShowNewProject(false)} />}
         </div>
     );
 }

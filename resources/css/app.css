@@ -1,29 +1,40 @@
 @import "tailwindcss";
 
 @theme {
-    /* Main Backgrounds */
-    --color-bg: #0a0a0b;
-    --color-surface: #111113;
-    --color-surface2: #18181c;
+    /* ── Dark Navy (primary backgrounds) ── */
+    --color-bg: #0a2947;
+    --color-surface: #0d3260;
+    --color-surface2: #0f3a70;
+    --color-surface3: #1a4882;
 
-    /* Borders */
-    --color-border: #252528;
-    --color-border2: #2e2e34;
+    /* ── Borders ── */
+    --color-border: #1a3f6e;
+    --color-border2: #1e4a7e;
 
-    /* Text */
-    --color-text: #e8e8f0;
-    --color-muted: #6b6b7a;
+    /* ── Text on dark ── */
+    --color-text: #f3e4c9;
+    --color-muted: #d3d4c0;
 
-    /* Accents */
-    --color-accent: #7c6aff;
-    --color-accent-green: #4fffb0;
-    --color-accent-red: #ff6a6a;
-    --color-accent-orange: #ffa040;
-    --color-accent-blue: #40c8ff;
+    /* ── Warm cream (light panels) ── */
+    --color-cream: #f3e4c9;
+    --color-cream2: #ecddc0;
+    --color-cream3: #e5d4b0;
 
-    /* Fonts */
-    --font-sans: "JetBrains Mono", monospace;
-    --font-display: "Syne", sans-serif;
+    /* ── Accent / CTA ── */
+    --color-accent: #8b5e3c;
+    --color-accent-hover: #a06b43;
+    --color-accent-light: rgba(139, 94, 60, 0.12);
+
+    /* ── Semantic accents (kept for app compatibility) ── */
+    --color-accent-green: #4a7c59;
+    --color-accent-red: #c0392b;
+    --color-accent-orange: #c87941;
+    --color-accent-blue: #2e6da4;
+
+    /* ── Fonts ── */
+    --font-sans: "Plus Jakarta Sans", sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
+    --font-display: "Playfair Display", serif;
 }
 
 @keyframes task-pop-in {
@@ -115,15 +126,15 @@
 
 /* Controls panel buttons */
 .react-flow__controls-button {
-    background: #111113;
-    border-color: #252528;
-    color: #6b6b7a;
-    fill: #6b6b7a;
+    background: #0d3260;
+    border-color: #1a3f6e;
+    color: #d3d4c0;
+    fill: #d3d4c0;
 }
 .react-flow__controls-button:hover {
-    background: #18181c;
-    color: #e8e8f0;
-    fill: #e8e8f0;
+    background: #0f3a70;
+    color: #f3e4c9;
+    fill: #f3e4c9;
 }
 
 /* Edge / connection line */
@@ -134,20 +145,20 @@
 
 /* Selected edge highlight */
 .react-flow__edge.selected .react-flow__edge-path {
-    stroke: #7c6aff;
-    filter: drop-shadow(0 0 6px rgba(124, 106, 255, 0.6));
+    stroke: #8b5e3c;
+    filter: drop-shadow(0 0 6px rgba(139, 94, 60, 0.6));
 }
 
 /* Node selection ring */
 .react-flow__node.selected > div {
-    outline: 2px solid #7c6aff;
+    outline: 2px solid #8b5e3c;
     outline-offset: 3px;
 }
 
 /* Handle hover glow */
 .react-flow__handle:hover {
-    background: #9d8fff !important;
-    box-shadow: 0 0 8px rgba(124, 106, 255, 0.8);
+    background: #a06b43 !important;
+    box-shadow: 0 0 8px rgba(139, 94, 60, 0.8);
 }
 
 /* Hide the React Flow attribution badge (we pass proOptions={{ hideAttribution: true }}) */
@@ -157,8 +168,8 @@
 
 /* Mini-map node fill */
 .react-flow__minimap-node {
-    fill: #252528;
-    stroke: #7c6aff;
+    fill: #1a3f6e;
+    stroke: #8b5e3c;
     stroke-width: 1px;
 }
 
@@ -176,7 +187,7 @@ body::-webkit-scrollbar {
 /* Inner containers custom thin scrollbar */
 * {
     scrollbar-width: thin;
-    scrollbar-color: #252528 #0a0a0b;
+    scrollbar-color: #1a3f6e #0a2947;
 }
 
 ::-webkit-scrollbar {
@@ -189,11 +200,11 @@ body::-webkit-scrollbar {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #252528;
+    background: #1a3f6e;
     border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #7c6aff;
+    background: #8b5e3c;
 }
 
