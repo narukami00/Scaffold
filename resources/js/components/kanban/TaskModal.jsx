@@ -757,7 +757,7 @@ export default function TaskModal({
                                                 <div className="absolute left-0 top-8 z-20 min-w-[200px] rounded-2xl border p-2 shadow-2xl animate-in slide-in-from-top-2 duration-200" style={{ background: "#f3e4c9", borderColor: "rgba(139,94,60,0.18)" }}>
                                                     {(workspace.labels || [])
                                                         .length === 0 ? (
-                                                        <p className="px-3 py-3 text-[10px] text-muted">
+                                                        <p className="px-3 py-3 text-[10px] text-slate-500">
                                                             No labels defined in
                                                             this workspace.
                                                         </p>
@@ -840,6 +840,7 @@ export default function TaskModal({
                                             <option
                                                 key={s.value}
                                                 value={s.value}
+                                                style={{ background: "#f3e4c9", color: "#0a2947" }}
                                             >
                                                 {s.label}
                                             </option>
@@ -847,7 +848,7 @@ export default function TaskModal({
                                     </select>
 
                                     <select
-                                        className={`rounded-2xl border border-border bg-surface px-4 py-2 text-xs font-black uppercase tracking-widest text-white outline-none transition-colors focus:border-accent ${!isEditor ? "pointer-events-none opacity-60" : ""}`}
+                                        className={`rounded-2xl border px-4 py-2 text-xs font-black uppercase tracking-widest outline-none transition-colors ${!isEditor ? "pointer-events-none opacity-60" : ""}`} style={{ borderColor: "rgba(139,94,60,0.18)", background: "#f3e4c9", color: "#0a2947" }}
                                         value={data.priority}
                                         onChange={(e) =>
                                             handleFieldChange(
@@ -861,6 +862,7 @@ export default function TaskModal({
                                             <option
                                                 key={p.value}
                                                 value={p.value}
+                                                style={{ background: "#f3e4c9", color: "#0a2947" }}
                                             >
                                                 {p.label}
                                             </option>
@@ -877,7 +879,7 @@ export default function TaskModal({
                                         />
                                         <input
                                             type="date"
-                                            className={`bg-transparent text-xs font-bold outline-none ${!isEditor ? "pointer-events-none" : ""}`} style={{ color: "#0a2947" }}
+                                            className={`bg-transparent text-xs font-bold outline-none cursor-pointer ${!isEditor ? "pointer-events-none" : ""}`} style={{ color: "#0a2947", background: "transparent" }}
                                             value={data.due_date || ""}
                                             onChange={(e) =>
                                                 handleFieldChange(
@@ -891,7 +893,7 @@ export default function TaskModal({
 
                                     {/* Assignee */}
                                     <div
-                                        className={`flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-2 ${!isEditor ? "opacity-60" : ""}`}
+                                        className={`flex items-center gap-2 rounded-2xl border px-4 py-2 ${!isEditor ? "opacity-60" : ""}`} style={{ borderColor: "rgba(139,94,60,0.18)", background: "#f3e4c9" }}
                                     >
                                         <User
                                             size={13}
@@ -908,9 +910,9 @@ export default function TaskModal({
                                             }
                                             disabled={!isEditor}
                                         >
-                                            <option value="">Unassigned</option>
+                                            <option value="" style={{ background: "#f3e4c9", color: "#0a2947" }}>Unassigned</option>
                                             {(members || []).map((m) => (
-                                                <option key={m.id} value={m.id}>
+                                                <option key={m.id} value={m.id} style={{ background: "#f3e4c9", color: "#0a2947" }}>
                                                     {m.name}
                                                 </option>
                                             ))}
@@ -922,7 +924,7 @@ export default function TaskModal({
                             {/* ▸ Description */}
                             <section className="space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.24em] text-muted">
+                                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">
                                         <ChevronRight size={14} style={{ color: "#8b5e3c" }} />
                                         Description
                                     </div>
@@ -935,7 +937,7 @@ export default function TaskModal({
                                             className={`rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-wider ${
                                                 descriptionMode === "write"
                                                     ? "border-accent/40 bg-accent/10 text-accent"
-                                                    : "border-border/60 text-muted hover:text-white"
+                                                    : "border-[rgba(139,94,60,0.18)] text-slate-500 hover:text-[#8b5e3c]"
                                             }`}
                                         >
                                             Write
@@ -948,7 +950,7 @@ export default function TaskModal({
                                             className={`rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-wider ${
                                                 descriptionMode === "preview"
                                                     ? "border-accent/40 bg-accent/10 text-accent"
-                                                    : "border-border/60 text-muted hover:text-white"
+                                                    : "border-[rgba(139,94,60,0.18)] text-slate-500 hover:text-[#8b5e3c]"
                                             }`}
                                         >
                                             Preview
@@ -1004,7 +1006,7 @@ export default function TaskModal({
                                                         )
                                                     }
                                                     disabled={!isEditor}
-                                                    className="rounded-md border border-border/60 px-2 py-1 text-[10px] font-black text-white hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                                    className="rounded-md border px-2 py-1 text-[10px] font-bold text-slate-600 hover:border-[#8b5e3c]/50 hover:text-[#8b5e3c] disabled:cursor-not-allowed disabled:opacity-50" style={{ borderColor: "rgba(139,94,60,0.18)" }}
                                                 >
                                                     H{level}
                                                 </button>
@@ -1061,7 +1063,7 @@ export default function TaskModal({
                                         Checklist
                                     </div>
                                     {totalCount > 0 && (
-                                        <span className="text-[10px] font-black text-muted">
+                                        <span className="text-[10px] font-black text-slate-500">
                                             {checkedCount}/{totalCount} Complete
                                         </span>
                                     )}
@@ -1126,7 +1128,7 @@ export default function TaskModal({
                                                                 newList,
                                                             );
                                                         }}
-                                                        className="text-muted opacity-0 transition-all group-hover:opacity-100 hover:text-red-700"
+                                                        className="text-slate-400 opacity-0 transition-all group-hover:opacity-100 hover:text-red-700"
                                                     >
                                                         <X size={14} />
                                                     </button>
@@ -1186,7 +1188,7 @@ export default function TaskModal({
                                             />
                                             <Plus
                                                 size={18}
-                                                className="absolute left-4 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+                                                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
                                             />
                                         </div>
                                     )}
@@ -1325,7 +1327,7 @@ export default function TaskModal({
                                 <div className="flex flex-wrap gap-3">
                                     {activeDeps.length === 0 &&
                                         !isDependencyListOpen && (
-                                            <p className="text-[11px] text-muted/40">
+                                            <p className="text-[11px] text-slate-500/60">
                                                 No blockers assigned.
                                             </p>
                                         )}
@@ -1419,7 +1421,7 @@ export default function TaskModal({
                         <aside className="flex w-96 shrink-0 flex-col border-l" style={{ borderColor: "rgba(139,94,60,0.18)", background: "#f3e4c9" }}>
                             {/* Panel header */}
                             <div className="flex h-14 items-center justify-between border-b px-6" style={{ borderColor: "rgba(139,94,60,0.18)" }}>
-                                <span className="text-[10px] font-black uppercase tracking-[0.24em] text-muted">
+                                <span className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">
                                     Project Stream
                                 </span>
                                 <button
@@ -1436,7 +1438,7 @@ export default function TaskModal({
                                 {/* Attachments */}
                                 {(data.attachments || []).length > 0 && (
                                     <div className="space-y-3">
-                                        <span className="text-[10px] font-black uppercase tracking-wider text-muted">
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
                                             Project Assets
                                         </span>
                                         <div className="flex flex-wrap gap-2">
@@ -1488,7 +1490,7 @@ export default function TaskModal({
                                                 {comment.user?.name ??
                                                     "Unknown"}
                                             </span>
-                                            <span className="text-[9px] text-muted">
+                                            <span className="text-[9px] text-slate-500">
                                                 {format(
                                                     new Date(
                                                         comment.created_at,
@@ -1500,7 +1502,7 @@ export default function TaskModal({
                                             {String(comment.id).startsWith(
                                                 "temp-",
                                             ) && (
-                                                <span className="ml-auto text-[9px] text-muted/50 italic">
+                                                <span className="ml-auto text-[9px] text-slate-500/60 italic">
                                                     Sending…
                                                 </span>
                                             )}
@@ -1510,7 +1512,7 @@ export default function TaskModal({
                                                 Number(comment.user_id) ===
                                                 Number(auth.user.id)
                                                     ? "border-accent/60 bg-accent/10 text-white shadow-[0_0_18px_rgba(124,106,255,0.22)]"
-                                                    : "border-border/50 bg-surface/30 text-white/70"
+                                                    : "border-border/50 bg-surface/30 text-slate-700"
                                             }`}
                                         >
                                             {comment.body}
@@ -1560,16 +1562,16 @@ export default function TaskModal({
                     {controlRequests.map((req) => (
                         <div
                             key={req.id}
-                            className="flex items-center gap-3 rounded-2xl border border-accent/30 bg-[#0d0d0f] px-4 py-3 shadow-2xl shadow-black/60 animate-in slide-in-from-right-4 duration-300"
+                            className="flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-xl animate-in slide-in-from-right-4 duration-300" style={{ borderColor: "rgba(139,94,60,0.25)", background: "#f3e4c9" }}
                         >
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-accent/20 bg-accent/10 text-xs font-black text-accent">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full border text-xs font-black" style={{ borderColor: "rgba(139,94,60,0.25)", background: "rgba(139,94,60,0.05)", color: "#8b5e3c" }}>
                                 {req.name.charAt(0)}
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-xs font-black text-white">
+                                <span className="text-xs font-black" style={{ color: "#0a2947" }}>
                                     {req.name}
                                 </span>
-                                <span className="text-[10px] text-muted">
+                                <span className="text-[10px] text-slate-500">
                                     Requesting control
                                 </span>
                             </div>
@@ -1581,7 +1583,7 @@ export default function TaskModal({
                                             prev.filter((r) => r.id !== req.id),
                                         );
                                     }}
-                                    className="rounded-xl bg-accent px-3 py-1.5 text-[10px] font-black text-white transition-all hover:scale-105 active:scale-95"
+                                    className="rounded-xl px-3 py-1.5 text-[10px] font-black text-white transition-all hover:scale-105 active:scale-95" style={{ background: "#8b5e3c" }}
                                 >
                                     Give
                                 </button>
@@ -1591,7 +1593,7 @@ export default function TaskModal({
                                             prev.filter((r) => r.id !== req.id),
                                         )
                                     }
-                                    className="rounded-xl border border-border px-3 py-1.5 text-[10px] font-black text-muted transition-all hover:text-white"
+                                    className="rounded-xl border px-3 py-1.5 text-[10px] font-black transition-all hover:bg-black/5" style={{ borderColor: "rgba(139,94,60,0.18)", color: "rgba(10,41,71,0.45)" }}
                                 >
                                     Deny
                                 </button>
