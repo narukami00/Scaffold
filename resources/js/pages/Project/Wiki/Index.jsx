@@ -2,9 +2,30 @@ import { useState } from "react";
 import WorkspaceLayout from "@/layouts/WorkspaceLayout";
 import { Head, Link, router } from "@inertiajs/react";
 import ProjectHeader from "@/components/project/ProjectHeader";
-import { FileText, Plus, Search, Edit2, Trash2, BookOpen, Calendar, User } from "lucide-react";
+import { FileText, Plus, Search, Edit2, Trash2, BookOpen, Calendar, User, X, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import axios from "axios";
+import hljs from "highlight.js";
+import "highlight.js/styles/github-dark.css";
+
+const getFileExtension = (url) => {
+    if (!url) return "";
+    const cleanUrl = url.split("?")[0].split("#")[0];
+    return cleanUrl.split(".").pop().toLowerCase();
+};
+
+const isViewableFile = (url) => {
+    if (!url) return false;
+    const cleanUrl = url.split("?")[0].split("#")[0];
+    const extensions = [
+        "txt", "text", "md", "markdown", "json", "js", "ts", "py", "rs", "go",
+        "c", "cpp", "h", "hpp", "cs", "java", "sh", "bat", "html", "css", "sql",
+        "xml", "yaml", "yml", "pdf"
+    ];
+    const ext = cleanUrl.split(".").pop().toLowerCase();
+    return extensions.includes(ext);
+};
 
 // ── Palette tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -20,6 +41,56 @@ const C = {
 
 export default function Index({ workspace, project, wikis = [], currentWiki = null }) {
     const [searchQuery, setSearchQuery] = useState("");
+    const [viewingFileUrl, setViewingFileUrl] = useState(null);
+    const [viewingFileName, setViewingFileName] = useState("");
+    const [fileContent, setFileContent] = useState("");
+    const [fileLoading, setFileLoading] = useState(false);
+    const [fileError, setFileError] = useState(null);
+
+    const handleViewFile = (href, fileName) => {
+        setViewingFileUrl(href);
+        setViewingFileName(fileName);
+        setFileLoading(true);
+        setFileError(null);
+        setFileContent("");
+
+        axios.get(href)
+            .then(res => {
+                const content = typeof res.data === "object" ? JSON.stringify(res.data, null, 2) : res.data;
+                setFileContent(content);
+            })
+            .catch(err => {
+                console.error("Failed to load file contents", err);
+                setFileError("Could not retrieve file content.");
+            })
+            .finally(() => {
+                setFileLoading(false);
+            });
+    };
+
+    const getHighlightedCode = () => {
+        if (!fileContent) return "";
+        try {
+            const ext = getFileExtension(viewingFileUrl);
+            let lang = ext;
+            if (lang === "js") lang = "javascript";
+            if (lang === "ts") lang = "typescript";
+            if (lang === "py") lang = "python";
+            if (lang === "rs") lang = "rust";
+            if (lang === "cs") lang = "csharp";
+            if (lang === "bat") lang = "dos";
+            if (lang === "yml") lang = "yaml";
+            
+            if (hljs.getLanguage(lang)) {
+                return hljs.highlight(fileContent, { language: lang }).value;
+            } else {
+                return hljs.highlightAuto(fileContent).value;
+            }
+        } catch (e) {
+            console.error("Highlighting error", e);
+            return fileContent;
+        }
+    };
 
     const filteredWikis = wikis.filter((wiki) =>
         wiki.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -157,7 +228,27 @@ export default function Index({ workspace, project, wikis = [], currentWiki = nu
 
                             {/* Wiki Body Content */}
                             <div className="prose prose-sm max-w-none text-slate-800 leading-relaxed font-normal">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                <ReactMarkdown 
+                                    remarkPlugins={[remarkGfm]}
+                                    components={{
+                                        a: ({ href, children, ...props }) => {
+                                            if (isViewableFile(href)) {
+                                                const fileName = children && children[0] ? children[0] : "Attached File";
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleViewFile(href, fileName)}
+                                                        className="font-black underline text-indigo-700 hover:text-indigo-900 cursor-pointer"
+                                                        title="Click to view file contents"
+                                                    >
+                                                        {children}
+                                                    </button>
+                                                );
+                                            }
+                                            return <a href={href} target="_blank" rel="noreferrer" {...props}>{children}</a>;
+                                        }
+                                    }}
+                                >
                                     {currentWiki.content}
                                 </ReactMarkdown>
                             </div>
@@ -190,6 +281,96 @@ export default function Index({ workspace, project, wikis = [], currentWiki = nu
                     )}
                 </div>
             </div>
+
+            {/* Code & Text File Viewer Modal */}
+            {viewingFileUrl && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="relative w-full max-w-5xl rounded-[28px] border p-6 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]"
+                        style={{ background: C.card, borderColor: C.border }}>
+                        
+                        {/* Header */}
+                        <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: C.border }}>
+                            <div className="flex items-center gap-2.5 min-w-0" style={{ color: C.navy }}>
+                                <FileText className="shrink-0" style={{ color: C.brown }} size={18} />
+                                <h3 className="font-display font-black text-sm uppercase tracking-widest truncate">
+                                    {viewingFileName}
+                                </h3>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                {/* Copy Button */}
+                                {getFileExtension(viewingFileUrl) !== "md" && getFileExtension(viewingFileUrl) !== "markdown" && fileContent && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(fileContent);
+                                            alert("Copied to clipboard!");
+                                        }}
+                                        className="rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-black/5"
+                                        style={{ borderColor: C.border, color: C.navy }}
+                                    >
+                                        Copy Code
+                                    </button>
+                                )}
+                                {/* Download Button */}
+                                <a
+                                    href={viewingFileUrl}
+                                    download={viewingFileName}
+                                    className="rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-black/5"
+                                    style={{ borderColor: C.border, color: C.navy }}
+                                >
+                                    Download
+                                </a>
+                                {/* Close Button */}
+                                <button
+                                    type="button"
+                                    onClick={() => setViewingFileUrl(null)}
+                                    className="rounded-xl border p-1.5 transition-all hover:bg-black/5"
+                                    style={{ borderColor: C.border, color: C.navy }}
+                                >
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        {fileLoading ? (
+                            <div className="flex h-96 flex-col items-center justify-center space-y-2">
+                                <Loader2 className="w-8 h-8 animate-spin" style={{ color: C.brown }} />
+                                <p className="text-xs font-black uppercase tracking-widest" style={{ color: C.muted }}>Loading file content...</p>
+                            </div>
+                        ) : fileError ? (
+                            <div className="flex h-96 flex-col items-center justify-center text-center p-4">
+                                <p className="text-sm font-semibold text-red-700">{fileError}</p>
+                                <a href={viewingFileUrl} target="_blank" rel="noreferrer" className="mt-4 text-xs font-bold underline text-indigo-700">
+                                    Open directly in browser
+                                </a>
+                            </div>
+                        ) : (getFileExtension(viewingFileUrl) === "md" || getFileExtension(viewingFileUrl) === "markdown") ? (
+                            <div className="flex-1 overflow-y-auto mt-4 rounded-xl border p-6 bg-[#fdfaf3] text-slate-800 max-h-[60vh] custom-scrollbar prose prose-sm max-w-none"
+                                 style={{ borderColor: C.border }}>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    {fileContent}
+                                </ReactMarkdown>
+                            </div>
+                        ) : (
+                            <div className="flex-1 overflow-y-auto mt-4 rounded-xl border p-4 bg-slate-950 text-slate-100 max-h-[60vh] custom-scrollbar">
+                                <div className="flex items-start font-mono text-[11px] leading-5">
+                                    {/* Line Numbers */}
+                                    <div className="flex select-none text-slate-500 pr-3 border-r border-slate-800/80 text-right flex-col shrink-0">
+                                        {fileContent.split("\n").map((_, i) => (
+                                            <span key={i} className="h-5 leading-5">{i + 1}</span>
+                                        ))}
+                                    </div>
+                                    {/* Highlighted Code */}
+                                    <pre className="flex-1 pl-4 overflow-x-auto select-text font-mono text-[11px] custom-scrollbar whitespace-pre">
+                                        <code className="block leading-5" dangerouslySetInnerHTML={{ __html: getHighlightedCode() }} />
+                                    </pre>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

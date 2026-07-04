@@ -19,7 +19,7 @@ class MediaController extends Controller
         }
 
         $request->validate([
-            'image' => 'required|image|max:10240', // 10MB max
+            'image' => 'required|file|max:10240|mimes:jpg,jpeg,png,gif,webp,txt,text,md,markdown,json,js,ts,py,rs,go,c,cpp,h,hpp,cs,java,sh,bat,html,css,pdf,xml,yaml,yml,sql', // 10MB max
         ]);
 
         $file = $request->file('image');

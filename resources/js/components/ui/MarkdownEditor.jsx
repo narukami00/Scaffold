@@ -41,12 +41,12 @@ export default function MarkdownEditor({
         if (!uploadUrl) return;
 
         const items = e.clipboardData.items;
-        const imageItem = Array.from(items).find(item => item.type.startsWith('image/'));
+        const fileItem = Array.from(items).find(item => item.kind === 'file');
 
-        if (!imageItem) return;
+        if (!fileItem) return;
 
         e.preventDefault();
-        const file = imageItem.getAsFile();
+        const file = fileItem.getAsFile();
         await uploadImage(file);
     };
 
@@ -54,7 +54,7 @@ export default function MarkdownEditor({
         if (!uploadUrl) return;
 
         e.preventDefault();
-        const file = Array.from(e.dataTransfer.files).find(f => f.type.startsWith('image/'));
+        const file = Array.from(e.dataTransfer.files)[0];
         if (!file) return;
 
         await uploadImage(file);
@@ -69,7 +69,8 @@ export default function MarkdownEditor({
         const startPos = textarea.selectionStart;
         const endPos = textarea.selectionEnd;
 
-        const placeholderText = `![Uploading ${file.name}...]()`;
+        const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+        const placeholderText = isImage ? `![Uploading ${file.name}...]()` : `[Uploading ${file.name}...]()`;
         const newValue = value.substring(0, startPos) + placeholderText + value.substring(endPos);
         onChange(newValue);
         setIsUploading(true);
@@ -82,13 +83,14 @@ export default function MarkdownEditor({
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            const finalText = newValue.replace(placeholderText, `![${file.name}](${data.url})`);
+            const linkSyntax = isImage ? `![${file.name}](${data.url})` : `[${file.name}](${data.url})`;
+            const finalText = newValue.replace(placeholderText, linkSyntax);
             onChange(finalText);
         } catch (error) {
-            console.error('Image upload failed', error);
+            console.error('File upload failed', error);
             const reverted = newValue.replace(placeholderText, '');
             onChange(reverted);
-            alert('Failed to upload image. Max size 10MB.');
+            alert('Failed to upload file. Max size 10MB.');
         } finally {
             setIsUploading(false);
         }
@@ -167,7 +169,7 @@ export default function MarkdownEditor({
                     type="file" 
                     ref={fileInputRef} 
                     onChange={handleFileChange} 
-                    accept="image/*" 
+                    accept="image/*,.txt,.md,.markdown,.json,.js,.ts,.py,.rs,.go,.c,.cpp,.h,.hpp,.cs,.java,.sh,.xml,.yaml,.yml,.sql,.pdf" 
                     className="hidden" 
                 />
             )}
