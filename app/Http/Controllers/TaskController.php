@@ -47,7 +47,6 @@ class TaskController extends Controller
                         "assignee",
                         "labels",
                         "dependencies",
-                        "attachments",
                     ]),
                 ],
                 201,
@@ -69,6 +68,26 @@ class TaskController extends Controller
         if (!$workspace->members()->where("users.id", Auth::id())->exists()) {
             abort(403);
         }
+
+        // Gating validation: cannot change status to done if unresolved dependencies exist
+        if ($request->status === 'done') {
+            $depIds = $request->has('dependencies') ? $request->dependencies : $task->dependencies()->pluck('tasks.id')->toArray();
+            $hasUnresolved = Task::whereIn('id', $depIds)->where('status', '!=', 'done')->exists();
+            if ($hasUnresolved) {
+                if ($request->expectsJson() || $request->ajax()) {
+                    return response()->json([
+                        'errors' => [
+                            'status' => ['Cannot set task to Done because it has unresolved dependencies.']
+                        ]
+                    ], 422);
+                }
+                return back()->withErrors([
+                    'status' => 'Cannot set task to Done because it has unresolved dependencies.'
+                ]);
+            }
+        }
+
+        $oldStatus = $task->status;
 
         $task->update($request->validated());
 
@@ -106,7 +125,24 @@ class TaskController extends Controller
             $task->labels()->sync($request->labels ?? []);
         }
 
-        $task->load(["assignee", "labels", "dependencies", "attachments.user"]);
+        // Post-update cascade checks
+        $newStatus = $task->status;
+
+        // If status was changed from done to something else
+        if ($oldStatus === 'done' && $newStatus !== 'done') {
+            $this->cascadeDependencyRevert($task);
+        }
+
+        // Also check if task is now done but has unresolved dependencies (due to new dependency additions)
+        if ($task->status === 'done') {
+            $hasUnresolvedDeps = $task->dependencies()->where('status', '!=', 'done')->exists();
+            if ($hasUnresolvedDeps) {
+                $task->update(['status' => 'backlog']);
+                $this->cascadeDependencyRevert($task);
+            }
+        }
+
+        $task->load(["assignee", "labels", "dependencies"]);
         broadcast(new TaskUpdated($task))->toOthers();
 
         if ($request->expectsJson() || $request->ajax()) {
@@ -168,7 +204,7 @@ class TaskController extends Controller
         if ($dependentTaskIds->isNotEmpty()) {
             $affectedTasks = Task::query()
                 ->whereIn("id", $dependentTaskIds)
-                ->with(["assignee", "labels", "dependencies", "attachments.user"])
+                ->with(["assignee", "labels", "dependencies"])
                 ->get();
 
             foreach ($affectedTasks as $affected) {
@@ -228,5 +264,59 @@ class TaskController extends Controller
             }
         }
         return false;
+    }
+
+    /**
+     * Sync task labels (Workspace members can attach/detach).
+     */
+    public function syncLabels(Request $request, Workspace $workspace, Project $project, Task $task)
+    {
+        if (!$workspace->members()->where("users.id", Auth::id())->exists()) {
+            abort(403);
+        }
+
+        if ($task->project_id !== $project->id) {
+            abort(404);
+        }
+
+        $request->validate([
+            "label_ids" => "present|array",
+            "label_ids.*" => "integer|exists:labels,id",
+        ]);
+
+        $task->labels()->sync($request->label_ids);
+
+        // Load the labels on the task for the client
+        $task->load(["assignee", "labels", "dependencies"]);
+
+        // Broadcast TaskUpdated event so it reflects in real-time on all clients
+        broadcast(new \App\Events\TaskUpdated($task))->toOthers();
+
+        return response()->json([
+            "success" => true,
+            "task" => $task,
+        ]);
+    }
+
+    /**
+     * Recursively revert child tasks to backlog if their parent dependency is undone.
+     */
+    protected function cascadeDependencyRevert(Task $task)
+    {
+        // Find tasks that directly depend on this task and are done
+        $childTasks = Task::whereHas('dependencies', function ($query) use ($task) {
+            $query->where('depends_on_id', $task->id);
+        })->where('status', 'done')->get();
+
+        foreach ($childTasks as $childTask) {
+            $childTask->update(['status' => 'backlog']);
+            
+            // Broadcast TaskUpdated event for each reverted child task
+            $childTask->load(["assignee", "labels", "dependencies"]);
+            broadcast(new \App\Events\TaskUpdated($childTask))->toOthers();
+
+            // Recursively revert child's own child tasks
+            $this->cascadeDependencyRevert($childTask);
+        }
     }
 }

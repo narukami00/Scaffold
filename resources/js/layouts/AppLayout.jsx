@@ -38,6 +38,17 @@ export default function AppLayout({ children, onNewProject }) {
     const [isProjectSearchOpen, setIsProjectSearchOpen] = useState(false);
     const [projectSearchQuery, setProjectSearchQuery] = useState("");
     const [windowHeight, setWindowHeight] = useState(typeof window !== "undefined" ? window.innerHeight : 800);
+    const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState("");
+
+    const workspaces = auth?.workspaces || [];
+    const filteredWorkspaces = workspaces.filter(ws =>
+        ws.name.toLowerCase().includes(workspaceSearchQuery.toLowerCase())
+    );
+
+    const activeWorkspaceSlug = workspace?.slug || workspaces[0]?.slug;
+    const profileHref = activeWorkspaceSlug 
+        ? `/workspaces/${activeWorkspaceSlug}/members/${user.id}` 
+        : "#";
 
     useEffect(() => {
         const handleResize = () => setWindowHeight(window.innerHeight);
@@ -116,6 +127,59 @@ export default function AppLayout({ children, onNewProject }) {
 
                     {/* Workspaces link */}
                     <NavItem href="/workspaces" icon={<LayoutDashboard size={15} strokeWidth={2} />} label="Workspaces" open={open} onClick={() => setMobileMenuOpen(false)} />
+
+                    {/* Workspaces list if not currently inside any workspace */}
+                    {!workspace && (
+                        <div className="pt-4 space-y-2">
+                            {open && (
+                                <div className="space-y-2 px-3">
+                                    <p className="text-[9px] font-bold uppercase tracking-[0.2em]"
+                                        style={{ color: "rgba(211,212,192,0.35)" }}>
+                                        My Workspaces
+                                    </p>
+                                    
+                                    {/* Workspaces Search Bar */}
+                                    <div className="relative">
+                                        <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            value={workspaceSearchQuery}
+                                            onChange={(e) => setWorkspaceSearchQuery(e.target.value)}
+                                            placeholder="Search workspaces..."
+                                            className="w-full pl-7 pr-3 py-1.5 rounded-lg text-[10px] font-semibold border bg-black/15 outline-none transition-colors border-[#1a3f6e] focus:border-[#8b5e3c]"
+                                            style={{ color: "#f3e4c9" }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Workspaces items */}
+                            <div className="space-y-0.5 mt-2">
+                                {filteredWorkspaces.slice(0, 5).map(ws => (
+                                    <NavItem
+                                        key={ws.id}
+                                        href={`/workspaces/${ws.slug}`}
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        icon={
+                                            <span className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-black shrink-0"
+                                                style={{ background: "rgba(139,94,60,0.35)", color: "#f3e4c9" }}>
+                                                {ws.name.charAt(0).toUpperCase()}
+                                            </span>
+                                        }
+                                        label={ws.name}
+                                        open={open}
+                                        exactMatch
+                                    />
+                                ))}
+
+                                {filteredWorkspaces.length > 5 && open && (
+                                    <div className="px-3 text-[9px] font-bold uppercase tracking-wider text-slate-500 py-1">
+                                        + {filteredWorkspaces.length - 5} more workspaces
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Workspace + projects section */}
                     {workspace && (
@@ -223,14 +287,21 @@ export default function AppLayout({ children, onNewProject }) {
 
                 {/* User footer */}
                 <div className="shrink-0 border-t p-3" style={{ borderColor: "#1a3f6e" }}>
-                    <div className={`flex items-center gap-3 px-2 py-2 mb-2 ${!open ? "justify-center px-0" : ""}`}>
-                        <div className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-xs font-black"
-                            style={{ background: "#8b5e3c", color: "#f3e4c9" }}>
-                            {initials}
-                        </div>
+                    <Link
+                        href={profileHref}
+                        className={`flex items-center gap-3 px-2 py-2 mb-2 rounded-xl transition-all hover:bg-white/5 ${!open ? "justify-center px-0" : ""}`}
+                    >
+                        {user.avatar_path ? (
+                            <img src={user.avatar_path} alt={user.name} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                        ) : (
+                            <div className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-xs font-black"
+                                style={{ background: "#8b5e3c", color: "#f3e4c9" }}>
+                                {initials}
+                            </div>
+                        )}
                         {open && (
                             <div className="min-w-0 flex-1">
-                                <div className="truncate text-sm font-semibold" style={{ color: "#f3e4c9" }}>
+                                <div className="truncate text-sm font-semibold animate-in fade-in duration-200" style={{ color: "#f3e4c9" }}>
                                     {user?.name || "User"}
                                 </div>
                                 <div className="truncate text-[10px] uppercase tracking-widest" style={{ color: "rgba(211,212,192,0.45)" }}>
@@ -238,7 +309,7 @@ export default function AppLayout({ children, onNewProject }) {
                                 </div>
                             </div>
                         )}
-                    </div>
+                    </Link>
                     <Link
                         href="/logout" method="post" as="button" type="button"
                         className={`w-full rounded-xl py-2 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 transition-all duration-150 ${open ? "px-3 justify-start" : "justify-center px-0"}`}

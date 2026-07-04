@@ -55,7 +55,6 @@ class TaskUpdated implements ShouldBroadcastNow
             "assignee",
             "labels",
             "dependencies",
-            "attachments.user",
         ]);
 
         return [

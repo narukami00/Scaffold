@@ -12,9 +12,11 @@ export function getResolvableDependencies(task, allTasks = []) {
 }
 
 export function isTaskBlocked(task, allTasks = []) {
-    return getResolvableDependencies(task, allTasks).some(
-        (dep) => dep.status !== "done",
-    );
+    const liveTasksMap = new Map((allTasks || []).map((t) => [Number(t.id), t]));
+    return getResolvableDependencies(task, allTasks).some((dep) => {
+        const liveDep = liveTasksMap.get(Number(dep.id));
+        return (liveDep ? liveDep.status : dep.status) !== "done";
+    });
 }
 
 /**

@@ -56,4 +56,12 @@ class Project extends Model
     {
         return $this->hasMany(Wiki::class);
     }
+
+    /**
+     * A project contains many labels.
+     */
+    public function labels()
+    {
+        return $this->hasMany(Label::class);
+    }
 }

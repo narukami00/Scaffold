@@ -473,18 +473,25 @@ export default function Show({ workspace, project, stats }) {
                                         className="p-3 border rounded-xl flex items-center justify-between"
                                         style={{ background: "rgba(139,94,60,0.04)", borderColor: C.border }}
                                     >
-                                        <div className="flex items-center gap-3.5">
-                                            <div 
-                                                className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-white font-bold"
-                                                style={{ backgroundColor: member.color }}
-                                            >
-                                                {member.name.charAt(0).toUpperCase()}
-                                            </div>
+                                        <Link 
+                                            href={`/workspaces/${workspace.slug}/members/${member.id}`}
+                                            className="flex items-center gap-3.5 hover:opacity-80 transition-opacity"
+                                        >
+                                            {member.avatar_path ? (
+                                                <img src={member.avatar_path} alt={member.name} className="w-7 h-7 rounded-full object-cover border border-black/5" />
+                                            ) : (
+                                                <div 
+                                                    className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-white font-bold"
+                                                    style={{ backgroundColor: member.color }}
+                                                >
+                                                    {member.name.charAt(0).toUpperCase()}
+                                                </div>
+                                            )}
                                             <div>
                                                 <p className="text-xs font-semibold" style={{ color: C.navy }}>{member.name}</p>
-                                                <p className="text-[9px] font-mono" style={{ color: C.muted }}>{member.email}</p>
+                                                <p className="text-[9px] font-mono text-left" style={{ color: C.muted }}>{member.email}</p>
                                             </div>
-                                        </div>
+                                        </Link>
                                         <span className="px-2 py-0.5 rounded-full border text-[8px] font-black uppercase tracking-wider"
                                             style={{ background: "rgba(45,106,79,0.06)", borderColor: "rgba(45,106,79,0.25)", color: "#2d6a4f" }}>
                                             Available

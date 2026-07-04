@@ -112,9 +112,9 @@ export default function NotificationPanel() {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-3 w-80 origin-top-right rounded-2xl border shadow-2xl animate-in fade-in zoom-in duration-200 z-[100] backdrop-blur-xl"
+                <div className="absolute right-0 mt-3 w-80 origin-top-right rounded-2xl border shadow-2xl animate-in fade-in zoom-in duration-200 z-[100]"
                     style={{
-                        background: "rgba(10,41,71,0.82)",
+                        background: "#0a2947",
                         borderColor: "rgba(243,228,201,0.15)",
                         boxShadow: "0 10px 30px rgba(0,0,0,0.25)"
                     }}

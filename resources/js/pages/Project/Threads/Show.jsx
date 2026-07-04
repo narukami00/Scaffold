@@ -26,6 +26,7 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
     const currentUserId = auth?.user?.id;
     
     const [thread, setThread] = useState(initialThread);
+    const [isReactionOpen, setIsReactionOpen] = useState(false);
 
     const groupedReactions = useMemo(() => {
         if (!thread.reactions) return {};
@@ -164,12 +165,17 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
                     {/* Header */}
                     <div className="flex justify-between items-start mb-6">
                         <div className="flex items-center gap-4">
-                            <img 
-                                src={thread.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(thread.user?.name || 'U')}&background=random`} 
-                                className="w-12 h-12 rounded-full shrink-0"
-                                style={{ background: C.brown }}
-                                alt={thread.user?.name} 
-                            />
+                            <Link
+                                href={`/workspaces/${workspace.slug}/members/${thread.user_id}`}
+                                className="hover:scale-105 active:scale-95 transition-all shrink-0"
+                            >
+                                <img 
+                                    src={thread.user?.avatar_path || thread.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(thread.user?.name || 'U')}&background=random`} 
+                                    className="w-12 h-12 rounded-full object-cover border border-black/5"
+                                    style={{ background: C.brown }}
+                                    alt={thread.user?.name} 
+                                />
+                            </Link>
                             <div>
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <h1 className="font-display font-black text-xl md:text-2xl leading-tight"
@@ -185,10 +191,14 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
                                     )}
                                 </div>
                                 <div className="flex items-center gap-3 text-xs mt-1" style={{ color: C.muted }}>
-                                    <span className="flex items-center gap-1 font-bold" style={{ color: C.navy }}>
+                                    <Link 
+                                        href={`/workspaces/${workspace.slug}/members/${thread.user_id}`}
+                                        className="flex items-center gap-1 font-bold hover:underline" 
+                                        style={{ color: C.navy }}
+                                    >
                                         <User className="w-3.5 h-3.5" />
                                         {thread.user?.name}
-                                    </span>
+                                    </Link>
                                     <span className="flex items-center gap-1">
                                         <Clock className="w-3.5 h-3.5" />
                                         {safeFormatDistance(thread.created_at)}

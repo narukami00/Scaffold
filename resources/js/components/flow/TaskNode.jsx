@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
 import { Lock, Calendar, ExternalLink, Trash2 } from "lucide-react";
+import { Link } from "@inertiajs/react";
 
 // ── Palette tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -51,6 +52,7 @@ export default memo(function TaskNode({ data }) {
         isDeleting,
         onTaskDelete,
         density,
+        workspace,
     } = data;
 
     const isMinimal = density === "minimal";
@@ -132,6 +134,19 @@ export default memo(function TaskNode({ data }) {
             {/* ── Card body ── */}
             {isMinimal ? (
                 <div className="space-y-3.5">
+                    {/* Labels */}
+                    {(task.labels || []).length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-0.5">
+                            {task.labels.map((l) => (
+                                <span
+                                    key={l.id}
+                                    className="h-2.5 w-2.5 rounded-full border border-black/5 flex-shrink-0"
+                                    style={{ backgroundColor: l.color }}
+                                    title={l.name}
+                                />
+                            ))}
+                        </div>
+                    )}
                     {/* Minimalist layout */}
                     <div className="flex items-start justify-between gap-3">
                         <h4
@@ -192,6 +207,19 @@ export default memo(function TaskNode({ data }) {
                 </div>
             ) : (
                 <div className="space-y-3">
+                    {/* Labels */}
+                    {(task.labels || []).length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-0.5">
+                            {task.labels.map((l) => (
+                                <span
+                                    key={l.id}
+                                    className="h-2.5 w-2.5 rounded-full border border-black/5 flex-shrink-0"
+                                    style={{ backgroundColor: l.color }}
+                                    title={l.name}
+                                />
+                            ))}
+                        </div>
+                    )}
                     {/* Title row */}
                     <div className="flex items-start justify-between gap-3">
                         <h4
@@ -229,16 +257,39 @@ export default memo(function TaskNode({ data }) {
                     >
                         <div className="flex items-center gap-2">
                             {/* Assignee avatar */}
-                            <div
-                                className="flex h-6 w-6 items-center justify-center rounded-full border text-[9px] font-black uppercase shadow-sm"
-                                style={{
-                                    borderColor: isDone ? "rgba(45,106,79,0.2)" : C.border,
-                                    background: isDone ? "rgba(45,106,79,0.1)" : C.brown,
-                                    color: isDone ? "#2d6a4f" : "#f3e4c9"
-                                }}
-                            >
-                                {task.assignee?.name?.substring(0, 2) ?? "??"}
-                            </div>
+                            {task.assignee ? (
+                                <Link
+                                    href={workspace ? `/workspaces/${workspace.slug}/members/${task.assignee.id}` : "#"}
+                                    className="hover:scale-105 active:scale-95 transition-all shrink-0"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    {task.assignee.avatar_path ? (
+                                        <img src={task.assignee.avatar_path} alt={task.assignee.name} className="h-6 w-6 rounded-full object-cover border border-black/5" />
+                                    ) : (
+                                        <div
+                                            className="flex h-6 w-6 items-center justify-center rounded-full border text-[9px] font-black uppercase shadow-sm"
+                                            style={{
+                                                borderColor: isDone ? "rgba(45,106,79,0.2)" : C.border,
+                                                background: isDone ? "rgba(45,106,79,0.1)" : C.brown,
+                                                color: isDone ? "#2d6a4f" : "#f3e4c9"
+                                            }}
+                                        >
+                                            {task.assignee.name?.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase() || "??"}
+                                        </div>
+                                    )}
+                                </Link>
+                            ) : (
+                                <div
+                                    className="flex h-6 w-6 items-center justify-center rounded-full border text-[9px] font-black uppercase shadow-sm"
+                                    style={{
+                                        borderColor: C.border,
+                                        background: "rgba(139,94,60,0.05)",
+                                        color: C.muted
+                                    }}
+                                >
+                                    --
+                                </div>
+                            )}
 
                             {/* Due date */}
                             {task.due_date && (

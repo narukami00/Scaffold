@@ -14,11 +14,13 @@ import {
     UserPlus,
     Trash2,
     X,
+    BookOpen,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import axios from "axios";
 import { format } from "date-fns";
-import { pruneDependencyIds } from "@/utils/taskDependencies";
+import { Link } from "@inertiajs/react";
+import { pruneDependencyIds, isTaskBlocked } from "@/utils/taskDependencies";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -77,6 +79,7 @@ export default function TaskModal({
     const [ghostChecklistItem, setGhostChecklistItem] = useState(null);
     const [isLightboxOpen, setIsLightboxOpen] = useState(null); // string URL | null
     const [isLabelPickerOpen, setIsLabelPickerOpen] = useState(false);
+    const [isWikiDropdownOpen, setIsWikiDropdownOpen] = useState(false);
     const [descriptionMode, setDescriptionMode] = useState("write");
     const [showDoneItems, setShowDoneItems] = useState(false);
     const [dependencySearch, setDependencySearch] = useState("");
@@ -309,6 +312,10 @@ export default function TaskModal({
     };
 
     const handleFieldChange = (field, value) => {
+        if (field === "status" && value === "done" && isTaskBlocked(task, tasks)) {
+            alert(`Cannot move "${data.title}" to Done because it has unresolved dependencies.`);
+            return;
+        }
         const newData = { ...data, [field]: value };
         setDataState(newData);
         autoSave(newData);
@@ -414,7 +421,7 @@ export default function TaskModal({
             ? currentLabels.filter((l) => l.id !== labelId)
             : [
                   ...currentLabels,
-                  (workspace.labels || []).find((l) => l.id === labelId),
+                  (project.labels || []).find((l) => l.id === labelId),
               ].filter(Boolean);
 
         setDataState((prev) => ({ ...prev, labels: newLabelObjects }));
@@ -503,6 +510,12 @@ export default function TaskModal({
             });
     };
 
+    const handleInsertWikiLink = (w) => {
+        const link = `[Wiki: ${w.title}](/workspaces/${workspace.slug}/projects/${project.slug}/wiki/${w.slug})`;
+        setNewComment(prev => prev ? `${prev} ${link}` : link);
+        setIsWikiDropdownOpen(false);
+    };
+
     // ── Baton Control ─────────────────────────────────────────────────────────
     const requestControl = () => {
         if (requestingAccess || !channelRef.current) return;
@@ -550,7 +563,7 @@ export default function TaskModal({
     };
 
     // ─────────────────────────────────────────────────────────────────────────
-    if (!isOpen || !data) return null;
+    if (!isOpen || !task || !data) return null;
 
     // Derived checklist segments
     const pendingItems = data.checklist.filter((i) => !i.done);
@@ -755,15 +768,15 @@ export default function TaskModal({
 
                                             {isLabelPickerOpen && (
                                                 <div className="absolute left-0 top-8 z-20 min-w-[200px] rounded-2xl border p-2 shadow-2xl animate-in slide-in-from-top-2 duration-200" style={{ background: "#f3e4c9", borderColor: "rgba(139,94,60,0.18)" }}>
-                                                    {(workspace.labels || [])
+                                                    {(project.labels || [])
                                                         .length === 0 ? (
                                                         <p className="px-3 py-3 text-[10px] text-slate-700">
                                                             No labels defined in
-                                                            this workspace.
+                                                            this project.
                                                         </p>
                                                     ) : (
                                                         (
-                                                            workspace.labels ||
+                                                            project.labels ||
                                                             []
                                                         ).map((label) => {
                                                             const active = (
@@ -1435,38 +1448,6 @@ export default function TaskModal({
 
                             {/* Feed */}
                             <div className="flex-1 space-y-6 overflow-y-auto p-6 custom-scrollbar">
-                                {/* Attachments */}
-                                {(data.attachments || []).length > 0 && (
-                                    <div className="space-y-3">
-                                        <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#8b5e3c" }}>
-                                            Project Assets
-                                        </span>
-                                        <div className="flex flex-wrap gap-2">
-                                            {data.attachments.map((file) => (
-                                                <button
-                                                    key={file.id}
-                                                    onClick={() =>
-                                                        setIsLightboxOpen(
-                                                            file.url ||
-                                                                `/storage/${file.file_path}`,
-                                                        )
-                                                    }
-                                                    className="group flex items-center gap-2 rounded-xl border px-3 py-2 text-[10px] font-bold transition-all hover:bg-[#8b5e3c]/5 hover:text-[#8b5e3c]" style={{ borderColor: "rgba(139,94,60,0.18)", background: "rgba(139,94,60,0.03)", color: "rgba(10,41,71,0.45)" }}
-                                                >
-                                                    <ImageIcon size={14} />
-                                                    <span className="max-w-[120px] truncate">
-                                                        {file.file_name}
-                                                    </span>
-                                                    <Maximize2
-                                                        size={10}
-                                                        className="opacity-0 transition-opacity group-hover:opacity-100"
-                                                    />
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
                                 {/* Comments */}
                                 {data.comments.length === 0 && (
                                     <p className="py-8 text-center text-xs text-slate-700/40">
@@ -1481,27 +1462,25 @@ export default function TaskModal({
                                         className="flex flex-col gap-2 animate-in slide-in-from-bottom-2 duration-300"
                                     >
                                         <div className="flex items-center gap-2">
-                                            <div className="flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-black" style={{ borderColor: "rgba(139,94,60,0.25)", background: "rgba(139,94,60,0.05)", color: "#8b5e3c" }}>
-                                                {comment.user?.name?.charAt(
-                                                    0,
-                                                ) ?? "?"}
-                                            </div>
-                                            <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#0a2947" }}>
-                                                {comment.user?.name ??
-                                                    "Unknown"}
-                                            </span>
-                                            <span className="text-[9px] text-slate-700">
-                                                {format(
-                                                    new Date(
-                                                        comment.created_at,
-                                                    ),
-                                                    "HH:mm",
+                                            <Link
+                                                href={`/workspaces/${workspace.slug}/members/${comment.user_id}`}
+                                                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                            >
+                                                {comment.user?.avatar_path ? (
+                                                    <img src={comment.user.avatar_path} alt={comment.user.name} className="h-6 w-6 rounded-full object-cover border border-black/5" />
+                                                ) : (
+                                                    <div className="flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-black" style={{ borderColor: "rgba(139,94,60,0.25)", background: "rgba(139,94,60,0.05)", color: "#8b5e3c" }}>
+                                                        {comment.user?.name?.charAt(0) ?? "?"}
+                                                    </div>
                                                 )}
+                                                <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#0a2947" }}>
+                                                    {comment.user?.name ?? "Unknown"}
+                                                </span>
+                                            </Link>
+                                            <span className="text-[9px] text-slate-700">
+                                                {format(new Date(comment.created_at), "HH:mm")}
                                             </span>
-                                            {/* Optimistic indicator */}
-                                            {String(comment.id).startsWith(
-                                                "temp-",
-                                            ) && (
+                                            {String(comment.id).startsWith("temp-") && (
                                                 <span className="ml-auto text-[9px] text-slate-700/60 italic">
                                                     Sending…
                                                 </span>
@@ -1515,7 +1494,34 @@ export default function TaskModal({
                                                 color: Number(comment.user_id) === Number(auth.user.id) ? "#f3e4c9" : "#0a2947",
                                             }}
                                         >
-                                            {comment.body}
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={{
+                                                    p: ({ children }) => <p className="m-0 inline">{children}</p>,
+                                                    a: ({ href, children, ...props }) => {
+                                                        const isWiki = href && (href.includes("/wiki") || href.includes("/wiki/"));
+                                                        if (isWiki) {
+                                                            return (
+                                                                <Link
+                                                                    href={href}
+                                                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all hover:scale-105 select-none align-middle"
+                                                                    style={{
+                                                                        borderColor: Number(comment.user_id) === Number(auth.user.id) ? "rgba(243,228,201,0.25)" : "rgba(139,94,60,0.18)",
+                                                                        background: Number(comment.user_id) === Number(auth.user.id) ? "rgba(243,228,201,0.1)" : "#ede0c8",
+                                                                        color: Number(comment.user_id) === Number(auth.user.id) ? "#f3e4c9" : "#0a2947",
+                                                                    }}
+                                                                >
+                                                                    <BookOpen size={10} className="flex-shrink-0" />
+                                                                    {children}
+                                                                </Link>
+                                                            );
+                                                        }
+                                                        return <a href={href} target="_blank" rel="noreferrer" className="underline" {...props}>{children}</a>;
+                                                    }
+                                                }}
+                                            >
+                                                {comment.body}
+                                            </ReactMarkdown>
                                         </div>
                                     </div>
                                 ))}
@@ -1525,7 +1531,7 @@ export default function TaskModal({
                             <div className="p-6 pt-0">
                                 <div className="relative rounded-3xl border p-4 transition-all focus-within:border-[#8b5e3c]" style={{ borderColor: "rgba(139,94,60,0.25)", background: "rgba(139,94,60,0.03)" }}>
                                     <textarea
-                                        className="w-full resize-none bg-transparent pb-10 text-xs outline-none placeholder:text-slate-700/50" style={{ color: "#1e293b" }}
+                                        className="w-full resize-none bg-transparent pb-14 text-xs outline-none placeholder:text-slate-700/50" style={{ color: "#1e293b" }}
                                         placeholder="Broadcast a message…"
                                         rows={2}
                                         value={newComment}
@@ -1542,6 +1548,41 @@ export default function TaskModal({
                                             }
                                         }}
                                     />
+                                    
+                                    {/* Link Wiki dropdown button */}
+                                    <div className="absolute bottom-4 left-4 flex items-center">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsWikiDropdownOpen(!isWikiDropdownOpen)}
+                                            className="flex h-8 items-center gap-1 px-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
+                                            style={{ background: "#0a2947", color: "#f3e4c9" }}
+                                        >
+                                            <BookOpen size={12} />
+                                            Link Wiki
+                                        </button>
+                                        
+                                        {isWikiDropdownOpen && (
+                                            <div className="absolute bottom-full left-0 mb-2 w-56 max-h-48 overflow-y-auto rounded-xl border bg-white p-2 shadow-xl z-50 custom-scrollbar animate-in slide-in-from-bottom-2 duration-150"
+                                                style={{ borderColor: "rgba(139,94,60,0.18)" }}>
+                                                <p className="text-[9px] font-black uppercase tracking-widest p-1 text-slate-400 border-b mb-1">Select Wiki Page</p>
+                                                {(project.wikis || []).length === 0 ? (
+                                                    <p className="text-[10px] italic p-2 text-slate-500">No wiki pages found.</p>
+                                                ) : (
+                                                    (project.wikis || []).map((w) => (
+                                                        <button
+                                                            key={w.id}
+                                                            type="button"
+                                                            onClick={() => handleInsertWikiLink(w)}
+                                                            className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-[#8b5e3c]/5 text-[#0a2947] font-semibold truncate block"
+                                                        >
+                                                            {w.title}
+                                                        </button>
+                                                    ))
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <button
                                         onClick={handleCommentSubmit}
                                         disabled={!newComment.trim()}

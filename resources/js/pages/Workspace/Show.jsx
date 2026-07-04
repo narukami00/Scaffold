@@ -241,26 +241,56 @@ function ProjectCard({ proj, workspace, isOwner, setEditingProject, confirmingPr
 }
 
 // ── Member avatar stack ───────────────────────────────────────────────────────
-function AvatarStack({ members, max = 5 }) {
+function AvatarStack({ members, max = 5, workspaceSlug = null }) {
     const shown = members.slice(0, max);
     const rest = members.length - max;
     return (
         <div className="flex items-center">
-            {shown.map((m, i) => (
-                <div
-                    key={m.id}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black border-2 -ml-2 first:ml-0"
-                    style={{
-                        background: m.pivot?.color || C.brown,
-                        color: "#f3e4c9",
-                        borderColor: C.bg,
-                        zIndex: shown.length - i,
-                    }}
-                    title={m.name}
-                >
-                    {m.name.charAt(0).toUpperCase()}
-                </div>
-            ))}
+            {shown.map((m, i) => {
+                const content = m.avatar_path ? (
+                    <img
+                        src={m.avatar_path}
+                        alt={m.name}
+                        className="w-8 h-8 rounded-full object-cover border-2 -ml-2 first:ml-0"
+                        style={{
+                            borderColor: C.bg,
+                            zIndex: shown.length - i,
+                        }}
+                    />
+                ) : (
+                    <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black border-2 -ml-2 first:ml-0"
+                        style={{
+                            background: m.pivot?.color || C.brown,
+                            color: "#f3e4c9",
+                            borderColor: C.bg,
+                            zIndex: shown.length - i,
+                        }}
+                    >
+                        {m.name.charAt(0).toUpperCase()}
+                    </div>
+                );
+
+                if (workspaceSlug) {
+                    return (
+                        <Link
+                            key={m.id}
+                            href={`/workspaces/${workspaceSlug}/members/${m.id}`}
+                            className="hover:scale-110 active:scale-95 transition-all"
+                            style={{ zIndex: shown.length - i }}
+                            title={m.name}
+                        >
+                            {content}
+                        </Link>
+                    );
+                }
+
+                return (
+                    <div key={m.id} style={{ zIndex: shown.length - i }} title={m.name}>
+                        {content}
+                    </div>
+                );
+            })}
             {rest > 0 && (
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border-2 -ml-2"
                     style={{ background: "rgba(139,94,60,0.15)", color: C.brown, borderColor: C.bg }}>
@@ -433,7 +463,7 @@ export default function Show({ workspace, stats, defaultTab }) {
                         {workspace.name}
                     </h1>
                     <div className="flex items-center gap-3 pt-1">
-                        <AvatarStack members={workspace.members} />
+                        <AvatarStack members={workspace.members} workspaceSlug={workspace.slug} />
                         <span className="text-xs" style={{ color: C.muted }}>
                             {workspace.members.length} {workspace.members.length === 1 ? "member" : "members"}
                         </span>
@@ -656,20 +686,27 @@ export default function Show({ workspace, stats, defaultTab }) {
                                             border: `1px solid ${isMe ? "rgba(139,94,60,0.25)" : C.border}`,
                                             borderLeft: isMe ? `3px solid ${C.brown}` : `3px solid transparent`,
                                         }}>
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black"
-                                                style={{ background: member.pivot?.color || C.brown, color: "#f3e4c9" }}>
-                                                {member.name.charAt(0).toUpperCase()}
-                                            </div>
+                                        <Link 
+                                            href={`/workspaces/${workspace.slug}/members/${member.id}`}
+                                            className="flex items-center gap-3 hover:opacity-85 transition-opacity"
+                                        >
+                                            {member.avatar_path ? (
+                                                <img src={member.avatar_path} alt={member.name} className="w-9 h-9 rounded-full object-cover border border-black/5" />
+                                            ) : (
+                                                <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black"
+                                                    style={{ background: member.pivot?.color || C.brown, color: "#f3e4c9" }}>
+                                                    {member.name.charAt(0).toUpperCase()}
+                                                </div>
+                                            )}
                                             <div>
-                                                <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: C.navy }}>
+                                                <p className="text-sm font-semibold flex items-center gap-1.5 animate-in fade-in duration-200" style={{ color: C.navy }}>
                                                     {member.name}
                                                     {isMe && <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full"
                                                         style={{ background: "rgba(139,94,60,0.12)", color: C.brown }}>You</span>}
                                                 </p>
-                                                <p className="text-[11px] font-mono" style={{ color: C.muted }}>{member.email}</p>
+                                                <p className="text-[11px] font-mono text-left" style={{ color: C.muted }}>{member.email}</p>
                                             </div>
-                                        </div>
+                                        </Link>
                                         <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest"
                                             style={{
                                                 background: isOwnerMember ? "rgba(139,94,60,0.12)" : "rgba(10,41,71,0.06)",

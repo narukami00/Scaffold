@@ -43,6 +43,7 @@ class ProjectController extends Controller
         $workspace->loadMissing(["owner", "members"]);
 
         $project->load([
+            "labels",
             "tasks.assignee",
             "tasks.dependencies",
         ]);
@@ -82,6 +83,7 @@ class ProjectController extends Controller
                 'name' => $member->name,
                 'email' => $member->email,
                 'color' => $memberColor,
+                'avatar_path' => $member->avatar_path,
                 'tasks' => [],
                 'status_breakdown' => [
                     'backlog' => 0,
@@ -224,6 +226,8 @@ class ProjectController extends Controller
         $workspace->loadMissing(["owner", "members"]);
         $project->load([
             "workspace",
+            "labels",
+            "wikis",
             "tasks.assignee",
             "tasks.dependencies",
             "tasks.labels",

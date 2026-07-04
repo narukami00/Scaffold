@@ -259,8 +259,8 @@ export default function ThreadIndex({ workspace, project, threads, filters = {} 
                             <div className="absolute left-0 top-0 bottom-0 w-1 transition-colors bg-transparent group-hover:bg-[#8b5e3c]" />
                             <div className="p-5 flex gap-4 items-start">
                                 <img 
-                                    src={thread.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(thread.user?.name || 'U')}&background=random`} 
-                                    className="w-10 h-10 rounded-full shrink-0"
+                                    src={thread.user?.avatar_path || thread.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(thread.user?.name || 'U')}&background=random`} 
+                                    className="w-10 h-10 rounded-full shrink-0 object-cover border border-black/5"
                                     style={{ background: C.brown }}
                                     alt={thread.user?.name} 
                                 />
@@ -299,10 +299,19 @@ export default function ThreadIndex({ workspace, project, threads, filters = {} 
                                     )}
 
                                     <div className="flex items-center gap-4 mt-4 text-xs" style={{ color: C.muted }}>
-                                        <span className="flex items-center gap-1.5 font-semibold" style={{ color: C.navy }}>
+                                        <button 
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                router.visit(`/workspaces/${workspace.slug}/members/${thread.user_id}`);
+                                            }}
+                                            className="flex items-center gap-1.5 font-semibold hover:underline" 
+                                            style={{ color: C.navy }}
+                                        >
                                             <User className="w-3.5 h-3.5" />
                                             {thread.user?.name}
-                                        </span>
+                                        </button>
                                         <span className="flex items-center gap-1">
                                             <Clock className="w-3.5 h-3.5" />
                                             {safeFormatDistance(thread.created_at)}

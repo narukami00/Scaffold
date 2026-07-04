@@ -52,7 +52,8 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             "auth" => [
-                "user" => $request->user(),
+                "user" => $user = $request->user(),
+                "workspaces" => $user ? $user->workspaces()->select("workspaces.id", "workspaces.name", "workspaces.slug")->get() : [],
             ],
             // Share sidebar projects only when the route actually resolved a workspace.
             "workspaceProjects" => $workspace ? $workspace->projects : [],

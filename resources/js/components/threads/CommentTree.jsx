@@ -4,7 +4,7 @@ import { User, MessageSquare, CheckCircle, Reply } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import MarkdownEditor from '@/components/ui/MarkdownEditor';
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage, Link } from '@inertiajs/react';
 
 // ── Palette tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -90,12 +90,17 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
         <div className={`flex relative mt-4 ${depth >= 2 ? '-ml-7 sm:ml-0' : ''} ${reply.is_definitive ? 'bg-emerald-500/[0.02] -mx-4 px-4 py-3 border border-emerald-500/20 rounded-xl' : ''}`}>
             {/* Thread linking line */}
             <div className="flex flex-col items-center mr-2 sm:mr-3 mt-1 cursor-pointer group" onClick={() => setIsCollapsed(!isCollapsed)}>
-                <img 
-                    src={reply.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(reply.user?.name || 'U')}&background=random`} 
-                    alt={reply.user?.name}
-                    className={`rounded-full z-10 box-content border-[3px] ${depth > 0 ? 'w-6 h-6' : 'w-8 h-8'}`} 
-                    style={{ borderColor: C.card, background: C.brown }}
-                />
+                <Link
+                    href={workspace ? `/workspaces/${workspace.slug}/members/${reply.user_id}` : "#"}
+                    className="hover:scale-110 active:scale-95 transition-all z-10"
+                >
+                    <img 
+                        src={reply.user?.avatar_path || reply.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(reply.user?.name || 'U')}&background=random`} 
+                        alt={reply.user?.name}
+                        className={`rounded-full box-content border-[3px] ${depth > 0 ? 'w-6 h-6' : 'w-8 h-8'}`} 
+                        style={{ borderColor: C.card, background: C.brown }}
+                    />
+                </Link>
                 {!isCollapsed && children.length > 0 && (
                     <div className="w-[2px] bg-slate-300 flex-1 my-1 group-hover:bg-[#8b5e3c]/50 transition-colors rounded-full" />
                 )}
@@ -104,7 +109,13 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
             <div className="flex-1 min-w-0">
                 <div className="pl-1">
                     <div className="flex items-center gap-2 mb-1 group">
-                        <span className="font-semibold text-sm" style={{ color: C.navy }}>{reply.user?.name}</span>
+                        <Link
+                            href={workspace ? `/workspaces/${workspace.slug}/members/${reply.user_id}` : "#"}
+                            className="font-semibold text-sm hover:underline"
+                            style={{ color: C.navy }}
+                        >
+                            {reply.user?.name}
+                        </Link>
                         <span className="text-xs" style={{ color: C.muted }}>
                             {safeFormatDistance(reply.created_at)}
                         </span>

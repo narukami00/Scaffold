@@ -85,6 +85,7 @@ function buildNodes(
                 task, 
                 onTaskClick,
                 onTaskDelete,
+                workspace,
                 isLocked: !!userId,
                 occupantName: occupantMember?.name || "Someone",
                 occupantColor: occupantMember?.pivot?.color || "#8b5e3c",

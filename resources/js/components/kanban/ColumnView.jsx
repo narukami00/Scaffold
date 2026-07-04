@@ -3,6 +3,7 @@ import { Plus, MoreHorizontal, Lock, Calendar, Trash2 } from "lucide-react";
 import axios from "axios";
 import { flushSync } from "react-dom";
 import { isTaskBlocked } from "@/utils/taskDependencies";
+import { Link } from "@inertiajs/react";
 
 // ── Palette tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -118,6 +119,12 @@ export default function ColumnView({
             return;
         }
 
+        if (destination.droppableId === "done" && isTaskBlocked(task, tasks)) {
+            alert(`Cannot move "${task.title}" to Done because it has unresolved dependencies.`);
+            axios.post(unlockUrl(draggableId)).catch(() => {});
+            return;
+        }
+
         if (
             source.droppableId === destination.droppableId &&
             source.index === destination.index
@@ -221,7 +228,7 @@ export default function ColumnView({
                                                         key={task.id.toString()}
                                                         draggableId={task.id.toString()}
                                                         index={index}
-                                                        isDragDisabled={isDone || isLocked}
+                                                        isDragDisabled={isLocked}
                                                     >
                                                         {(provided) => (
                                                             <div
@@ -255,6 +262,19 @@ export default function ColumnView({
                                                                     </div>
                                                                 )}
                                                                 <div className="space-y-4">
+                                                                    {/* Labels */}
+                                                                    {(task.labels || []).length > 0 && (
+                                                                        <div className="flex flex-wrap gap-1.5 mb-1">
+                                                                            {task.labels.map((l) => (
+                                                                                <span
+                                                                                    key={l.id}
+                                                                                    className="h-2.5 w-2.5 rounded-full border border-black/5 flex-shrink-0"
+                                                                                    style={{ backgroundColor: l.color }}
+                                                                                    title={l.name}
+                                                                                />
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
                                                                     <div className="flex items-start justify-between gap-4">
                                                                         <h4
                                                                             className="line-clamp-2 text-xs font-bold leading-tight transition-colors"
@@ -295,16 +315,39 @@ export default function ColumnView({
                                                                             style={{ borderColor: "rgba(139,94,60,0.12)" }}
                                                                         >
                                                                             <div className="flex items-center gap-3">
-                                                                                <div
-                                                                                    className="flex h-5 w-5 items-center justify-center rounded-full text-[8px] font-black uppercase shadow-sm border"
-                                                                                    style={{
-                                                                                        borderColor: "rgba(139,94,60,0.2)",
-                                                                                        background: isDone ? "rgba(45,106,79,0.1)" : C.brown,
-                                                                                        color: isDone ? "#2d6a4f" : "#f3e4c9"
-                                                                                    }}
-                                                                                >
-                                                                                    {task.assignee?.name?.substring(0, 2) || "??"}
-                                                                                </div>
+                                                                                {task.assignee ? (
+                                                                                    <Link
+                                                                                        href={`/workspaces/${workspace.slug}/members/${task.assignee.id}`}
+                                                                                        className="hover:scale-105 active:scale-95 transition-all shrink-0"
+                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                    >
+                                                                                        {task.assignee.avatar_path ? (
+                                                                                            <img src={task.assignee.avatar_path} alt={task.assignee.name} className="h-5 w-5 rounded-full object-cover border border-black/5" />
+                                                                                        ) : (
+                                                                                            <div
+                                                                                                className="flex h-5 w-5 items-center justify-center rounded-full text-[8px] font-black uppercase shadow-sm border"
+                                                                                                style={{
+                                                                                                    borderColor: "rgba(139,94,60,0.2)",
+                                                                                                    background: isDone ? "rgba(45,106,79,0.1)" : C.brown,
+                                                                                                    color: isDone ? "#2d6a4f" : "#f3e4c9"
+                                                                                                }}
+                                                                                            >
+                                                                                                {task.assignee.name?.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase() || "??"}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </Link>
+                                                                                ) : (
+                                                                                    <div
+                                                                                        className="flex h-5 w-5 items-center justify-center rounded-full text-[8px] font-black uppercase shadow-sm border"
+                                                                                        style={{
+                                                                                            borderColor: "rgba(139,94,60,0.2)",
+                                                                                            background: "rgba(139,94,60,0.05)",
+                                                                                            color: C.muted
+                                                                                        }}
+                                                                                    >
+                                                                                        --
+                                                                                    </div>
+                                                                                )}
                                                                                 {task.due_date && (
                                                                                     <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest"
                                                                                         style={{ color: C.muted }}

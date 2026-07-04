@@ -92,6 +92,16 @@ Route::middleware("auth")->group(function () {
 
     // Projects (Nested under Workspaces)
     Route::prefix("/workspaces/{workspace:slug}")->group(function () {
+        Route::get("/members/{user}", [
+            \App\Http\Controllers\ProfileController::class,
+            "show",
+        ])->name("members.profile");
+
+        Route::post("/members/profile", [
+            \App\Http\Controllers\ProfileController::class,
+            "update",
+        ])->name("members.profile.update");
+
         Route::post("/projects", [ProjectController::class, "store"])->name(
             "workspaces.projects.store",
         );
@@ -246,14 +256,25 @@ Route::middleware("auth")->group(function () {
                 TaskController::class,
                 "transferControl",
             ])->name("tasks.transfer-control");
-            Route::post("/projects/{project}/tasks/{task}/attachments", [
-                TaskAttachmentController::class,
+            // Label Operations (managed by Owner)
+            Route::post("/projects/{project}/labels", [
+                \App\Http\Controllers\LabelController::class,
                 "store",
-            ])->name("tasks.attachments.store");
-            Route::delete("/projects/{project}/tasks/{task}/attachments/{attachment}", [
-                TaskAttachmentController::class,
+            ])->name("projects.labels.store");
+            Route::patch("/projects/{project}/labels/{label}", [
+                \App\Http\Controllers\LabelController::class,
+                "update",
+            ])->name("projects.labels.update");
+            Route::delete("/projects/{project}/labels/{label}", [
+                \App\Http\Controllers\LabelController::class,
                 "destroy",
-            ])->name("tasks.attachments.destroy");
+            ])->name("projects.labels.destroy");
+
+            // Task Label Syncing (members can attach/detach)
+            Route::post("/projects/{project}/tasks/{task}/labels", [
+                \App\Http\Controllers\TaskController::class,
+                "syncLabels",
+            ])->name("tasks.labels.sync");
         });
     });
 });
