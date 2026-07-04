@@ -22,3 +22,6 @@ yarn-error.log
 *.md
 !README.md
 *.txt
+
+# Ignore local git test folder
+/git-feature-test
