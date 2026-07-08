@@ -1,3 +1,12 @@
+# Stage 1: Build Frontend Assets
+FROM node:20-alpine AS frontend-builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+# Stage 2: Production PHP/Apache Server
 FROM php:8.2-apache
 
 # Install system dependencies
@@ -36,7 +45,10 @@ WORKDIR /var/www/html
 # Copy project files
 COPY . .
 
-# Install dependencies (ignoring scripts initially to avoid bootstrap issue during build)
+# Copy compiled assets from Stage 1
+COPY --from=frontend-builder /app/public/build ./public/build
+
+# Install dependencies
 RUN composer install --no-interaction --optimize-autoloader --no-dev
 
 # Set permissions
@@ -45,5 +57,5 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 # Expose port
 EXPOSE 80
 
-# Run migrations and start Apache on container run
-CMD php artisan migrate --force && apache2-foreground
+# Run migrations and start Apache
+CMD php artisan migrate:fresh --force && apache2-foreground
