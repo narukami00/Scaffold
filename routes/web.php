@@ -36,6 +36,9 @@ Route::post("/public/workspaces/{workspace:slug}/projects/{project:slug}/git/web
 Route::middleware("auth")->group(function () {
     Route::post("/logout", [AuthController::class, "logout"])->name("logout");
 
+    // GitHub Callback
+    Route::get("/github/callback", [\App\Http\Controllers\GitHubAppController::class, "callback"])->name("github.callback");
+
     // Workspaces
     Route::get("/workspaces", [WorkspaceController::class, "index"])->name(
         "workspaces.index",
@@ -178,6 +181,23 @@ Route::middleware("auth")->group(function () {
                 \App\Http\Controllers\GitController::class,
                 "sync",
             ])->name("workspaces.projects.git.sync");
+
+            // GitHub Integration
+            Route::get("/github/repositories", [
+                \App\Http\Controllers\GitHubAppController::class,
+                "listRepositories"
+            ])->name("workspaces.github.repositories");
+
+            Route::post("/projects/{project}/github/link", [
+                \App\Http\Controllers\GitHubAppController::class,
+                "linkRepository"
+            ])->name("workspaces.projects.github.link");
+
+            Route::post("/projects/{project}/github/unlink", [
+                \App\Http\Controllers\GitHubAppController::class,
+                "unlinkRepository"
+            ])->name("workspaces.projects.github.unlink");
+
             // Thread Operations
             Route::get("/projects/{project}/threads", [
                 \App\Http\Controllers\ThreadController::class,
