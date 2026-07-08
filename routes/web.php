@@ -32,6 +32,12 @@ Route::post("/public/workspaces/{workspace:slug}/projects/{project:slug}/git/web
     "webhook",
 ])->name("workspaces.projects.git.webhook");
 
+// Public webhook for GitHub App events
+Route::post("/webhooks/github", [
+    \App\Http\Controllers\GitHubWebhookController::class,
+    "handle",
+])->name("github.webhook");
+
 // Protected Routes (Login Required)
 Route::middleware("auth")->group(function () {
     Route::post("/logout", [AuthController::class, "logout"])->name("logout");

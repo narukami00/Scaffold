@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         );
         $middleware->validateCsrfTokens(except: [
             'public/workspaces/*/projects/*/git/webhook',
+            'webhooks/github',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
