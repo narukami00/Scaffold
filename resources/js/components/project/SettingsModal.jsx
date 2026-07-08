@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useForm, router, usePage } from "@inertiajs/react";
+import axios from "axios";
 import { X, Settings, FolderOpen, Save, Tag, Plus, Trash2, Edit2, GitBranch, RefreshCw } from "lucide-react";
 
 const C = {
@@ -37,21 +38,21 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
     // GitHub Repo Linking states
     const [githubRepos, setGithubRepos] = useState([]);
     const [loadingRepos, setLoadingRepos] = useState(false);
+    const [repoError, setRepoError] = useState(null);
     const [selectedRepoId, setSelectedRepoId] = useState("");
     const [linking, setLinking] = useState(false);
 
     const loadSettingsData = () => {
         setLoadingSettings(true);
-        fetch(`/workspaces/${workspace.slug}/projects/${project.slug}/settings-data`)
-            .then(res => res.json())
-            .then(data => {
+        axios.get(`/workspaces/${workspace.slug}/projects/${project.slug}/settings-data`)
+            .then(({ data }) => {
                 setLabels(data.labels || []);
                 setLinkedRepo(data.github_repository || null);
                 setGithubInstallations(data.github_installations || []);
                 setLoadingSettings(false);
             })
             .catch(err => {
-                console.error(err);
+                console.error("Failed to load settings data:", err);
                 setLoadingSettings(false);
             });
     };
@@ -64,23 +65,29 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
 
     const loadGithubRepos = () => {
         setLoadingRepos(true);
-        fetch(`/workspaces/${workspace.slug}/github/repositories`)
-            .then(res => res.json())
-            .then(data => {
-                setGithubRepos(data);
+        setRepoError(null);
+        axios.get(`/workspaces/${workspace.slug}/github/repositories`)
+            .then(({ data }) => {
+                // Handle both old (plain array) and new (object with repositories/error) response shapes
+                const repos = Array.isArray(data) ? data : (data.repositories || []);
+                const error = Array.isArray(data) ? null : (data.error || null);
+                setGithubRepos(repos);
+                setRepoError(error);
                 setLoadingRepos(false);
             })
             .catch(err => {
-                console.error(err);
+                console.error("Failed to load GitHub repos:", err);
+                const msg = err.response?.data?.message || err.response?.data?.error || err.message || "Unknown error loading repositories";
+                setRepoError(msg);
                 setLoadingRepos(false);
             });
     };
 
     useEffect(() => {
-        if (activeTab === "github" && githubRepos.length === 0 && !loadingRepos && githubInstallations?.length > 0) {
+        if (activeTab === "github" && githubRepos.length === 0 && !loadingRepos) {
             loadGithubRepos();
         }
-    }, [activeTab, githubInstallations]);
+    }, [activeTab]);
 
     const handleLinkRepo = () => {
         const repo = githubRepos.find(r => r.github_repo_id.toString() === selectedRepoId.toString());
@@ -543,7 +550,17 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        {githubInstallations && githubInstallations.length > 0 ? (
+                                        {repoError && (
+                                            <div className="p-3 rounded-xl border bg-red-50 text-[#c0392b] text-xs font-bold leading-relaxed" style={{ borderColor: "rgba(192,57,43,0.25)" }}>
+                                                ⚠️ {repoError}
+                                            </div>
+                                        )}
+
+                                        {loadingRepos ? (
+                                            <p className="text-xs font-bold text-slate-500 animate-pulse text-center py-4">
+                                                Loading repositories from GitHub...
+                                            </p>
+                                        ) : githubRepos.length > 0 ? (
                                             <div className="space-y-3">
                                                 <label className="text-[10px] font-black uppercase tracking-widest block" style={{ color: C.brown }}>
                                                     Select a GitHub Repository
@@ -552,7 +569,7 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                                                     <select
                                                         value={selectedRepoId}
                                                         onChange={(e) => setSelectedRepoId(e.target.value)}
-                                                        disabled={loadingRepos || linking}
+                                                        disabled={linking}
                                                         className="flex-1 rounded-xl border px-3 py-2.5 text-xs font-bold outline-none transition-all focus:border-[#8b5e3c]"
                                                         style={{
                                                             background: "rgba(139,94,60,0.03)",
@@ -577,40 +594,36 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                                                         {linking ? "Linking..." : "Link"}
                                                     </button>
                                                 </div>
-
-                                                {loadingRepos && (
-                                                    <p className="text-[10px] font-bold text-slate-500 animate-pulse mt-2">
-                                                        Loading repositories...
-                                                    </p>
-                                                )}
-
-                                                <div className="pt-2 text-center border-t mt-4" style={{ borderColor: C.border }}>
-                                                    <a
-                                                        href={`/workspaces/${workspace.slug}/github/connect`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-[10px] font-black uppercase tracking-wider text-blue-600 hover:underline"
-                                                    >
-                                                        + Configure App Permissions on GitHub
-                                                    </a>
-                                                </div>
                                             </div>
                                         ) : (
-                                            <div className="text-center py-6">
-                                                <p className="text-xs font-bold text-slate-500 mb-4">
-                                                    No GitHub installations connected to this workspace yet.
+                                            <div className="text-center py-4">
+                                                <p className="text-xs font-bold text-slate-500 mb-3">
+                                                    {repoError ? "Could not load repositories." : "No repositories found."}
                                                 </p>
-                                                <a
-                                                    href={`/workspaces/${workspace.slug}/github/connect`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-[#0a2947] text-[#f3e4c9] hover:opacity-90 shadow-md hover:scale-[1.02]"
-                                                >
-                                                    <GitBranch size={14} />
-                                                    Connect GitHub App
-                                                </a>
                                             </div>
                                         )}
+
+                                        <div className="flex items-center justify-center gap-3 pt-2 border-t mt-2" style={{ borderColor: C.border }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setGithubRepos([]); loadGithubRepos(); }}
+                                                disabled={loadingRepos}
+                                                className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[#8b5e3c] hover:underline disabled:opacity-50"
+                                            >
+                                                <RefreshCw size={11} className={loadingRepos ? "animate-spin" : ""} />
+                                                Retry
+                                            </button>
+                                            <span className="text-slate-300">|</span>
+                                            <a
+                                                href={`/workspaces/${workspace.slug}/github/connect`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-blue-600 hover:underline"
+                                            >
+                                                <GitBranch size={11} />
+                                                Connect / Configure GitHub App
+                                            </a>
+                                        </div>
                                     </div>
                                 )}
                             </div>

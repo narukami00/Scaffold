@@ -108,7 +108,20 @@ class GitHubAppController extends Controller
         }
 
         $installations = $workspace->githubInstallations;
+
+        if ($installations->isEmpty()) {
+            return response()->json([
+                'repositories' => [],
+                'error' => 'No GitHub App installations found for this workspace. Please connect a GitHub App first.',
+                'debug' => [
+                    'workspace_id' => $workspace->id,
+                    'installation_count' => 0,
+                ],
+            ]);
+        }
+
         $repositories = [];
+        $errors = [];
 
         foreach ($installations as $installation) {
             try {
@@ -133,13 +146,20 @@ class GitHubAppController extends Controller
                             'private' => $repo['private'] ?? false,
                         ];
                     }
+                } else {
+                    $errors[] = "GitHub API returned {$response->status()} for installation {$installation->account_login}: " . $response->body();
+                    Log::error("GitHub API error for installation {$installation->github_installation_id}: {$response->status()} " . $response->body());
                 }
             } catch (\Exception $e) {
+                $errors[] = "Installation {$installation->account_login}: " . $e->getMessage();
                 Log::error("Error listing repositories for installation {$installation->github_installation_id}: " . $e->getMessage());
             }
         }
 
-        return response()->json($repositories);
+        return response()->json([
+            'repositories' => $repositories,
+            'error' => count($errors) > 0 ? implode('; ', $errors) : null,
+        ]);
     }
 
     /**
