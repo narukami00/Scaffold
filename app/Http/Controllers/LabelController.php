@@ -16,7 +16,7 @@ class LabelController extends Controller
     public function store(Request $request, Workspace $workspace, Project $project)
     {
         // Security check: Must be the workspace owner
-        if ((int)$workspace->owner_id !== (int)$request->user()->id) {
+        if ($workspace->owner_id !== Auth::id()) {
             abort(403, "Only the workspace owner can manage labels.");
         }
 
@@ -25,7 +25,10 @@ class LabelController extends Controller
             "color" => "required|string|max:7", // Hex color e.g. #ff0000
         ]);
 
-        $project->labels()->create($validated);
+        $project->labels()->create([
+            'name' => $validated['name'],
+            'color' => $validated['color'],
+        ]);
 
         return back()->with("success", "Label created successfully.");
     }
@@ -36,7 +39,7 @@ class LabelController extends Controller
     public function update(Request $request, Workspace $workspace, Project $project, Label $label)
     {
         // Security check: Must be the workspace owner
-        if ((int)$workspace->owner_id !== (int)$request->user()->id) {
+        if ($workspace->owner_id !== Auth::id()) {
             abort(403, "Only the workspace owner can manage labels.");
         }
 
@@ -67,7 +70,7 @@ class LabelController extends Controller
     public function destroy(Request $request, Workspace $workspace, Project $project, Label $label)
     {
         // Security check: Must be the workspace owner
-        if ((int)$workspace->owner_id !== (int)$request->user()->id) {
+        if ($workspace->owner_id !== Auth::id()) {
             abort(403, "Only the workspace owner can manage labels.");
         }
 
@@ -78,7 +81,7 @@ class LabelController extends Controller
         // Keep track of tasks before deleting the label so we can broadcast updates
         $tasks = $label->tasks()->get();
 
-        $label->delete(); // This automatically detaches from label_task pivot table on cascade
+        $label->delete(); // This detaches from pivot table automatically on cascade
 
         // Broadcast updates to clients for all affected tasks
         foreach ($tasks as $task) {

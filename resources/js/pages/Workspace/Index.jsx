@@ -1,5 +1,5 @@
 import AppLayout from "@/layouts/AppLayout";
-import { Head, useForm } from "@inertiajs/react";
+import { Head, useForm, usePage } from "@inertiajs/react";
 import { useState } from "react";
 import { Plus, X, Users, FolderKanban, Crown, User } from "lucide-react";
 
@@ -308,10 +308,17 @@ function EmptyState({ onCreateClick }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function Index({ workspaces }) {
     const [showModal, setShowModal] = useState(false);
+    const { errors } = usePage().props;
 
     return (
         <div className="max-w-5xl mx-auto space-y-8">
             <Head title="Workspaces — Scaffold" />
+
+            {errors && errors.github && (
+                <div className="p-4 rounded-2xl border bg-red-50 text-[#c0392b] text-xs font-bold leading-relaxed animate-fadeIn" style={{ borderColor: "rgba(192,57,43,0.25)" }}>
+                    ⚠️ GitHub Integration Error: {errors.github}
+                </div>
+            )}
 
             {/* Page header */}
             <div className="flex items-end justify-between">

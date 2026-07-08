@@ -380,7 +380,7 @@ function NewProjectModal({ workspace, onClose }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function Show({ workspace, stats, defaultTab }) {
-    const { auth } = usePage().props;
+    const { auth, errors } = usePage().props;
     const isOwner = workspace.owner_id === auth.user.id;
     const currentMemberColor = workspace.members.find(m => m.id === auth.user.id)?.pivot?.color;
 
@@ -481,6 +481,12 @@ export default function Show({ workspace, stats, defaultTab }) {
                     New Project
                 </button>
             </div>
+
+            {errors && errors.github && (
+                <div className="p-4 rounded-2xl border bg-red-50 text-[#c0392b] text-xs font-bold leading-relaxed animate-fadeIn" style={{ borderColor: "rgba(192,57,43,0.25)" }}>
+                    ⚠️ GitHub Integration Error: {errors.github}
+                </div>
+            )}
 
             {/* ── TAB BAR ─────────────────────────────────────────────────── */}
             <div className="flex items-center gap-1 p-1 rounded-2xl self-start"
