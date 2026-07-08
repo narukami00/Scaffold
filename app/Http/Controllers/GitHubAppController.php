@@ -162,68 +162,80 @@ class GitHubAppController extends Controller
      */
     public function listRepositories(Workspace $workspace)
     {
-        if ($workspace->owner_id !== Auth::id()) {
-            abort(403);
-        }
-
-        $installations = $workspace->githubInstallations;
-
-        // Auto-discover installations if none are saved locally
-        if ($installations->isEmpty()) {
-            $syncErrors = $this->syncInstallations($workspace);
-            $workspace->load('githubInstallations');
-            $installations = $workspace->githubInstallations;
-
-            if ($installations->isEmpty()) {
+        try {
+            if ($workspace->owner_id !== Auth::id()) {
                 return response()->json([
                     'repositories' => [],
-                    'error' => !empty($syncErrors)
-                        ? 'Auto-sync failed: ' . implode('; ', $syncErrors)
-                        : 'No GitHub App installations found. Please install the GitHub App first via the link below.',
-                ]);
+                    'error' => 'Only the workspace owner can manage GitHub integrations.',
+                ], 403);
             }
-        }
 
-        $repositories = [];
-        $errors = [];
+            $installations = $workspace->githubInstallations;
 
-        foreach ($installations as $installation) {
-            try {
-                $token = $this->tokenService->getInstallationToken($installation->github_installation_id);
+            // Auto-discover installations if none are saved locally
+            if ($installations->isEmpty()) {
+                $syncErrors = $this->syncInstallations($workspace);
+                $workspace->load('githubInstallations');
+                $installations = $workspace->githubInstallations;
 
-                $response = Http::withHeaders([
-                    'Authorization' => "token {$token}",
-                    'Accept' => 'application/vnd.github+json',
-                    'X-GitHub-Api-Version' => '2022-11-28',
-                    'User-Agent' => 'DevSpace-App',
-                ])->get("https://api.github.com/installation/repositories");
-
-                if ($response->successful()) {
-                    $data = $response->json();
-                    foreach ($data['repositories'] ?? [] as $repo) {
-                        $repositories[] = [
-                            'github_repo_id' => $repo['id'],
-                            'full_name' => $repo['full_name'],
-                            'default_branch' => $repo['default_branch'] ?? 'main',
-                            'html_url' => $repo['html_url'],
-                            'github_installation_id' => $installation->id,
-                            'private' => $repo['private'] ?? false,
-                        ];
-                    }
-                } else {
-                    $errors[] = "GitHub API returned {$response->status()} for installation {$installation->account_login}: " . $response->body();
-                    Log::error("GitHub API error for installation {$installation->github_installation_id}: {$response->status()} " . $response->body());
+                if ($installations->isEmpty()) {
+                    return response()->json([
+                        'repositories' => [],
+                        'error' => !empty($syncErrors)
+                            ? 'Auto-sync failed: ' . implode('; ', $syncErrors)
+                            : 'No GitHub App installations found. Please install the GitHub App first via the link below.',
+                    ]);
                 }
-            } catch (\Exception $e) {
-                $errors[] = "Installation {$installation->account_login}: " . $e->getMessage();
-                Log::error("Error listing repositories for installation {$installation->github_installation_id}: " . $e->getMessage());
             }
-        }
 
-        return response()->json([
-            'repositories' => $repositories,
-            'error' => count($errors) > 0 ? implode('; ', $errors) : null,
-        ]);
+            $repositories = [];
+            $errors = [];
+
+            foreach ($installations as $installation) {
+                try {
+                    $token = $this->tokenService->getInstallationToken($installation->github_installation_id);
+
+                    $response = Http::withHeaders([
+                        'Authorization' => "token {$token}",
+                        'Accept' => 'application/vnd.github+json',
+                        'X-GitHub-Api-Version' => '2022-11-28',
+                        'User-Agent' => 'DevSpace-App',
+                    ])->get("https://api.github.com/installation/repositories");
+
+                    if ($response->successful()) {
+                        $data = $response->json();
+                        foreach ($data['repositories'] ?? [] as $repo) {
+                            $repositories[] = [
+                                'github_repo_id' => $repo['id'],
+                                'full_name' => $repo['full_name'],
+                                'default_branch' => $repo['default_branch'] ?? 'main',
+                                'html_url' => $repo['html_url'],
+                                'github_installation_id' => $installation->id,
+                                'private' => $repo['private'] ?? false,
+                            ];
+                        }
+                    } else {
+                        $errors[] = "GitHub API returned {$response->status()} for installation {$installation->account_login}: " . $response->body();
+                        Log::error("GitHub API error for installation {$installation->github_installation_id}: {$response->status()} " . $response->body());
+                    }
+                } catch (\Exception $e) {
+                    $errors[] = "Installation {$installation->account_login}: " . $e->getMessage();
+                    Log::error("Error listing repositories for installation {$installation->github_installation_id}: " . $e->getMessage());
+                }
+            }
+
+            return response()->json([
+                'repositories' => $repositories,
+                'error' => count($errors) > 0 ? implode('; ', $errors) : null,
+            ]);
+
+        } catch (\Throwable $e) {
+            Log::error("listRepositories fatal error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return response()->json([
+                'repositories' => [],
+                'error' => 'Server error: ' . $e->getMessage(),
+            ], 200); // Return 200 so axios .then() handles it and shows the error in the UI
+        }
     }
 
     /**
