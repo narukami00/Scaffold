@@ -107,6 +107,11 @@ Route::middleware("auth")->group(function () {
             "update",
         ])->name("members.profile.update");
 
+        Route::get("/github/connect", [
+            \App\Http\Controllers\GitHubAppController::class,
+            "connect"
+        ])->name("workspaces.github.connect");
+
         Route::post("/projects", [ProjectController::class, "store"])->name(
             "workspaces.projects.store",
         );

@@ -547,7 +547,7 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
 
                                                 <div className="pt-2 text-center border-t mt-4" style={{ borderColor: C.border }}>
                                                     <a
-                                                        href={`https://github.com/apps/${github_app_slug}/installations/new?state=${workspace.slug}`}
+                                                        href={`/workspaces/${workspace.slug}/github/connect`}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="text-[10px] font-black uppercase tracking-wider text-blue-600 hover:underline"
@@ -562,7 +562,7 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                                                     No GitHub installations connected to this workspace yet.
                                                 </p>
                                                 <a
-                                                    href={`https://github.com/apps/${github_app_slug}/installations/new?state=${workspace.slug}`}
+                                                    href={`/workspaces/${workspace.slug}/github/connect`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-[#0a2947] text-[#f3e4c9] hover:opacity-90 shadow-md hover:scale-[1.02]"

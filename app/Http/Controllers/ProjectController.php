@@ -323,12 +323,10 @@ class ProjectController extends Controller
 
         $validated = $request->validate([
             "name" => "required|string|max:255",
-            "git_repo_path" => "nullable|string|max:1000",
         ]);
 
         $project->update([
             "name" => $validated["name"],
-            "git_repo_path" => $validated["git_repo_path"] ?? null,
         ]);
 
         return back();

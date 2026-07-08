@@ -22,13 +22,28 @@ class GitHubAppController extends Controller
     }
 
     /**
+     * Store the active workspace slug in session and redirect to the GitHub App installation/configuration page.
+     */
+    public function connect(Workspace $workspace)
+    {
+        if ($workspace->owner_id !== Auth::id()) {
+            abort(403);
+        }
+
+        session(['github_active_workspace' => $workspace->slug]);
+
+        $githubAppSlug = config('services.github.app_slug', 'devspace-scaffold');
+        return redirect("https://github.com/apps/{$githubAppSlug}/installations/new?state={$workspace->slug}");
+    }
+
+    /**
      * Handle the redirect from GitHub App installation.
      */
     public function callback(Request $request)
     {
         $installationId = $request->query('installation_id');
         $setupAction = $request->query('setup_action');
-        $workspaceSlug = $request->query('state'); // workspace slug passed as state parameter
+        $workspaceSlug = $request->query('state') ?: session('github_active_workspace');
 
         if (!$installationId || !$workspaceSlug) {
             return redirect()->route('workspaces.index')->withErrors(['github' => 'Invalid callback parameters from GitHub.']);
@@ -40,7 +55,7 @@ class GitHubAppController extends Controller
         }
 
         // Verify membership
-        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
+        if ($workspace->owner_id !== Auth::id()) {
             abort(403);
         }
 
@@ -88,7 +103,7 @@ class GitHubAppController extends Controller
      */
     public function listRepositories(Workspace $workspace)
     {
-        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
+        if ($workspace->owner_id !== Auth::id()) {
             abort(403);
         }
 
@@ -132,7 +147,7 @@ class GitHubAppController extends Controller
      */
     public function linkRepository(Request $request, Workspace $workspace, Project $project)
     {
-        if (!$workspace->members()->where('users.id', Auth::id())->exists() || $project->workspace_id !== $workspace->id) {
+        if ($workspace->owner_id !== Auth::id() || $project->workspace_id !== $workspace->id) {
             abort(403);
         }
 
@@ -163,7 +178,7 @@ class GitHubAppController extends Controller
      */
     public function unlinkRepository(Workspace $workspace, Project $project)
     {
-        if (!$workspace->members()->where('users.id', Auth::id())->exists() || $project->workspace_id !== $workspace->id) {
+        if ($workspace->owner_id !== Auth::id() || $project->workspace_id !== $workspace->id) {
             abort(403);
         }
 
