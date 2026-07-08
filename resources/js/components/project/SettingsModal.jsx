@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, router, usePage } from "@inertiajs/react";
-import { X, Settings, FolderOpen, Save, Tag, Plus, Trash2, Edit2 } from "lucide-react";
+import { X, Settings, FolderOpen, Save, Tag, Plus, Trash2, Edit2, Github, RefreshCw } from "lucide-react";
 
 const C = {
     bg:      "#ede0c8",
@@ -25,10 +25,78 @@ const COZY_COLORS = [
 export default function SettingsModal({ workspace, project, isOpen, onClose }) {
     if (!isOpen) return null;
 
-    const { auth } = usePage().props;
+    const { auth, github_app_slug } = usePage().props;
     const isOwner = auth?.user?.id === workspace.owner_id;
 
     const [activeTab, setActiveTab] = useState("general");
+
+    // GitHub Repo Linking states
+    const [githubRepos, setGithubRepos] = useState([]);
+    const [loadingRepos, setLoadingRepos] = useState(false);
+    const [selectedRepoId, setSelectedRepoId] = useState("");
+    const [linking, setLinking] = useState(false);
+
+    const loadGithubRepos = () => {
+        setLoadingRepos(true);
+        fetch(`/workspaces/${workspace.slug}/github/repositories`)
+            .then(res => res.json())
+            .then(data => {
+                setGithubRepos(data);
+                setLoadingRepos(false);
+            })
+            .catch(err => {
+                console.error(err);
+                setLoadingRepos(false);
+            });
+    };
+
+    useEffect(() => {
+        if (activeTab === "github" && githubRepos.length === 0 && !loadingRepos && workspace.github_installations?.length > 0) {
+            loadGithubRepos();
+        }
+    }, [activeTab]);
+
+    const handleLinkRepo = () => {
+        const repo = githubRepos.find(r => r.github_repo_id.toString() === selectedRepoId.toString());
+        if (!repo) return;
+
+        setLinking(true);
+        router.post(
+            `/workspaces/${workspace.slug}/projects/${project.slug}/github/link`,
+            {
+                github_repo_id: repo.github_repo_id,
+                github_installation_id: repo.github_installation_id,
+                full_name: repo.full_name,
+                default_branch: repo.default_branch,
+                html_url: repo.html_url,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setLinking(false);
+                    setSelectedRepoId("");
+                },
+                onFinish: () => setLinking(false),
+            }
+        );
+    };
+
+    const handleUnlinkRepo = () => {
+        if (!confirm("Are you sure you want to unlink this repository? This will not delete any issues or pull requests on GitHub.")) return;
+
+        setLinking(true);
+        router.post(
+            `/workspaces/${workspace.slug}/projects/${project.slug}/github/unlink`,
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setLinking(false);
+                },
+                onFinish: () => setLinking(false),
+            }
+        );
+    };
 
     // Project Name & Git Path Form
     const { data, setData, patch, processing, errors } = useForm({
@@ -163,11 +231,22 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                         <Tag size={12} />
                         Task Labels
                     </button>
+                    <button
+                        onClick={() => setActiveTab("github")}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                        style={{
+                            background: activeTab === "github" ? C.brown : "transparent",
+                            color: activeTab === "github" ? "#f3e4c9" : C.muted,
+                        }}
+                    >
+                        <Github size={12} />
+                        GitHub Sync
+                    </button>
                 </div>
 
                 {/* Tab content area */}
                 <div className="flex-1 overflow-y-auto mt-6 custom-scrollbar pr-1">
-                    {activeTab === "general" ? (
+                    {activeTab === "general" && (
                         /* General Settings Form */
                         <form onSubmit={handleSubmitGeneral} className="space-y-5">
                             {/* Project Name */}
@@ -256,7 +335,9 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                                 </button>
                             </div>
                         </form>
-                    ) : (
+                    )}
+
+                    {activeTab === "labels" && (
                         /* Labels Management Tab */
                         <div className="space-y-6">
                             {/* Create Label Form (Owner Only) */}
@@ -417,6 +498,116 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                                                 </div>
                                             );
                                         })}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "github" && (
+                        <div className="space-y-6 animate-fadeIn pb-6">
+                            <div className="p-4 rounded-2xl border bg-white/20" style={{ borderColor: C.border }}>
+                                <h3 className="text-xs font-black uppercase tracking-wider mb-2" style={{ color: C.navy }}>
+                                    GitHub App Integration
+                                </h3>
+                                <p className="text-xs font-bold leading-relaxed mb-4 animate-pulse-slow" style={{ color: C.muted }}>
+                                    Connect this DevSpace project to a remote GitHub repository to automatically link pull requests, sync task states (Done/Backlog), and display live branch and commit timelines.
+                                </p>
+
+                                {project.github_repository ? (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between p-3 rounded-xl border bg-white/60" style={{ borderColor: C.border }}>
+                                            <div>
+                                                <p className="text-xs font-black" style={{ color: C.navy }}>
+                                                    Linked Repository
+                                                </p>
+                                                <a href={project.github_repository.html_url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold underline text-blue-600 hover:text-blue-800 break-all">
+                                                    {project.github_repository.full_name}
+                                                </a>
+                                                <p className="text-[10px] font-bold text-slate-400 mt-1">
+                                                    Default branch: <span className="font-mono font-bold text-[#8b5e3c]">{project.github_repository.default_branch}</span>
+                                                </p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={handleUnlinkRepo}
+                                                disabled={linking}
+                                                className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider text-red-600 hover:bg-red-50/50 transition-all border border-red-200 disabled:opacity-50"
+                                            >
+                                                {linking ? "Unlinking..." : "Unlink"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {workspace.github_installations && workspace.github_installations.length > 0 ? (
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] font-black uppercase tracking-widest block" style={{ color: C.brown }}>
+                                                    Select a GitHub Repository
+                                                </label>
+                                                <div className="flex gap-2">
+                                                    <select
+                                                        value={selectedRepoId}
+                                                        onChange={(e) => setSelectedRepoId(e.target.value)}
+                                                        disabled={loadingRepos || linking}
+                                                        className="flex-1 rounded-xl border px-3 py-2.5 text-xs font-bold outline-none transition-all focus:border-[#8b5e3c]"
+                                                        style={{
+                                                            background: "rgba(139,94,60,0.03)",
+                                                            borderColor: C.border,
+                                                            color: C.navy,
+                                                        }}
+                                                    >
+                                                        <option value="">-- Choose Repository --</option>
+                                                        {githubRepos.map(repo => (
+                                                            <option key={repo.github_repo_id} value={repo.github_repo_id}>
+                                                                {repo.full_name} {repo.private ? '(Private)' : ''}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleLinkRepo}
+                                                        disabled={!selectedRepoId || linking}
+                                                        className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-[#8b5e3c] text-[#f3e4c9] disabled:opacity-50"
+                                                    >
+                                                        {linking ? "Linking..." : "Link"}
+                                                    </button>
+                                                </div>
+
+                                                {loadingRepos && (
+                                                    <p className="text-[10px] font-bold text-slate-500 animate-pulse mt-2">
+                                                        Loading repositories...
+                                                    </p>
+                                                )}
+
+                                                <div className="pt-2 text-center border-t mt-4" style={{ borderColor: C.border }}>
+                                                    <a
+                                                        href={`https://github.com/apps/${github_app_slug}/installations/new?state=${workspace.slug}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-[10px] font-black uppercase tracking-wider text-blue-600 hover:underline"
+                                                    >
+                                                        + Configure App Permissions on GitHub
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-6">
+                                                <p className="text-xs font-bold text-slate-500 mb-4">
+                                                    No GitHub installations connected to this workspace yet.
+                                                </p>
+                                                <a
+                                                    href={`https://github.com/apps/${github_app_slug}/installations/new?state=${workspace.slug}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-[#0a2947] text-[#f3e4c9] hover:opacity-90 shadow-md hover:scale-[1.02]"
+                                                >
+                                                    <Github size={14} />
+                                                    Connect GitHub App
+                                                </a>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

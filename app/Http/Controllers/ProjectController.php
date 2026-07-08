@@ -40,12 +40,13 @@ class ProjectController extends Controller
         }
 
         // Load project tasks and workspace members
-        $workspace->loadMissing(["owner", "members"]);
+        $workspace->loadMissing(["owner", "members", "githubInstallations"]);
 
         $project->load([
             "labels",
             "tasks.assignee",
             "tasks.dependencies",
+            "githubRepository",
         ]);
 
         $tasks = $project->tasks;
@@ -223,7 +224,7 @@ class ProjectController extends Controller
         }
 
         // Load everything the board needs for editing and optimistic updates.
-        $workspace->loadMissing(["owner", "members"]);
+        $workspace->loadMissing(["owner", "members", "githubInstallations"]);
         $project->load([
             "workspace",
             "labels",
@@ -232,6 +233,7 @@ class ProjectController extends Controller
             "tasks.dependencies",
             "tasks.labels",
             "tasks.comments.user",
+            "githubRepository",
         ]);
 
         $members = collect([$workspace->owner])

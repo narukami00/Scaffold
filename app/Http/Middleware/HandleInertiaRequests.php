@@ -57,6 +57,7 @@ class HandleInertiaRequests extends Middleware
             ],
             // Share sidebar projects only when the route actually resolved a workspace.
             "workspaceProjects" => $workspace ? $workspace->projects : [],
+            "github_app_slug" => config('services.github.app_slug', 'devspace-scaffold'),
         ];
     }
 }
