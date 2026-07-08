@@ -76,4 +76,9 @@ class Workspace extends Model
     {
         return $this->hasManyThrough(Task::class, Project::class);
     }
+
+    public function githubInstallations()
+    {
+        return $this->hasMany(GitHubInstallation::class);
+    }
 }

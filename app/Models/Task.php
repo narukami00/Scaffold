@@ -92,4 +92,14 @@ class Task extends Model
             "task_id",
         );
     }
+
+    public function githubIssue()
+    {
+        return $this->hasOne(GitHubIssue::class);
+    }
+
+    public function githubPullRequests()
+    {
+        return $this->hasMany(GitHubPullRequest::class);
+    }
 }
