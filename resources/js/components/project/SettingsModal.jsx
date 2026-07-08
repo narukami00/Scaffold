@@ -23,7 +23,7 @@ const COZY_COLORS = [
 ];
 
 export default function SettingsModal({ workspace, project, isOpen, onClose }) {
-    const { auth, github_app_slug } = usePage().props;
+    const { auth, github_app_slug, errors: pageErrors } = usePage().props;
     const isOwner = auth?.user?.id === workspace.owner_id;
 
     const [activeTab, setActiveTab] = useState("general");
@@ -477,7 +477,11 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                                 <p className="text-xs font-bold leading-relaxed mb-4 animate-pulse-slow" style={{ color: C.muted }}>
                                     Connect this DevSpace project to a remote GitHub repository to automatically link pull requests, sync task states (Done/Backlog), and display live branch and commit timelines.
                                 </p>
-
+                                {pageErrors && pageErrors.github && (
+                                    <div className="p-3 mb-4 rounded-xl border bg-red-50 text-[#c0392b] text-xs font-bold leading-relaxed" style={{ borderColor: "rgba(192,57,43,0.25)" }}>
+                                        ⚠️ GitHub Connection Error: {pageErrors.github}
+                                    </div>
+                                )}
                                 {project.github_repository ? (
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between p-3 rounded-xl border bg-white/60" style={{ borderColor: C.border }}>
