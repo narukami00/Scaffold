@@ -99,6 +99,65 @@ class GitHubAppController extends Controller
     }
 
     /**
+     * Discover and sync all GitHub App installations to the workspace.
+     * This handles the case where the GitHub callback was skipped
+     * (e.g., app was already installed from a previous session).
+     */
+    public function syncInstallations(Workspace $workspace): array
+    {
+        $errors = [];
+
+        try {
+            $jwt = $this->tokenService->generateAppJwt();
+
+            $response = Http::withHeaders([
+                'Authorization' => "Bearer {$jwt}",
+                'Accept' => 'application/vnd.github+json',
+                'X-GitHub-Api-Version' => '2022-11-28',
+                'User-Agent' => 'DevSpace-App',
+            ])->get("https://api.github.com/app/installations");
+
+            if ($response->failed()) {
+                $errors[] = "Failed to list GitHub App installations: HTTP {$response->status()} - " . $response->body();
+                Log::error("syncInstallations API error: {$response->status()} " . $response->body());
+                return $errors;
+            }
+
+            $installations = $response->json();
+
+            if (!is_array($installations)) {
+                $errors[] = "Unexpected response format from GitHub API.";
+                Log::error("syncInstallations unexpected response: " . json_encode($installations));
+                return $errors;
+            }
+
+            $synced = 0;
+            foreach ($installations as $inst) {
+                $account = $inst['account'] ?? [];
+
+                GitHubInstallation::updateOrCreate(
+                    ['github_installation_id' => $inst['id']],
+                    [
+                        'workspace_id' => $workspace->id,
+                        'account_login' => $account['login'] ?? 'Unknown',
+                        'account_type' => $account['type'] ?? 'User',
+                        'avatar_url' => $account['avatar_url'] ?? null,
+                    ]
+                );
+                $synced++;
+            }
+
+            Log::info("syncInstallations: synced {$synced} installation(s) for workspace {$workspace->id}");
+
+        } catch (\Exception $e) {
+            $errors[] = "Sync error: " . $e->getMessage();
+            Log::error("syncInstallations exception: " . $e->getMessage());
+        }
+
+        return $errors;
+    }
+
+    /**
      * List all repositories available for linking in the workspace.
      */
     public function listRepositories(Workspace $workspace)
@@ -109,15 +168,20 @@ class GitHubAppController extends Controller
 
         $installations = $workspace->githubInstallations;
 
+        // Auto-discover installations if none are saved locally
         if ($installations->isEmpty()) {
-            return response()->json([
-                'repositories' => [],
-                'error' => 'No GitHub App installations found for this workspace. Please connect a GitHub App first.',
-                'debug' => [
-                    'workspace_id' => $workspace->id,
-                    'installation_count' => 0,
-                ],
-            ]);
+            $syncErrors = $this->syncInstallations($workspace);
+            $workspace->load('githubInstallations');
+            $installations = $workspace->githubInstallations;
+
+            if ($installations->isEmpty()) {
+                return response()->json([
+                    'repositories' => [],
+                    'error' => !empty($syncErrors)
+                        ? 'Auto-sync failed: ' . implode('; ', $syncErrors)
+                        : 'No GitHub App installations found. Please install the GitHub App first via the link below.',
+                ]);
+            }
         }
 
         $repositories = [];
