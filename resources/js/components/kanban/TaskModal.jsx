@@ -15,7 +15,7 @@ import {
     Trash2,
     X,
     BookOpen,
-    Github,
+    GitBranch,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import axios from "axios";
@@ -940,7 +940,7 @@ export default function TaskModal({
                                 <section className="space-y-3 p-4 rounded-2xl border" style={{ borderColor: "rgba(139,94,60,0.18)", background: "rgba(139,94,60,0.02)" }}>
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: "#8b5e3c" }}>
-                                            <Github size={13} />
+                                            <GitBranch size={13} />
                                             GitHub Sync
                                         </div>
                                     </div>
@@ -949,7 +949,7 @@ export default function TaskModal({
                                         <div className="space-y-3">
                                             <div className="flex flex-wrap items-center gap-3">
                                                 <div className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-black uppercase tracking-wider text-[#f3e4c9] bg-[#0a2947] shadow-sm">
-                                                    <Github size={12} />
+                                                    <GitBranch size={12} />
                                                     <a href={data.github_issue.html_url} target="_blank" rel="noopener noreferrer" className="hover:underline">
                                                         Issue #{data.github_issue.issue_number}
                                                     </a>

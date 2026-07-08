@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useForm, router, usePage } from "@inertiajs/react";
-import { X, Settings, FolderOpen, Save, Tag, Plus, Trash2, Edit2, Github, RefreshCw } from "lucide-react";
+import { X, Settings, FolderOpen, Save, Tag, Plus, Trash2, Edit2, GitBranch, RefreshCw } from "lucide-react";
 
 const C = {
     bg:      "#ede0c8",
@@ -23,8 +23,6 @@ const COZY_COLORS = [
 ];
 
 export default function SettingsModal({ workspace, project, isOpen, onClose }) {
-    if (!isOpen) return null;
-
     const { auth, github_app_slug } = usePage().props;
     const isOwner = auth?.user?.id === workspace.owner_id;
 
@@ -186,6 +184,8 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
 
     const projectLabels = project.labels || [];
 
+    if (!isOpen) return null;
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="relative w-full max-w-lg rounded-[28px] border p-6 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]"
@@ -239,7 +239,7 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                             color: activeTab === "github" ? "#f3e4c9" : C.muted,
                         }}
                     >
-                        <Github size={12} />
+                        <GitBranch size={12} />
                         GitHub Sync
                     </button>
                 </div>
@@ -603,7 +603,7 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                                                     rel="noopener noreferrer"
                                                     className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-[#0a2947] text-[#f3e4c9] hover:opacity-90 shadow-md hover:scale-[1.02]"
                                                 >
-                                                    <Github size={14} />
+                                                    <GitBranch size={14} />
                                                     Connect GitHub App
                                                 </a>
                                             </div>
