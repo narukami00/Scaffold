@@ -1,5 +1,5 @@
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Plus, MoreHorizontal, Lock, Calendar, Trash2 } from "lucide-react";
+import { Plus, MoreHorizontal, Lock, Calendar, Trash2, Github } from "lucide-react";
 import axios from "axios";
 import { flushSync } from "react-dom";
 import { isTaskBlocked } from "@/utils/taskDependencies";
@@ -354,6 +354,12 @@ export default function ColumnView({
                                                                                     >
                                                                                         <Calendar size={10} style={{ color: isDone ? "#2d6a4f" : C.brown }} />
                                                                                         {new Date(task.due_date).toLocaleDateString([], { month: "short", day: "numeric" })}
+                                                                                    </div>
+                                                                                )}
+                                                                                {task.github_issue && (
+                                                                                    <div className="flex items-center gap-1 text-[9px] font-bold text-slate-600 bg-white/60 px-1.5 py-0.5 rounded-lg border border-slate-200" title={`Linked to GitHub Issue #${task.github_issue.issue_number}`}>
+                                                                                        <Github size={10} className="text-slate-800" />
+                                                                                        #{task.github_issue.issue_number}
                                                                                     </div>
                                                                                 )}
                                                                             </div>

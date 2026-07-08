@@ -15,6 +15,7 @@ import {
     Trash2,
     X,
     BookOpen,
+    Github,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import axios from "axios";
@@ -933,6 +934,84 @@ export default function TaskModal({
                                     </div>
                                 </div>
                             </section>
+
+                            {/* GitHub Integration Section */}
+                            {project.github_repository && (
+                                <section className="space-y-3 p-4 rounded-2xl border" style={{ borderColor: "rgba(139,94,60,0.18)", background: "rgba(139,94,60,0.02)" }}>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: "#8b5e3c" }}>
+                                            <Github size={13} />
+                                            GitHub Sync
+                                        </div>
+                                    </div>
+                                    
+                                    {data.github_issue ? (
+                                        <div className="space-y-3">
+                                            <div className="flex flex-wrap items-center gap-3">
+                                                <div className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-black uppercase tracking-wider text-[#f3e4c9] bg-[#0a2947] shadow-sm">
+                                                    <Github size={12} />
+                                                    <a href={data.github_issue.html_url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                                        Issue #{data.github_issue.issue_number}
+                                                    </a>
+                                                </div>
+                                                
+                                                {data.github_issue.needs_sync && (
+                                                    <span className="text-[10px] font-bold text-amber-700 animate-pulse bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200">
+                                                        Sync Pending (Scheduler runs every 5m)
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Linked Pull Requests Checklist */}
+                                            {data.github_pull_requests && data.github_pull_requests.length > 0 && (
+                                                <div className="mt-2 space-y-1.5">
+                                                    <p className="text-[9px] font-black uppercase tracking-widest text-[#8b5e3c]">
+                                                        Linked Pull Requests
+                                                    </p>
+                                                    <div className="space-y-1.5">
+                                                        {data.github_pull_requests.map(pr => (
+                                                            <div key={pr.id} className="flex items-center justify-between p-2 rounded-xl border bg-white/50 text-xs" style={{ borderColor: "rgba(139,94,60,0.12)" }}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${
+                                                                        pr.state === 'merged' ? 'bg-purple-100 text-purple-800' :
+                                                                        pr.state === 'closed' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                                                                    }`}>
+                                                                        {pr.state}
+                                                                    </span>
+                                                                    <a href={pr.html_url} target="_blank" rel="noopener noreferrer" className="font-bold underline text-blue-600 hover:text-blue-800">
+                                                                        #{pr.pr_number} {pr.title}
+                                                                    </a>
+                                                                </div>
+                                                                <span className="font-mono text-[9px] text-slate-400">
+                                                                    {pr.head_branch} ➔ {pr.base_branch}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-3">
+                                            {isEditor ? (
+                                                <label className="flex items-center gap-2 text-xs font-bold select-none cursor-pointer text-[#0a2947]">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={data.sync_to_github || false}
+                                                        onChange={(e) => handleFieldChange("sync_to_github", e.target.checked)}
+                                                        className="rounded border-[#8b5e3c] text-[#8b5e3c] focus:ring-[#8b5e3c]"
+                                                    />
+                                                    Create & Link GitHub Issue on Save
+                                                </label>
+                                            ) : (
+                                                <p className="text-xs font-bold text-slate-400 italic">
+                                                    Not linked to GitHub Issue.
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </section>
+                            )}
 
                             {/* ▸ Description */}
                             <section className="space-y-4">

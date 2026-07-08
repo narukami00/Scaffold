@@ -233,6 +233,8 @@ class ProjectController extends Controller
             "tasks.dependencies",
             "tasks.labels",
             "tasks.comments.user",
+            "tasks.githubIssue",
+            "tasks.githubPullRequests",
             "githubRepository",
         ]);
 
