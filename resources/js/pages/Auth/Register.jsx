@@ -149,6 +149,101 @@ function AuthInput({ label, error, id, ...props }) {
     );
 }
 
+// ── Textarea component styled for the cream panel ────────────────────────────
+function AuthTextarea({ label, error, id, ...props }) {
+    const [focused, setFocused] = useState(false);
+    return (
+        <div className="space-y-1.5">
+            {label && (
+                <label
+                    htmlFor={id}
+                    className="block text-xs font-semibold uppercase tracking-widest"
+                    style={{ color: "#8b5e3c" }}
+                >
+                    {label}
+                </label>
+            )}
+            <textarea
+                id={id}
+                {...props}
+                onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
+                onBlur={(e) => { setFocused(false); props.onBlur?.(e); }}
+                className="w-full rounded-xl px-4 py-3 text-sm font-medium outline-none transition-all duration-200 placeholder:text-[#a89880] resize-none h-20"
+                style={{
+                    background: "rgba(255,255,255,0.55)",
+                    border: `1.5px solid ${error ? "#c0392b" : focused ? "#8b5e3c" : "rgba(139,94,60,0.25)"}`,
+                    color: "#2a1a0a",
+                    boxShadow: focused
+                        ? "0 0 0 3px rgba(139, 94, 60, 0.12)"
+                        : "none",
+                    backdropFilter: "blur(4px)",
+                }}
+            />
+            {error && (
+                <p className="text-xs font-medium mt-1" style={{ color: "#c0392b" }}>
+                    {error}
+                </p>
+            )}
+        </div>
+    );
+}
+
+// ── Avatar Upload component with preview ─────────────────────────────────────
+function AuthAvatarUpload({ label, error, onChange, value }) {
+    const [preview, setPreview] = useState(null);
+
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            onChange(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    return (
+        <div className="space-y-1.5">
+            {label && (
+                <span
+                    className="block text-xs font-semibold uppercase tracking-widest"
+                    style={{ color: "#8b5e3c" }}
+                >
+                    {label}
+                </span>
+            )}
+            <div className="flex items-center gap-4">
+                <div 
+                    className="w-12 h-12 rounded-full overflow-hidden border-2 flex items-center justify-center bg-white/40 shrink-0"
+                    style={{ borderColor: "rgba(139,94,60,0.25)" }}
+                >
+                    {preview ? (
+                        <img src={preview} alt="Avatar Preview" className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="text-[10px] font-black text-[#8b5e3c] uppercase">Photo</div>
+                    )}
+                </div>
+                <label className="cursor-pointer px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/60 hover:bg-white/80 border transition-all duration-200" style={{ borderColor: "rgba(139,94,60,0.25)", color: "#8b5e3c" }}>
+                    Choose Photo
+                    <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleFileChange} 
+                        className="hidden" 
+                    />
+                </label>
+            </div>
+            {error && (
+                <p className="text-xs font-medium mt-1" style={{ color: "#c0392b" }}>
+                    {error}
+                </p>
+            )}
+        </div>
+    );
+}
+
 // ── Main Register page ───────────────────────────────────────────────────────
 export default function Register() {
     const { data, setData, post, processing, errors } = useForm({
@@ -156,6 +251,9 @@ export default function Register() {
         email: "",
         password: "",
         password_confirmation: "",
+        title: "",
+        bio: "",
+        avatar: null,
     });
 
     const submit = (e) => {
@@ -243,7 +341,7 @@ export default function Register() {
 
             {/* ── RIGHT PANEL: Register form ─────────────────────── */}
             <div
-                className="flex-1 flex flex-col items-center justify-center p-8 min-h-screen"
+                className="flex-1 flex flex-col items-center justify-start lg:justify-center p-8 min-h-screen overflow-y-auto"
                 style={{ background: "#f3e4c9" }}
             >
                 {/* Mobile logo */}
@@ -257,7 +355,7 @@ export default function Register() {
                     </span>
                 </div>
 
-                <div className="w-full max-w-sm">
+                <div className="w-full max-w-sm my-auto py-8">
                     {/* Header */}
                     <div className="mb-8">
                         <h1
@@ -290,6 +388,28 @@ export default function Register() {
                             onChange={(e) => setData("email", e.target.value)}
                             error={errors.email}
                             placeholder="you@example.com"
+                        />
+                        <AuthInput
+                            id="register-title"
+                            label="Job Title"
+                            type="text"
+                            value={data.title}
+                            onChange={(e) => setData("title", e.target.value)}
+                            error={errors.title}
+                            placeholder="Lead Designer / Developer"
+                        />
+                        <AuthTextarea
+                            id="register-bio"
+                            label="Short Bio"
+                            value={data.bio}
+                            onChange={(e) => setData("bio", e.target.value)}
+                            error={errors.bio}
+                            placeholder="Tell us about yourself..."
+                        />
+                        <AuthAvatarUpload
+                            label="Profile Photo"
+                            error={errors.avatar}
+                            onChange={(file) => setData("avatar", file)}
                         />
                         <AuthInput
                             id="register-password"
