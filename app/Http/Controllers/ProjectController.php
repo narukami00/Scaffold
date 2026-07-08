@@ -331,4 +331,27 @@ class ProjectController extends Controller
 
         return back();
     }
+
+    /**
+     * Get settings configuration data (labels and githubRepository).
+     */
+    public function settingsData(Workspace $workspace, Project $project)
+    {
+        if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
+            abort(403);
+        }
+
+        if ($project->workspace_id !== $workspace->id) {
+            abort(404);
+        }
+
+        $project->load(['labels', 'githubRepository.installation']);
+        $workspace->load('githubInstallations');
+
+        return response()->json([
+            'labels' => $project->labels,
+            'github_repository' => $project->githubRepository,
+            'github_installations' => $workspace->githubInstallations,
+        ]);
+    }
 }

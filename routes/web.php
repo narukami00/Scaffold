@@ -187,10 +187,15 @@ Route::middleware("auth")->group(function () {
 
 
             // GitHub Integration
-            Route::get("/github/repositories", [
-                \App\Http\Controllers\GitHubAppController::class,
-                "listRepositories"
-            ])->name("workspaces.github.repositories");
+             Route::get("/github/repositories", [
+                 \App\Http\Controllers\GitHubAppController::class,
+                 "listRepositories"
+             ])->name("workspaces.github.repositories");
+
+             Route::get("/projects/{project}/settings-data", [
+                 \App\Http\Controllers\ProjectController::class,
+                 "settingsData"
+             ])->name("workspaces.projects.settings-data");
 
             Route::post("/projects/{project}/github/link", [
                 \App\Http\Controllers\GitHubAppController::class,

@@ -28,11 +28,39 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
 
     const [activeTab, setActiveTab] = useState("general");
 
+    // Settings Modal dynamic states
+    const [labels, setLabels] = useState([]);
+    const [linkedRepo, setLinkedRepo] = useState(null);
+    const [githubInstallations, setGithubInstallations] = useState([]);
+    const [loadingSettings, setLoadingSettings] = useState(false);
+
     // GitHub Repo Linking states
     const [githubRepos, setGithubRepos] = useState([]);
     const [loadingRepos, setLoadingRepos] = useState(false);
     const [selectedRepoId, setSelectedRepoId] = useState("");
     const [linking, setLinking] = useState(false);
+
+    const loadSettingsData = () => {
+        setLoadingSettings(true);
+        fetch(`/workspaces/${workspace.slug}/projects/${project.slug}/settings-data`)
+            .then(res => res.json())
+            .then(data => {
+                setLabels(data.labels || []);
+                setLinkedRepo(data.github_repository || null);
+                setGithubInstallations(data.github_installations || []);
+                setLoadingSettings(false);
+            })
+            .catch(err => {
+                console.error(err);
+                setLoadingSettings(false);
+            });
+    };
+
+    useEffect(() => {
+        if (isOpen) {
+            loadSettingsData();
+        }
+    }, [isOpen, project.slug]);
 
     const loadGithubRepos = () => {
         setLoadingRepos(true);
@@ -49,10 +77,10 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
     };
 
     useEffect(() => {
-        if (activeTab === "github" && githubRepos.length === 0 && !loadingRepos && workspace.github_installations?.length > 0) {
+        if (activeTab === "github" && githubRepos.length === 0 && !loadingRepos && githubInstallations?.length > 0) {
             loadGithubRepos();
         }
-    }, [activeTab]);
+    }, [activeTab, githubInstallations]);
 
     const handleLinkRepo = () => {
         const repo = githubRepos.find(r => r.github_repo_id.toString() === selectedRepoId.toString());
@@ -73,6 +101,7 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                 onSuccess: () => {
                     setLinking(false);
                     setSelectedRepoId("");
+                    loadSettingsData();
                 },
                 onFinish: () => setLinking(false),
             }
@@ -90,6 +119,7 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                 preserveScroll: true,
                 onSuccess: () => {
                     setLinking(false);
+                    loadSettingsData();
                 },
                 onFinish: () => setLinking(false),
             }
@@ -137,6 +167,7 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                 onSuccess: () => {
                     setNewLabelName("");
                     setNewLabelColor(COZY_COLORS[0].value);
+                    loadSettingsData();
                 },
                 onFinish: () => setLabelCreating(false),
             }
@@ -164,6 +195,7 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                 preserveScroll: true,
                 onSuccess: () => {
                     setEditingLabelId(null);
+                    loadSettingsData();
                 },
                 onFinish: () => setLabelUpdating(false),
             }
@@ -177,11 +209,14 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
             `/workspaces/${workspace.slug}/projects/${project.slug}/labels/${labelId}`,
             {
                 preserveScroll: true,
+                onSuccess: () => {
+                    loadSettingsData();
+                }
             }
         );
     };
 
-    const projectLabels = project.labels || [];
+    const projectLabels = labels || [];
 
     if (!isOpen) return null;
 
@@ -482,18 +517,18 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                                         ⚠️ GitHub Connection Error: {pageErrors.github}
                                     </div>
                                 )}
-                                {project.github_repository ? (
+                                {linkedRepo ? (
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between p-3 rounded-xl border bg-white/60" style={{ borderColor: C.border }}>
                                             <div>
                                                 <p className="text-xs font-black" style={{ color: C.navy }}>
                                                     Linked Repository
                                                 </p>
-                                                <a href={project.github_repository.html_url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold underline text-blue-600 hover:text-blue-800 break-all">
-                                                    {project.github_repository.full_name}
+                                                <a href={linkedRepo.html_url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold underline text-blue-600 hover:text-blue-800 break-all">
+                                                    {linkedRepo.full_name}
                                                 </a>
                                                 <p className="text-[10px] font-bold text-slate-400 mt-1">
-                                                    Default branch: <span className="font-mono font-bold text-[#8b5e3c]">{project.github_repository.default_branch}</span>
+                                                    Default branch: <span className="font-mono font-bold text-[#8b5e3c]">{linkedRepo.default_branch}</span>
                                                 </p>
                                             </div>
                                             <button
@@ -508,7 +543,7 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        {workspace.github_installations && workspace.github_installations.length > 0 ? (
+                                        {githubInstallations && githubInstallations.length > 0 ? (
                                             <div className="space-y-3">
                                                 <label className="text-[10px] font-black uppercase tracking-widest block" style={{ color: C.brown }}>
                                                     Select a GitHub Repository
