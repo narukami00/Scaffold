@@ -99,7 +99,6 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
     // Project Name & Git Path Form
     const { data, setData, patch, processing, errors } = useForm({
         name: project.name || "",
-        git_repo_path: project.git_repo_path || "",
     });
 
     // New Label state
@@ -274,42 +273,7 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                                 )}
                             </div>
 
-                            {/* Git Repo Path */}
-                            <div className="space-y-1.5">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.brown }}>
-                                        Local Git Repository Path
-                                    </label>
-                                </div>
-                                <div className="relative">
-                                    <FolderOpen
-                                        className="absolute top-3 left-3"
-                                        style={{ color: C.brown }}
-                                        size={14}
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. F:\__Projects\Web\Scaffold\scaffold"
-                                        value={data.git_repo_path}
-                                        onChange={(e) => setData("git_repo_path", e.target.value)}
-                                        className="w-full rounded-xl border py-2.5 pr-3 pl-9 text-xs font-bold outline-none transition-all focus:border-[#8b5e3c] font-mono"
-                                        style={{
-                                            background: "rgba(139,94,60,0.03)",
-                                            borderColor: C.border,
-                                            color: C.navy,
-                                        }}
-                                        disabled={processing}
-                                    />
-                                </div>
-                                <p className="text-[9px] leading-relaxed" style={{ color: C.muted }}>
-                                    Provide the absolute local folder path. The app will parse local git logs to generate the Git Feed timeline.
-                                </p>
-                                {errors.git_repo_path && (
-                                    <p className="text-[10px] font-black uppercase tracking-wider text-red-700">
-                                        {errors.git_repo_path}
-                                    </p>
-                                )}
-                            </div>
+
 
                             {/* Footer Actions */}
                             <div className="mt-6 flex justify-end gap-2 border-t pt-4" style={{ borderColor: C.border }}>

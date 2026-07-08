@@ -26,11 +26,7 @@ Route::post("/register", [AuthController::class, "register"]);
 Route::get("/login", [AuthController::class, "showLogin"])->name("login");
 Route::post("/login", [AuthController::class, "login"]);
 
-// Public webhook for Git Hook trigger
-Route::post("/public/workspaces/{workspace:slug}/projects/{project:slug}/git/webhook", [
-    \App\Http\Controllers\GitController::class,
-    "webhook",
-])->name("workspaces.projects.git.webhook");
+
 
 // Public webhook for GitHub App events
 Route::post("/webhooks/github", [
@@ -183,10 +179,7 @@ Route::middleware("auth")->group(function () {
                 "index",
             ])->name("projects.activity");
             
-            Route::post("/projects/{project}/git/sync", [
-                \App\Http\Controllers\GitController::class,
-                "sync",
-            ])->name("workspaces.projects.git.sync");
+
 
             // GitHub Integration
             Route::get("/github/repositories", [

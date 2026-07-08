@@ -1,8 +1,9 @@
 import { useState } from "react";
 import WorkspaceLayout from "@/layouts/WorkspaceLayout";
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link } from "@inertiajs/react";
 import ProjectHeader from "@/components/project/ProjectHeader";
-import { GitBranch, GitCommit, RefreshCw, AlertTriangle, Terminal, Copy, Check, HelpCircle } from "lucide-react";
+import SettingsModal from "@/components/project/SettingsModal";
+import { GitBranch, GitCommit, AlertTriangle } from "lucide-react";
 
 // ── Palette tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -17,49 +18,19 @@ const C = {
 };
 
 export default function Feed({ workspace, project, commits = [], error = null, githubLinked = false }) {
-    const [isSyncing, setIsSyncing] = useState(false);
-    const [copied, setCopied] = useState(false);
-    const [showingHelpModal, setShowingHelpModal] = useState(false);
-    const [helpPage, setHelpPage] = useState(1);
-
-    const handleSync = () => {
-        setIsSyncing(true);
-        router.post(
-            `/workspaces/${workspace.slug}/projects/${project.slug}/git/sync`,
-            {},
-            {
-                onFinish: () => {
-                    setIsSyncing(false);
-                },
-            }
-        );
-    };
-
-    const webhookUrl = `${window.location.origin}/public/workspaces/${workspace.slug}/projects/${project.slug}/git/webhook`;
-
-    const hookScript = `#!/bin/sh
-# Local post-commit hook for Scaffold task integration
-# Save this file as '.git/hooks/post-commit' (and run 'chmod +x' on macOS/Linux)
-
-COMMIT_HASH=$(git rev-parse HEAD)
-COMMIT_MSG=$(git log -1 --pretty=%B)
-AUTHOR_NAME=$(git log -1 --pretty=%an)
-
-curl -X POST "${webhookUrl}" \\
-  -H "Content-Type: application/json" \\
-  -d "{\\"hash\\":\\"$COMMIT_HASH\\",\\"message\\":\\"$COMMIT_MSG\\",\\"author_name\\":\\"$AUTHOR_NAME\\"}"
-`;
-
-    const copyToClipboard = () => {
-        navigator.clipboard.writeText(hookScript);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     return (
         <div className="space-y-6 max-w-6xl mx-auto">
             <Head title={`${project.name} - Git Feed`} />
             <ProjectHeader workspace={workspace} project={project} activeTab="activity" />
+
+            <SettingsModal
+                workspace={workspace}
+                project={project}
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+            />
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 {/* Timeline Feed */}
@@ -72,20 +43,6 @@ curl -X POST "${webhookUrl}" \\
                                 Commit History
                             </h2>
                         </div>
-
-                        {project.git_repo_path && (
-                            <button
-                                onClick={handleSync}
-                                disabled={isSyncing}
-                                className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
-                                style={{ borderColor: C.border, color: C.muted, background: "rgba(139,94,60,0.03)" }}
-                                onMouseEnter={e => { if (!isSyncing) { e.currentTarget.style.borderColor = C.brown; e.currentTarget.style.color = C.brown; } }}
-                                onMouseLeave={e => { if (!isSyncing) { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; } }}
-                            >
-                                <RefreshCw className={`h-3 w-3 ${isSyncing ? "animate-spin" : ""}`} />
-                                Sync Commits
-                            </button>
-                        )}
                     </div>
 
                     {error && (
@@ -93,46 +50,39 @@ curl -X POST "${webhookUrl}" \\
                             style={{ borderColor: "rgba(192,57,43,0.25)", background: "rgba(192,57,43,0.03)", color: "#c0392b" }}>
                             <AlertTriangle size={18} className="shrink-0 mt-0.5" />
                             <div className="text-xs space-y-1">
-                                <p className="font-bold">Git Integration Error</p>
+                                <p className="font-bold">GitHub Sync Error</p>
                                 <p className="opacity-90 leading-normal">{error}</p>
                             </div>
                         </div>
                     )}
 
-                    {!project.git_repo_path && !githubLinked ? (
-                        <div className="flex h-72 flex-col items-center justify-center space-y-4 text-center">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-3xl border text-muted"
+                    {!githubLinked ? (
+                        <div className="flex h-72 flex-col items-center justify-center space-y-4 text-center animate-fadeIn">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-3xl border text-muted animate-pulse-slow"
                                 style={{ background: "rgba(139,94,60,0.08)", borderColor: C.border, color: C.muted }}>
-                                <GitCommit size={24} />
+                                <GitBranch size={24} />
                             </div>
                             <div className="space-y-1">
                                 <h3 className="font-display font-black text-lg" style={{ color: C.navy }}>
-                                    Link Git Repository
+                                    Connect GitHub Repository
                                 </h3>
-                                <p className="text-xs max-w-sm leading-normal font-semibold" style={{ color: C.muted }}>
-                                    Connect this project to a local Git folder. Scaffold will scan commit logs to build your timeline.
+                                <p className="text-xs max-w-sm leading-normal font-semibold animate-pulse-slow" style={{ color: C.muted }}>
+                                    Link this project to a remote GitHub repository to sync commits, branches, and pull requests in real time.
                                 </p>
                             </div>
-                            <p className="text-[10px] italic" style={{ color: C.muted }}>
-                                Click the gear settings icon in the project header to configure.
-                            </p>
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setHelpPage(1);
-                                    setShowingHelpModal(true);
-                                }}
-                                className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all mt-1"
-                                style={{ borderColor: C.border, color: C.brown, background: "rgba(139,94,60,0.03)" }}
-                                onMouseEnter={e => { e.currentTarget.style.borderColor = C.brown; e.currentTarget.style.background = "rgba(139,94,60,0.06)"; }}
-                                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = "rgba(139,94,60,0.03)"; }}
+                                onClick={() => setIsSettingsOpen(true)}
+                                className="flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all mt-1 bg-[#8b5e3c] text-[#f3e4c9] shadow-sm font-sans cursor-pointer active:scale-95 duration-200"
+                                style={{ borderColor: C.border }}
+                                onMouseEnter={e => { e.currentTarget.style.background = "#a06b43"; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = "#8b5e3c"; }}
                             >
-                                <HelpCircle size={12} />
-                                View Setup Guide
+                                Configure GitHub Sync
                             </button>
                         </div>
                     ) : (
-                        <div className="space-y-6">
+                        <div className="space-y-6 animate-fadeIn">
                             {commits.length === 0 ? (
                                 <div className="py-12 text-center text-xs font-semibold uppercase tracking-wider" style={{ color: C.muted }}>
                                     No commits recorded in this repository.
@@ -175,230 +125,55 @@ curl -X POST "${webhookUrl}" \\
                     )}
                 </div>
 
-                {/* GitHub Sync Status Card */}
-                {githubLinked && (
-                    <div className="rounded-2xl border p-6 self-start space-y-4 shadow-sm"
-                        style={{ background: C.card, borderColor: C.border }}>
-                        <div className="flex items-center gap-2 border-b pb-3" style={{ borderColor: C.border }}>
-                            <GitBranch style={{ color: C.brown }} size={16} />
-                            <h3 className="text-xs font-black uppercase tracking-widest" style={{ color: C.navy }}>
-                                GitHub Connected
-                            </h3>
-                        </div>
-                        <p className="text-xs leading-relaxed font-semibold" style={{ color: C.muted }}>
-                            This project is connected to the remote GitHub repository:
-                        </p>
-                        <div className="p-3 rounded-xl border bg-white/40 font-mono text-[10px] break-all" style={{ borderColor: C.border, color: C.navy }}>
-                            {project.github_repository?.full_name}
-                        </div>
-                        <div className="rounded-xl border p-3 text-[10px] space-y-1.5"
-                            style={{ borderColor: C.border, background: "rgba(45,106,79,0.03)" }}>
-                            <p className="font-black uppercase tracking-wider text-[9px] text-[#2d6a4f]">
-                                Webhook Sync Active
+                {/* Right Panel: GitHub connection detail / benefits */}
+                <div className="space-y-6">
+                    {githubLinked ? (
+                        <div className="rounded-2xl border p-6 self-start space-y-4 shadow-sm animate-fadeIn"
+                            style={{ background: C.card, borderColor: C.border }}>
+                            <div className="flex items-center gap-2 border-b pb-3" style={{ borderColor: C.border }}>
+                                <GitBranch style={{ color: C.brown }} size={16} />
+                                <h3 className="text-xs font-black uppercase tracking-widest" style={{ color: C.navy }}>
+                                    GitHub Connected
+                                </h3>
+                            </div>
+                            <p className="text-xs leading-relaxed font-semibold" style={{ color: C.muted }}>
+                                This project is connected to the remote GitHub repository:
                             </p>
-                            <p className="leading-normal font-semibold" style={{ color: C.muted }}>
-                                Commits, branches, and PRs sync automatically in real-time. Commits containing keywords (e.g. <code>fixes #14</code>) will auto-close tasks.
+                            <div className="p-3 rounded-xl border bg-white/40 font-mono text-[10px] break-all" style={{ borderColor: C.border, color: C.navy }}>
+                                {project.github_repository?.full_name}
+                            </div>
+                            <div className="rounded-xl border p-3 text-[10px] space-y-1.5"
+                                style={{ borderColor: C.border, background: "rgba(45,106,79,0.03)" }}>
+                                <p className="font-black uppercase tracking-wider text-[9px] text-[#2d6a4f]">
+                                    Webhook Sync Active
+                                </p>
+                                <p className="leading-normal font-semibold" style={{ color: C.muted }}>
+                                    Commits, branches, and PRs sync automatically in real-time. Commits containing keywords (e.g. <code>fixes #14</code>) will auto-close tasks.
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="rounded-2xl border p-6 self-start space-y-4 shadow-sm animate-fadeIn"
+                            style={{ background: C.card, borderColor: C.border }}>
+                            <div className="flex items-center gap-2 border-b pb-3" style={{ borderColor: C.border }}>
+                                <GitBranch style={{ color: C.brown }} size={16} />
+                                <h3 className="text-xs font-black uppercase tracking-widest" style={{ color: C.navy }}>
+                                    GitHub Integration
+                                </h3>
+                            </div>
+                            <p className="text-xs leading-relaxed font-semibold" style={{ color: C.muted }}>
+                                Connecting your project to GitHub enables:
                             </p>
+                            <ul className="list-disc pl-4 text-xs font-semibold space-y-1.5" style={{ color: C.muted }}>
+                                <li>Automatic task-to-PR linking</li>
+                                <li>Real-time sync of branches and pull requests</li>
+                                <li>Commit timeline feed inside the project</li>
+                                <li>Keyword-based auto-closing of tasks (e.g. <code>fixes #12</code>)</li>
+                            </ul>
                         </div>
-                    </div>
-                )}
-
-                {/* Git Hook Info Card */}
-                <div className="rounded-2xl border p-6 self-start space-y-4 shadow-sm"
-                    style={{ background: C.card, borderColor: C.border }}>
-                    <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: C.border }}>
-                        <div className="flex items-center gap-2">
-                            <Terminal style={{ color: C.brown }} size={16} />
-                            <h3 className="text-xs font-black uppercase tracking-widest" style={{ color: C.navy }}>
-                                Git Automation Hook
-                            </h3>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setHelpPage(1);
-                                setShowingHelpModal(true);
-                            }}
-                            className="p-1.5 rounded-lg border transition-all"
-                            style={{ borderColor: C.border, color: C.muted, background: "rgba(139,94,60,0.03)" }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = C.brown; e.currentTarget.style.color = C.brown; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}
-                            title="Open Git Setup Guide"
-                        >
-                            <HelpCircle size={14} />
-                        </button>
-                    </div>
-
-                    <p className="text-xs leading-relaxed font-semibold" style={{ color: C.muted }}>
-                        Expose real-time commit pushes locally! Scaffold can receive commit notifications when you run <code className="font-mono text-[10px]" style={{ color: C.brown }}>git commit</code> and automatically transition referenced tasks to Done.
-                    </p>
-
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: C.muted }}>
-                                post-commit hook script
-                            </span>
-                            <button
-                                onClick={copyToClipboard}
-                                className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest transition-colors"
-                                style={{ color: C.brown }}
-                                onMouseEnter={e => e.currentTarget.style.color = "#a06b43"}
-                                onMouseLeave={e => e.currentTarget.style.color = C.brown}
-                            >
-                                {copied ? <Check size={10} /> : <Copy size={10} />}
-                                {copied ? "Copied" : "Copy"}
-                            </button>
-                        </div>
-                        <pre className="overflow-x-auto rounded-xl border p-3 text-[9px] font-mono leading-normal custom-scrollbar select-all"
-                            style={{ background: "rgba(10,41,71,0.03)", borderColor: C.border, color: C.navy }}>
-                            {hookScript}
-                        </pre>
-                    </div>
-
-                    <div className="rounded-xl border p-3 text-[10px] space-y-1.5"
-                        style={{ borderColor: C.border, background: "rgba(139,94,60,0.03)" }}>
-                        <p className="font-black uppercase tracking-wider text-[9px]" style={{ color: C.navy }}>
-                            Keywords to resolve tasks:
-                        </p>
-                        <p className="leading-normal font-semibold" style={{ color: C.muted }}>
-                            Include <code className="font-bold" style={{ color: C.brown }}>fix #14</code>, <code className="font-bold" style={{ color: C.brown }}>closes #14</code>, or <code className="font-bold" style={{ color: C.brown }}>resolve #14</code> in your commit message.
-                        </p>
-                    </div>
+                    )}
                 </div>
             </div>
-
-            {/* Git Integration Multi-Page Help Guide Modal */}
-            {showingHelpModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="border p-6 rounded-3xl w-full max-w-lg space-y-6 shadow-2xl relative"
-                        style={{ background: C.card, borderColor: C.border }}>
-                        <button
-                            type="button"
-                            onClick={() => setShowingHelpModal(false)}
-                            className="absolute top-4 right-4 hover:text-[#8b5e3c] rounded-lg p-1 transition-colors cursor-pointer text-lg font-bold"
-                            style={{ color: C.muted }}
-                        >
-                            &times;
-                        </button>
-
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-2" style={{ color: C.brown }}>
-                                <HelpCircle size={18} strokeWidth={2.5} />
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Git Integration Guide</span>
-                            </div>
-                            <h3 className="font-display font-black text-xl uppercase tracking-tight" style={{ color: C.navy }}>
-                                {helpPage === 1 && "1. How Git Integration Works"}
-                                {helpPage === 2 && "2. Linking a Local Repository"}
-                                {helpPage === 3 && "3. Setting up Real-time Webhooks"}
-                                {helpPage === 4 && "4. Automation & Commit Messages"}
-                            </h3>
-                        </div>
-
-                        {/* Page Contents */}
-                        <div className="text-xs leading-relaxed space-y-4 min-h-[180px] py-2 border-t border-b font-medium"
-                            style={{ borderColor: C.border, color: C.muted }}>
-                            {helpPage === 1 && (
-                                <div className="space-y-3">
-                                    <p>
-                                        Scaffold provides <strong>two types</strong> of Git integration to keep your development workflow fully in sync with your task board:
-                                    </p>
-                                    <ul className="list-disc pl-4 space-y-1.5">
-                                        <li><strong>Local Repo Scanning:</strong> Scans your local commit history directly from the repository folder path to build a commit log timeline inside this Activity tab.</li>
-                                        <li><strong>Real-time Hooks:</strong> Listens for incoming git commit events via a webhook, automatically transitions referenced tasks (e.g. <code>#12</code>) to <strong>Done</strong>, and posts commit comments.</li>
-                                    </ul>
-                                </div>
-                            )}
-
-                            {helpPage === 2 && (
-                                <div className="space-y-3">
-                                    <p>
-                                        To link your local repository and display commit history:
-                                    </p>
-                                    <ol className="list-decimal pl-4 space-y-2">
-                                        <li>Click the <strong>Settings (Gear)</strong> icon in the project header page.</li>
-                                        <li>Find the <strong>Git Repository Path</strong> field.</li>
-                                        <li>Enter the absolute folder path where your <code>.git</code> folder is located on your local disk.
-                                            <div className="p-2 rounded-xl mt-1 font-mono text-[10px] break-all" style={{ background: "rgba(139,94,60,0.06)", color: C.navy }}>
-                                                Windows: F:\\__Projects\\Web\\my-project<br />
-                                                macOS/Linux: /Users/username/projects/my-project
-                                            </div>
-                                        </li>
-                                        <li>Click <strong>Save Changes</strong>, then press the <strong>Sync Commits</strong> button on this page.</li>
-                                    </ol>
-                                </div>
-                            )}
-
-                            {helpPage === 3 && (
-                                <div className="space-y-3">
-                                    <p>
-                                        To trigger automatic task updates instantly when you run <code>git commit</code>:
-                                    </p>
-                                    <ol className="list-decimal pl-4 space-y-2">
-                                        <li>Copy the <strong>post-commit hook script</strong> provided on the right-hand panel of this page.</li>
-                                        <li>Navigate to your project's local directory and enter the hidden <code>.git/hooks/</code> directory.</li>
-                                        <li>Create a file named <code>post-commit</code> (no extension) and paste the script inside it.</li>
-                                        <li>If you are on macOS or Linux, make the file executable by running this terminal command:
-                                            <div className="p-2 rounded-xl mt-1 font-mono text-[10px]" style={{ background: "rgba(139,94,60,0.06)", color: C.navy }}>
-                                                chmod +x .git/hooks/post-commit
-                                            </div>
-                                        </li>
-                                    </ol>
-                                </div>
-                            )}
-
-                            {helpPage === 4 && (
-                                <div className="space-y-3">
-                                    <p>
-                                        Scaffold scans your commit messages for references to tasks:
-                                    </p>
-                                    <ul className="list-disc pl-4 space-y-2">
-                                        <li><strong>Reference task:</strong> Use <code>#ID</code> (e.g. <code>#12</code>) in your commit message. Scaffold will link the commit in the activity timeline and log a comment on the task.</li>
-                                        <li><strong>Close task:</strong> Prepend action words like <code>closes #12</code>, <code>fix #12</code>, <code>resolve #12</code>, or <code>done #12</code>. This will automatically transition the task to <strong>Done</strong>!</li>
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Navigation controls */}
-                        <div className="flex items-center justify-between text-xs pt-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.muted }}>
-                                Page {helpPage} of 4
-                            </span>
-                            <div className="flex items-center gap-2">
-                                {helpPage > 1 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setHelpPage(prev => prev - 1)}
-                                        className="px-3 py-1.5 border rounded-xl transition-all"
-                                        style={{ borderColor: C.border, color: C.muted, background: "rgba(139,94,60,0.03)" }}
-                                    >
-                                        Back
-                                    </button>
-                                )}
-                                {helpPage < 4 ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => setHelpPage(prev => prev + 1)}
-                                        className="px-3 py-1.5 rounded-xl font-bold transition-all text-white"
-                                        style={{ background: C.brown }}
-                                    >
-                                        Next
-                                    </button>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowingHelpModal(false)}
-                                        className="px-4 py-1.5 rounded-xl font-black uppercase tracking-wider transition-all"
-                                        style={{ background: "#2d6a4f", color: "#f3e4c9" }}
-                                    >
-                                        Got It
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

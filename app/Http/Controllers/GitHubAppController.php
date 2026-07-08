@@ -30,7 +30,7 @@ class GitHubAppController extends Controller
         $setupAction = $request->query('setup_action');
         $workspaceSlug = $request->query('state'); // workspace slug passed as state parameter
 
-        if (!$installationId || $setupAction !== 'install' || !$workspaceSlug) {
+        if (!$installationId || !$workspaceSlug) {
             return redirect()->route('workspaces.index')->withErrors(['github' => 'Invalid callback parameters from GitHub.']);
         }
 
