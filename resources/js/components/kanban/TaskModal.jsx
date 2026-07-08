@@ -71,7 +71,7 @@ export default function TaskModal({
     // ── State & Refs ──────────────────────────────────────────────────────────
     const [data, setDataState] = useState(null);
     const [presence, setPresence] = useState([]);
-    const [editorId, setEditorId] = useState(null);
+    const [editorId, setEditorId] = useState(auth?.user?.id || null);
     const [isSidePanelOpen, setIsSidePanelOpen] = useState(true);
     const [requestingAccess, setRequestingAccess] = useState(false);
     const [controlRequests, setControlRequests] = useState([]);
@@ -112,6 +112,7 @@ export default function TaskModal({
                 attachments: task.attachments || [],
                 comments: task.comments || [],
             });
+            setEditorId(auth?.user?.id || null);
             // Reset transient UI state for fresh open
             setControlRequests([]);
             setRequestingAccess(false);
@@ -120,7 +121,7 @@ export default function TaskModal({
             setNewComment("");
             setDescriptionMode("write");
         }
-    }, [task?.id, isOpen]);
+    }, [task?.id, isOpen, auth?.user?.id]);
 
     useEffect(() => {
         if (!task || !isOpen) return;
