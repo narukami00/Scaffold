@@ -40,7 +40,7 @@ COPY . .
 RUN composer install --no-interaction --optimize-autoloader --no-dev
 
 # Set permissions
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chown -R www-data:www-data /var/www/html
 
 # Expose port
 EXPOSE 80
