@@ -16,7 +16,7 @@ const C = {
     faint:   "rgba(10,41,71,0.25)",
 };
 
-export default function Feed({ workspace, project, commits = [], error = null }) {
+export default function Feed({ workspace, project, commits = [], error = null, githubLinked = false }) {
     const [isSyncing, setIsSyncing] = useState(false);
     const [copied, setCopied] = useState(false);
     const [showingHelpModal, setShowingHelpModal] = useState(false);
@@ -99,7 +99,7 @@ curl -X POST "${webhookUrl}" \\
                         </div>
                     )}
 
-                    {!project.git_repo_path ? (
+                    {!project.git_repo_path && !githubLinked ? (
                         <div className="flex h-72 flex-col items-center justify-center space-y-4 text-center">
                             <div className="flex h-14 w-14 items-center justify-center rounded-3xl border text-muted"
                                 style={{ background: "rgba(139,94,60,0.08)", borderColor: C.border, color: C.muted }}>
@@ -174,6 +174,34 @@ curl -X POST "${webhookUrl}" \\
                         </div>
                     )}
                 </div>
+
+                {/* GitHub Sync Status Card */}
+                {githubLinked && (
+                    <div className="rounded-2xl border p-6 self-start space-y-4 shadow-sm"
+                        style={{ background: C.card, borderColor: C.border }}>
+                        <div className="flex items-center gap-2 border-b pb-3" style={{ borderColor: C.border }}>
+                            <GitBranch style={{ color: C.brown }} size={16} />
+                            <h3 className="text-xs font-black uppercase tracking-widest" style={{ color: C.navy }}>
+                                GitHub Connected
+                            </h3>
+                        </div>
+                        <p className="text-xs leading-relaxed font-semibold" style={{ color: C.muted }}>
+                            This project is connected to the remote GitHub repository:
+                        </p>
+                        <div className="p-3 rounded-xl border bg-white/40 font-mono text-[10px] break-all" style={{ borderColor: C.border, color: C.navy }}>
+                            {project.github_repository?.full_name}
+                        </div>
+                        <div className="rounded-xl border p-3 text-[10px] space-y-1.5"
+                            style={{ borderColor: C.border, background: "rgba(45,106,79,0.03)" }}>
+                            <p className="font-black uppercase tracking-wider text-[9px] text-[#2d6a4f]">
+                                Webhook Sync Active
+                            </p>
+                            <p className="leading-normal font-semibold" style={{ color: C.muted }}>
+                                Commits, branches, and PRs sync automatically in real-time. Commits containing keywords (e.g. <code>fixes #14</code>) will auto-close tasks.
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Git Hook Info Card */}
                 <div className="rounded-2xl border p-6 self-start space-y-4 shadow-sm"
