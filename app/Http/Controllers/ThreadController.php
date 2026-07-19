@@ -24,7 +24,9 @@ class ThreadController extends Controller
             ->with(['user'])
             ->withCount('replies')
             ->withExists(['replies as is_solved' => function ($q) {
-                $q->where('is_definitive', true);
+                // Postgres boolean columns reject bound 1/0 (common with PDO
+                // emulate prepares on Neon). Compare with SQL true instead.
+                $q->whereRaw('is_definitive = true');
             }]);
 
         // Tag Filtering (tags is cast to array in Thread model)
@@ -36,11 +38,11 @@ class ThreadController extends Controller
         if ($request->filled('status')) {
             if ($request->status === 'solved') {
                 $query->whereHas('replies', function ($q) {
-                    $q->where('is_definitive', true);
+                    $q->whereRaw('is_definitive = true');
                 });
             } elseif ($request->status === 'unsolved') {
                 $query->whereDoesntHave('replies', function ($q) {
-                    $q->where('is_definitive', true);
+                    $q->whereRaw('is_definitive = true');
                 });
             }
         }
