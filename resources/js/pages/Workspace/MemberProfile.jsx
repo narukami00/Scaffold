@@ -561,9 +561,12 @@ export default function MemberProfile({
     );
 }
 
-MemberProfile.layout = (page) => {
-    if (page.props.profileMode === "global") {
-        return <AppLayout children={page} />;
+function MemberProfileLayout({ children }) {
+    const { profileMode } = usePage().props;
+    if (profileMode === "global") {
+        return <AppLayout>{children}</AppLayout>;
     }
-    return <WorkspaceLayout children={page} />;
-};
+    return <WorkspaceLayout>{children}</WorkspaceLayout>;
+}
+
+MemberProfile.layout = (page) => <MemberProfileLayout>{page}</MemberProfileLayout>;

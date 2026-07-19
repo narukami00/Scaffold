@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p docs/codebase)",
+      "Bash(python3 \"C:\\\\Users\\\\Rafsan Riasat\\\\.puku-cli\\\\skills\\\\acquire-codebase-knowledge\\\\scripts\\\\scan.py\" --output docs/codebase/.codebase-scan.txt)",
+      "Bash(where python:*)",
+      "Bash(where py:*)",
+      "Bash(where python3:*)",
+      "Bash(py \"C:\\\\Users\\\\Rafsan Riasat\\\\.puku-cli\\\\skills\\\\acquire-codebase-knowledge\\\\scripts\\\\scan.py\" --output docs/codebase/.codebase-scan.txt)"
+    ]
+  }
+}
