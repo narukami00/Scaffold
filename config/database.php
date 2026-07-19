@@ -91,7 +91,13 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
-            'sslmode' => 'prefer',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Neon/PgBouncer reuses server-side prepared statements across
+            // schema changes and then fails with: "cached plan must not
+            // change result type". Emulated prepares avoid that class of errors.
+            'options' => extension_loaded('pdo_pgsql') ? [
+                PDO::ATTR_EMULATE_PREPARES => true,
+            ] : [],
         ],
 
         'sqlsrv' => [
