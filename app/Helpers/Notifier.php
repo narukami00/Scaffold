@@ -27,9 +27,10 @@ class Notifier
             "data" => $data,
         ]);
 
-        // Broadcast the real-time event
+        // Broadcast the real-time event (include recipient's own socket —
+        // queue jobs have no auth user; web requests need the recipient to see it).
         try {
-            broadcast(new NotificationReceived($notification))->toOthers();
+            broadcast(new NotificationReceived($notification));
         } catch (\Exception $e) {
             \Log::error("Broadcasting failed: " . $e->getMessage());
         }

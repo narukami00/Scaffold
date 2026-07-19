@@ -3,12 +3,14 @@
 namespace App\Jobs;
 
 use App\Events\GitHubActivityUpdated;
+use App\Helpers\Notifier;
 use App\Models\GitHubRepository;
 use App\Models\GitHubIssue;
 use App\Models\GitHubPullRequest;
 use App\Models\GitHubBranch;
 use App\Models\Task;
 use App\Models\TaskComment;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -144,6 +146,7 @@ class ProcessGitHubWebhookJob implements ShouldQueue
                         broadcast(new \App\Events\CommentPosted($comment))->toOthers();
                         if ($statusUpdated) {
                             broadcast(new \App\Events\TaskUpdated($task))->toOthers();
+                            $this->notifyTaskClosedByCommit($task, $hash, $authorName, $message);
                         }
                     }
                 }
@@ -234,6 +237,7 @@ class ProcessGitHubWebhookJob implements ShouldQueue
 
                 broadcast(new \App\Events\CommentPosted($comment))->toOthers();
                 broadcast(new \App\Events\TaskUpdated($task))->toOthers();
+                $this->notifyPullRequestMerged($task, $prNumber, $title, $htmlUrl);
             }
         }
     }
@@ -320,5 +324,52 @@ class ProcessGitHubWebhookJob implements ShouldQueue
     protected function calculateContentHash(Task $task): string
     {
         return md5($task->title . $task->description . ($task->status === 'done' ? 'closed' : 'open'));
+    }
+
+    protected function notifyTaskClosedByCommit(Task $task, string $hash, string $authorName, string $message): void
+    {
+        $recipient = $this->taskRecipient($task);
+        if (!$recipient) {
+            return;
+        }
+
+        $shortHash = substr($hash, 0, 7);
+        Notifier::send($recipient, 'github.task.closed_by_commit', [
+            'actor_name' => $authorName,
+            'message' => "closed \"{$task->title}\" via commit {$shortHash}.",
+            'link' => null,
+            'task_id' => $task->id,
+            'commit_sha' => $hash,
+            'commit_message' => $message,
+        ], $task);
+    }
+
+    protected function notifyPullRequestMerged(Task $task, int $prNumber, string $title, string $htmlUrl): void
+    {
+        $recipient = $this->taskRecipient($task);
+        if (!$recipient) {
+            return;
+        }
+
+        Notifier::send($recipient, 'github.pr.merged', [
+            'actor_name' => 'GitHub',
+            'message' => "PR #{$prNumber} merged — \"{$task->title}\" marked done.",
+            'link' => $htmlUrl ?: null,
+            'task_id' => $task->id,
+            'pr_number' => $prNumber,
+            'pr_title' => $title,
+        ], $task);
+    }
+
+    protected function taskRecipient(Task $task): ?User
+    {
+        $task->loadMissing(['assignee', 'project.workspace.owner']);
+
+        if ($task->assignee instanceof User) {
+            return $task->assignee;
+        }
+
+        $owner = $task->project->workspace->owner ?? null;
+        return $owner instanceof User ? $owner : null;
     }
 }

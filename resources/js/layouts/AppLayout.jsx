@@ -51,10 +51,7 @@ export default function AppLayout({ children, onNewProject }) {
         ws.name.toLowerCase().includes(workspaceSearchQuery.toLowerCase())
     );
 
-    const activeWorkspaceSlug = workspace?.slug || workspaces[0]?.slug;
-    const profileHref = activeWorkspaceSlug 
-        ? `/workspaces/${activeWorkspaceSlug}/members/${user.id}` 
-        : "#";
+    const profileHref = "/profile";
 
     useEffect(() => {
         const handleResize = () => setWindowHeight(window.innerHeight);

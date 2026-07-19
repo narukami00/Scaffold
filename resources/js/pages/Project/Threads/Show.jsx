@@ -420,7 +420,17 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
                             uploadUrl={`/workspaces/${workspace.slug}/media/upload`}
                             placeholder="Add a comment to this thread..."
                         />
-                        <div className="flex justify-end mt-3">
+                        <div className="flex justify-end gap-2 mt-3">
+                            {data.body.trim() && (
+                                <button
+                                    type="button"
+                                    onClick={() => reset()}
+                                    disabled={processing}
+                                    className="px-3 py-2.5 text-xs font-semibold text-slate-500 hover:text-[#8b5e3c] transition-colors disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                            )}
                             <button
                                 type="submit"
                                 disabled={processing || !data.body.trim()}

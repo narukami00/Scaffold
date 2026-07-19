@@ -2,8 +2,9 @@
 
 namespace App\Observers;
 
-use App\Models\Task;
+use App\Jobs\SyncOutboundGitHubIssueJob;
 use App\Models\GitHubIssue;
+use App\Models\Task;
 
 class TaskObserver
 {
@@ -24,16 +25,21 @@ class TaskObserver
                     'needs_sync' => true,
                     'needs_sync_since' => $githubIssue->needs_sync_since ?? now(),
                 ]);
+
+                // Immediate outbound sync for pending updates / first create
+                SyncOutboundGitHubIssueJob::dispatch($githubIssue->id);
             }
         } else {
             // On creation, check request parameter
             if (request()->input('sync_to_github')) {
-                GitHubIssue::create([
+                $githubIssue = GitHubIssue::create([
                     'task_id' => $task->id,
                     'github_repo_id' => $repo->id,
                     'needs_sync' => true,
                     'needs_sync_since' => now(),
                 ]);
+
+                SyncOutboundGitHubIssueJob::dispatch($githubIssue->id);
             }
         }
     }

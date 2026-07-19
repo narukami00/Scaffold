@@ -2,10 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\SyncOutboundGitHubIssueJob;
 use App\Models\GitHubIssue;
-use App\Services\GitHubIssueService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Log;
 
 class SyncOutboundGitHubIssues extends Command
 {
@@ -26,57 +25,24 @@ class SyncOutboundGitHubIssues extends Command
     /**
      * Execute the console command.
      */
-    public function handle(GitHubIssueService $issueService)
+    public function handle()
     {
         $this->info("Starting outbound GitHub Issues synchronization...");
 
-        $pending = GitHubIssue::where('needs_sync', true)->with('task.project.githubRepository')->get();
+        $pending = GitHubIssue::where('needs_sync', true)->pluck('id');
 
         if ($pending->isEmpty()) {
             $this->info("No pending issue updates found.");
             return 0;
         }
 
-        $this->info("Found {$pending->count()} pending updates to process.");
-        $successCount = 0;
-        $failedCount = 0;
+        $this->info("Queueing {$pending->count()} pending updates.");
 
-        foreach ($pending as $githubIssue) {
-            $task = $githubIssue->task;
-
-            if (!$task) {
-                $this->warn("Orphaned GitHubIssue mapping found (Task ID: {$githubIssue->task_id}). Deleting mapping.");
-                $githubIssue->delete();
-                continue;
-            }
-
-            $repo = $task->project->githubRepository ?? null;
-            if (!$repo) {
-                $this->warn("Project for task #{$task->id} does not have a linked GitHub repository. Skipping.");
-                $githubIssue->update(['needs_sync' => false]);
-                continue;
-            }
-
-            if (is_null($githubIssue->github_issue_id)) {
-                $this->info("Creating GitHub issue for task #{$task->id}...");
-                $result = $issueService->createIssue($task);
-                if ($result) {
-                    $successCount++;
-                } else {
-                    $failedCount++;
-                }
-            } else {
-                $this->info("Updating GitHub issue #{$githubIssue->issue_number} for task #{$task->id}...");
-                $result = $issueService->updateIssue($task);
-                if ($result) {
-                    $successCount++;
-                } else {
-                    $failedCount++;
-                }
-            }
+        foreach ($pending as $id) {
+            SyncOutboundGitHubIssueJob::dispatch($id);
         }
 
-        $this->info("Outbound sync completed. Success: {$successCount}, Failed: {$failedCount}");
+        $this->info("Outbound sync jobs dispatched.");
         return 0;
     }
 }

@@ -112,6 +112,16 @@ Route::middleware("auth")->group(function () {
     Route::post("/notifications/{id}/read", [NotificationController::class, "markRead"])->name("notifications.mark-read");
     Route::post("/notifications/read-all", [NotificationController::class, "markAllRead"])->name("notifications.mark-all-read");
 
+    // Global profile (aggregated across workspaces)
+    Route::get("/profile", [
+        \App\Http\Controllers\ProfileController::class,
+        "me",
+    ])->name("profile.show");
+    Route::post("/profile", [
+        \App\Http\Controllers\ProfileController::class,
+        "updateMe",
+    ])->name("profile.update");
+
     // Projects (Nested under Workspaces)
     Route::prefix("/workspaces/{workspace:slug}")->group(function () {
         Route::get("/members/{user}", [

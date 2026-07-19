@@ -357,9 +357,22 @@ export default function ColumnView({
                                                                                     </div>
                                                                                 )}
                                                                                 {task.github_issue && (
-                                                                                    <div className="flex items-center gap-1 text-[9px] font-bold text-slate-600 bg-white/60 px-1.5 py-0.5 rounded-lg border border-slate-200" title={`Linked to GitHub Issue #${task.github_issue.issue_number}`}>
+                                                                                    <div
+                                                                                        className={`flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-lg border ${
+                                                                                            task.github_issue.issue_number
+                                                                                                ? "text-slate-600 bg-white/60 border-slate-200"
+                                                                                                : "text-amber-800 bg-amber-50 border-amber-200 animate-pulse"
+                                                                                        }`}
+                                                                                        title={
+                                                                                            task.github_issue.issue_number
+                                                                                                ? `Linked to GitHub Issue #${task.github_issue.issue_number}`
+                                                                                                : "GitHub issue queued for creation"
+                                                                                        }
+                                                                                    >
                                                                                         <GitBranch size={10} className="text-slate-800" />
-                                                                                        #{task.github_issue.issue_number}
+                                                                                        {task.github_issue.issue_number
+                                                                                            ? `#${task.github_issue.issue_number}`
+                                                                                            : "Syncing…"}
                                                                                     </div>
                                                                                 )}
                                                                             </div>

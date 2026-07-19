@@ -1,5 +1,5 @@
 import AppLayout from "@/layouts/AppLayout";
-import { Head, useForm, usePage } from "@inertiajs/react";
+import { Head, Link, useForm, usePage } from "@inertiajs/react";
 import { useState } from "react";
 import { Plus, X, Users, FolderKanban, Crown, User } from "lucide-react";
 
@@ -78,7 +78,7 @@ function WorkspaceCard({ workspace }) {
     const [hovered, setHovered] = useState(false);
 
     return (
-        <a
+        <Link
             href={`/workspaces/${workspace.slug}`}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
@@ -149,7 +149,7 @@ function WorkspaceCard({ workspace }) {
                     </div>
                 </div>
             </div>
-        </a>
+        </Link>
     );
 }
 

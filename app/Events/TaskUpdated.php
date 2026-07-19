@@ -55,6 +55,8 @@ class TaskUpdated implements ShouldBroadcastNow
             "assignee",
             "labels",
             "dependencies",
+            "githubIssue",
+            "githubPullRequests",
         ]);
 
         return [

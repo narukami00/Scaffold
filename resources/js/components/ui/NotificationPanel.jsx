@@ -1,13 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Bell, Check, X, Mail, Loader2 } from "lucide-react";
+import { Bell, Check, X, Mail, Loader2, GitBranch, AlertTriangle, GitMerge } from "lucide-react";
 import { router, usePage } from "@inertiajs/react";
 import axios from "axios";
+
+function notificationIcon(type) {
+    if (type === "workspace.invitation") return Mail;
+    if (type === "github.pr.merged") return GitMerge;
+    if (type === "github.sync.failed") return AlertTriangle;
+    if (type?.startsWith("github.")) return GitBranch;
+    return Bell;
+}
 
 export default function NotificationPanel() {
     const { auth } = usePage().props;
     const [isOpen, setIsOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
-    const [loading, setLoading] = useState(false);
     const [processingId, setProcessingId] = useState(null);
     const panelRef = useRef(null);
 
@@ -58,10 +65,22 @@ export default function NotificationPanel() {
         }
     };
 
+    const openLink = (notification) => {
+        const link = notification?.data?.link;
+        if (!link) return;
+        markAsRead(notification.id);
+        if (/^https?:\/\//i.test(link)) {
+            window.open(link, "_blank", "noopener,noreferrer");
+        } else {
+            router.visit(link);
+            setIsOpen(false);
+        }
+    };
+
     const handleAccept = async (notification) => {
         setProcessingId(notification.id);
         const token = notification.data.token;
-        
+
         router.post(`/invitations/accept/${token}`, {}, {
             onSuccess: () => {
                 setNotifications((prev) =>
@@ -124,7 +143,7 @@ export default function NotificationPanel() {
                             Notifications
                         </h3>
                         {unreadCount > 0 && (
-                            <button 
+                            <button
                                 onClick={async () => {
                                     await axios.post("/notifications/read-all");
                                     setNotifications(prev => prev.map(n => ({...n, read_at: new Date().toISOString()})));
@@ -144,57 +163,75 @@ export default function NotificationPanel() {
                             </div>
                         ) : (
                             <div className="space-y-1">
-                                {notifications.map((n) => (
-                                    <div
-                                        key={n.id}
-                                        className={`group relative rounded-xl p-3 transition-colors ${!n.read_at ? "bg-[#f3e4c9]/10" : "hover:bg-white/5"}`}
-                                    >
-                                        <div className="flex gap-3">
-                                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-[#f3e4c9]"
-                                                style={{ background: "#0a2947", borderColor: "rgba(243,228,201,0.15)" }}>
-                                                {n.type === 'workspace.invitation' ? <Mail size={14} /> : <Bell size={14} />}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-xs leading-relaxed text-[#f3e4c9] font-medium">
-                                                    <span className="font-black">{n.data.actor_name}</span>{" "}
-                                                    {n.data.message}
-                                                </p>
-                                                <p className="mt-1 text-[10px]" style={{ color: "rgba(211,212,192,0.55)" }}>
-                                                    {new Date(n.created_at).toLocaleDateString()}
-                                                </p>
+                                {notifications.map((n) => {
+                                    const Icon = notificationIcon(n.type);
+                                    const hasLink = Boolean(n.data?.link) && n.type !== "workspace.invitation";
 
-                                                {n.type === 'workspace.invitation' && !n.read_at && (
-                                                    <div className="mt-3 flex gap-2">
-                                                        <button
-                                                            disabled={processingId === n.id}
-                                                            onClick={() => handleAccept(n)}
-                                                            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[10px] font-black uppercase text-black transition-all hover:scale-95 disabled:opacity-50"
-                                                            style={{ background: "#8b5e3c", color: "#f3e4c9" }}
-                                                        >
-                                                            {processingId === n.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                                                            Accept
-                                                        </button>
-                                                        <button
-                                                            disabled={processingId === n.id}
-                                                            onClick={() => handleDecline(n)}
-                                                            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-1.5 text-[10px] font-black uppercase transition-all hover:scale-95 disabled:opacity-50"
-                                                            style={{ borderColor: "rgba(243,228,201,0.15)", background: "rgba(243,228,201,0.06)", color: "#f3e4c9" }}
-                                                        >
-                                                            {processingId === n.id ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
-                                                            Decline
-                                                        </button>
-                                                    </div>
-                                                )}
+                                    return (
+                                        <div
+                                            key={n.id}
+                                            className={`group relative rounded-xl p-3 transition-colors ${!n.read_at ? "bg-[#f3e4c9]/10" : "hover:bg-white/5"} ${hasLink ? "cursor-pointer" : ""}`}
+                                            onClick={() => {
+                                                if (hasLink) openLink(n);
+                                            }}
+                                            role={hasLink ? "link" : undefined}
+                                        >
+                                            <div className="flex gap-3">
+                                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-[#f3e4c9]"
+                                                    style={{ background: "#0a2947", borderColor: "rgba(243,228,201,0.15)" }}>
+                                                    <Icon size={14} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs leading-relaxed text-[#f3e4c9] font-medium">
+                                                        {n.data?.actor_name && (
+                                                            <span className="font-black">{n.data.actor_name}{" "}</span>
+                                                        )}
+                                                        {n.data?.message}
+                                                    </p>
+                                                    <p className="mt-1 text-[10px]" style={{ color: "rgba(211,212,192,0.55)" }}>
+                                                        {new Date(n.created_at).toLocaleDateString()}
+                                                        {hasLink && (
+                                                            <span className="ml-2 text-[#8b5e3c]">Open ↗</span>
+                                                        )}
+                                                    </p>
+
+                                                    {n.type === "workspace.invitation" && !n.read_at && (
+                                                        <div className="mt-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
+                                                            <button
+                                                                disabled={processingId === n.id}
+                                                                onClick={() => handleAccept(n)}
+                                                                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[10px] font-black uppercase text-black transition-all hover:scale-95 disabled:opacity-50"
+                                                                style={{ background: "#8b5e3c", color: "#f3e4c9" }}
+                                                            >
+                                                                {processingId === n.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                                                                Accept
+                                                            </button>
+                                                            <button
+                                                                disabled={processingId === n.id}
+                                                                onClick={() => handleDecline(n)}
+                                                                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-1.5 text-[10px] font-black uppercase transition-all hover:scale-95 disabled:opacity-50"
+                                                                style={{ borderColor: "rgba(243,228,201,0.15)", background: "rgba(243,228,201,0.06)", color: "#f3e4c9" }}
+                                                            >
+                                                                {processingId === n.id ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
+                                                                Decline
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
+                                            {!n.read_at && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        markAsRead(n.id);
+                                                    }}
+                                                    className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[#8b5e3c] opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    aria-label="Mark as read"
+                                                />
+                                            )}
                                         </div>
-                                        {!n.read_at && (
-                                            <button 
-                                                onClick={() => markAsRead(n.id)}
-                                                className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[#8b5e3c] opacity-0 group-hover:opacity-100 transition-opacity"
-                                            />
-                                        )}
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

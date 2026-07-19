@@ -1,9 +1,11 @@
 import React, { useState, useRef } from "react";
+import AppLayout from "@/layouts/AppLayout";
 import WorkspaceLayout from "@/layouts/WorkspaceLayout";
-import { Head, usePage, useForm, Link } from "@inertiajs/react";
-import { 
+import { Head, usePage, useForm, Link, router } from "@inertiajs/react";
+import StyledSelect from "@/components/ui/StyledSelect";
+import {
     CheckCircle2, Clock, Eye, EyeOff, AlertTriangle, BookOpen,
-    MessageSquare, Mail, Calendar, User as UserIcon, Camera, Edit2, Check, ChevronLeft, ShieldQuestion
+    MessageSquare, Mail, Calendar, User as UserIcon, Camera, Edit2, Check, ChevronLeft, ShieldQuestion, FolderKanban
 } from "lucide-react";
 
 const C = {
@@ -42,13 +44,24 @@ const PRIORITY_BADGES = {
     urgent: { label: "Urgent", color: "bg-red-500/20 text-red-700" },
 };
 
-export default function MemberProfile({ profileUser, stats, assignedTasks }) {
+export default function MemberProfile({
+    profileUser,
+    stats,
+    assignedTasks = [],
+    profileMode = "workspace",
+    profileWorkspaces = [],
+    filters = {},
+}) {
     const { auth, workspace } = usePage().props;
+    const isGlobal = profileMode === "global";
     const isOwnProfile = Number(auth.user.id) === Number(profileUser.id);
     const [isEditing, setIsEditing] = useState(false);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [showSecurityValues, setShowSecurityValues] = useState(false);
     const fileInputRef = useRef(null);
+
+    const activeWorkspaceSlug = filters.workspace || workspace?.slug || "";
+    const canEditWorkspaceColor = Boolean(activeWorkspaceSlug);
 
     const { data, setData, post, processing, errors, clearErrors } = useForm({
         name: profileUser.name,
@@ -60,6 +73,7 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
         recovery_question: "",
         recovery_answer: "",
         current_password: "",
+        workspace_slug: activeWorkspaceSlug,
     });
 
     const initials = profileUser.name
@@ -77,7 +91,10 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
     const handleFormSubmit = (e) => {
         e.preventDefault();
         clearErrors();
-        post(`/workspaces/${workspace.slug}/members/profile`, {
+        const url = isGlobal
+            ? "/profile"
+            : `/workspaces/${workspace.slug}/members/profile`;
+        post(url, {
             forceFormData: true,
             onSuccess: () => {
                 setIsEditing(false);
@@ -86,11 +103,23 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
         });
     };
 
+    const chooseWorkspaceFilter = (slug) => {
+        if (!isGlobal) return;
+        router.get(
+            "/profile",
+            slug ? { workspace: slug } : {},
+            { preserveState: false, preserveScroll: true },
+        );
+    };
+
+    const taskWorkspaceSlug = (task) =>
+        task.project?.workspace?.slug || workspace?.slug || activeWorkspaceSlug;
+
     return (
         <div className="mx-auto max-w-5xl space-y-6 animate-in fade-in duration-300">
             <Head title={`${profileUser.name} - Profile`} />
 
-            <div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <button
                     onClick={() => window.history.back()}
                     className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-widest transition-colors duration-150"
@@ -101,19 +130,37 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                     <ChevronLeft className="w-3.5 h-3.5" />
                     Back
                 </button>
+
+                {isGlobal && profileWorkspaces.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: C.muted }}>
+                            Workspace
+                        </span>
+                        <StyledSelect
+                            value={activeWorkspaceSlug}
+                            onChange={(e) => chooseWorkspaceFilter(e.target.value)}
+                            icon={FolderKanban}
+                            placeholder="All workspaces"
+                            options={profileWorkspaces.map((ws) => ({
+                                value: ws.slug,
+                                label: ws.name,
+                            }))}
+                            selectClassName="normal-case tracking-normal font-bold"
+                            aria-label="Filter profile by workspace"
+                        />
+                    </div>
+                )}
             </div>
 
-            {/* ── PROFILE HEADER CARD ────────────────────────────────────────── */}
             <div className="rounded-[32px] border p-6 md:p-8 shadow-sm transition-all"
                 style={{ background: C.card, borderColor: C.border }}>
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8">
-                    {/* Avatar Upload Container */}
                     <div className="relative group shrink-0">
                         <div className="w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden flex items-center justify-center text-3xl font-black border-4 shadow-md transition-all select-none"
-                            style={{ 
-                                backgroundColor: data.color, 
-                                color: "#f3e4c9", 
-                                borderColor: C.navy 
+                            style={{
+                                backgroundColor: data.color,
+                                color: "#f3e4c9",
+                                borderColor: C.navy
                             }}>
                             {previewUrl || data.avatar_url ? (
                                 <img src={previewUrl || data.avatar_url} alt="Avatar preview" className="w-full h-full object-cover" />
@@ -143,7 +190,6 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                         />
                     </div>
 
-                    {/* Metadata Detail / Edit Form */}
                     <div className="flex-1 text-center md:text-left min-w-0 space-y-4">
                         {!isEditing ? (
                             <div className="space-y-2">
@@ -175,8 +221,22 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         <Calendar size={12} className="opacity-60" />
-                                        <span>Joined Workspace: {profileUser.joined_at || "N/A"}</span>
+                                        <span>
+                                            {isGlobal && !activeWorkspaceSlug
+                                                ? `Member since ${profileUser.joined_at || "N/A"}`
+                                                : `Joined Workspace: ${profileUser.joined_at || "N/A"}`}
+                                        </span>
                                     </div>
+                                    {isGlobal && (
+                                        <div className="flex items-center gap-1.5">
+                                            <FolderKanban size={12} className="opacity-60" />
+                                            <span>
+                                                {activeWorkspaceSlug
+                                                    ? profileWorkspaces.find((w) => w.slug === activeWorkspaceSlug)?.name || "Workspace"
+                                                    : `${profileWorkspaces.length} workspace${profileWorkspaces.length === 1 ? "" : "s"}`}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ) : (
@@ -306,27 +366,32 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                                     )}
                                 </div>
 
-                                {/* Cozy Color selection */}
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest block" style={{ color: C.muted }}>
-                                        Signature Workspace Color
-                                    </label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {COZY_COLORS.map((color) => (
-                                            <button
-                                                key={color.value}
-                                                type="button"
-                                                onClick={() => setData("color", color.value)}
-                                                className="w-6 h-6 rounded-full border border-black/10 flex items-center justify-center transition-all hover:scale-110 active:scale-95 text-white"
-                                                style={{ backgroundColor: color.value }}
-                                                title={color.name}
-                                            >
-                                                {data.color === color.value && <Check size={12} />}
-                                            </button>
-                                        ))}
+                                {canEditWorkspaceColor ? (
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest block" style={{ color: C.muted }}>
+                                            Signature Workspace Color
+                                        </label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {COZY_COLORS.map((color) => (
+                                                <button
+                                                    key={color.value}
+                                                    type="button"
+                                                    onClick={() => setData("color", color.value)}
+                                                    className="w-6 h-6 rounded-full border border-black/10 flex items-center justify-center transition-all hover:scale-110 active:scale-95 text-white"
+                                                    style={{ backgroundColor: color.value }}
+                                                    title={color.name}
+                                                >
+                                                    {data.color === color.value && <Check size={12} />}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {errors.color && <p className="text-red-600 text-[10px] font-bold mt-1">{errors.color}</p>}
                                     </div>
-                                    {errors.color && <p className="text-red-600 text-[10px] font-bold mt-1">{errors.color}</p>}
-                                </div>
+                                ) : isGlobal ? (
+                                    <p className="text-[11px]" style={{ color: C.muted }}>
+                                        Filter to a workspace above to edit that workspace’s signature color.
+                                    </p>
+                                ) : null}
 
                                 <div className="flex gap-2 justify-end pt-2">
                                     <button
@@ -344,6 +409,7 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                                                 recovery_question: "",
                                                 recovery_answer: "",
                                                 current_password: "",
+                                                workspace_slug: activeWorkspaceSlug,
                                             });
                                         }}
                                         className="px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all hover:bg-black/5"
@@ -366,7 +432,6 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                 </div>
             </div>
 
-            {/* ── METRICS DASHBOARD ───────────────────────────────────────────── */}
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="rounded-2xl border p-4 shadow-sm text-center" style={{ background: C.card, borderColor: C.border }}>
                     <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-green-500/10 text-green-600">
@@ -405,7 +470,6 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                 </div>
             </div>
 
-            {/* ── ASSIGNED TASKS LIST ────────────────────────────────────────── */}
             <div className="rounded-[32px] border p-6 md:p-8 shadow-sm"
                 style={{ background: C.card, borderColor: C.border }}>
                 <div className="flex items-center gap-2 mb-6">
@@ -418,7 +482,9 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                 {assignedTasks.length === 0 ? (
                     <div className="py-12 text-center rounded-2xl border border-dashed" style={{ borderColor: C.border }}>
                         <p className="text-xs font-semibold" style={{ color: C.muted }}>
-                            No active tasks assigned in this workspace.
+                            {isGlobal && !activeWorkspaceSlug
+                                ? "No active tasks assigned across your workspaces."
+                                : "No active tasks assigned in this workspace."}
                         </p>
                     </div>
                 ) : (
@@ -428,6 +494,9 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                                 <tr className="border-b" style={{ borderColor: C.border }}>
                                     <th className="py-3 px-4 font-black uppercase tracking-wider" style={{ color: C.muted }}>Task</th>
                                     <th className="py-3 px-4 font-black uppercase tracking-wider" style={{ color: C.muted }}>Project</th>
+                                    {isGlobal && !activeWorkspaceSlug && (
+                                        <th className="py-3 px-4 font-black uppercase tracking-wider" style={{ color: C.muted }}>Workspace</th>
+                                    )}
                                     <th className="py-3 px-4 font-black uppercase tracking-wider" style={{ color: C.muted }}>Status</th>
                                     <th className="py-3 px-4 font-black uppercase tracking-wider" style={{ color: C.muted }}>Priority</th>
                                     <th className="py-3 px-4 font-black uppercase tracking-wider" style={{ color: C.muted }}>Due Date</th>
@@ -437,12 +506,13 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                                 {assignedTasks.map((task) => {
                                     const sBadge = STATUS_BADGES[task.status] || { label: task.status, color: "#999", bg: "rgba(0,0,0,0.05)", border: "rgba(0,0,0,0.1)" };
                                     const pBadge = PRIORITY_BADGES[task.priority] || { label: task.priority, color: "bg-slate-100 text-slate-700" };
+                                    const wsSlug = taskWorkspaceSlug(task);
 
                                     return (
                                         <tr key={task.id} className="hover:bg-black/[0.01] transition-colors">
                                             <td className="py-3.5 px-4 font-bold min-w-[200px]" style={{ color: C.navy }}>
-                                                <Link 
-                                                    href={`/workspaces/${workspace.slug}/projects/${task.project.slug}/board?taskId=${task.id}`}
+                                                <Link
+                                                    href={wsSlug ? `/workspaces/${wsSlug}/projects/${task.project.slug}/board?taskId=${task.id}` : "#"}
                                                     className="hover:underline flex flex-col gap-1 items-start"
                                                 >
                                                     <span>{task.title}</span>
@@ -456,10 +526,15 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                                                 </Link>
                                             </td>
                                             <td className="py-3.5 px-4 font-semibold text-slate-600">
-                                                <Link href={`/workspaces/${workspace.slug}/projects/${task.project.slug}/board`} className="hover:underline">
+                                                <Link href={wsSlug ? `/workspaces/${wsSlug}/projects/${task.project.slug}/board` : "#"} className="hover:underline">
                                                     {task.project.name}
                                                 </Link>
                                             </td>
+                                            {isGlobal && !activeWorkspaceSlug && (
+                                                <td className="py-3.5 px-4 font-semibold text-slate-600">
+                                                    {task.project?.workspace?.name || "—"}
+                                                </td>
+                                            )}
                                             <td className="py-3.5 px-4">
                                                 <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase border tracking-wider"
                                                     style={{ color: sBadge.color, backgroundColor: sBadge.bg, borderColor: sBadge.border }}>
@@ -486,4 +561,9 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
     );
 }
 
-MemberProfile.layout = (page) => <WorkspaceLayout children={page} />;
+MemberProfile.layout = (page) => {
+    if (page.props.profileMode === "global") {
+        return <AppLayout children={page} />;
+    }
+    return <WorkspaceLayout children={page} />;
+};

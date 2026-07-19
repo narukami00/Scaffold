@@ -49,6 +49,8 @@ class TaskController extends Controller
                         "assignee",
                         "labels",
                         "dependencies",
+                        "githubIssue",
+                        "githubPullRequests",
                     ]),
                 ],
                 201,
@@ -144,7 +146,7 @@ class TaskController extends Controller
             }
         }
 
-        $task->load(["assignee", "labels", "dependencies"]);
+        $task->load(["assignee", "labels", "dependencies", "githubIssue", "githubPullRequests"]);
         broadcast(new TaskUpdated($task))->toOthers();
 
         if ($request->expectsJson() || $request->ajax()) {

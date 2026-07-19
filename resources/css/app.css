@@ -190,6 +190,7 @@
 /* Custom Scrollbars */
 html,
 body {
+    background-color: #0a2947; /* Avoid white flash on remount/reload */
     scrollbar-width: none; /* Hide main scrollbar on Firefox */
     -ms-overflow-style: none; /* Hide main scrollbar on IE/Edge */
 }

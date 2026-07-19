@@ -18,6 +18,7 @@ import {
     GitBranch,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
+import StyledSelect from "@/components/ui/StyledSelect";
 import axios from "axios";
 import { format } from "date-fns";
 import { Link } from "@inertiajs/react";
@@ -116,6 +117,9 @@ export default function TaskModal({
                 dependencies: task.dependencies?.map((d) => d.id) || [],
                 attachments: task.attachments || [],
                 comments: task.comments || [],
+                github_issue: task.github_issue || null,
+                github_pull_requests: task.github_pull_requests || [],
+                sync_to_github: false,
             });
             setEditorId(auth?.user?.id || null);
             // Reset transient UI state for fresh open
@@ -146,6 +150,27 @@ export default function TaskModal({
             return { ...prev, dependencies: nextDepIds };
         });
     }, [task?.dependencies, task?.id, isOpen]);
+
+    // Keep GitHub sync state in sync with board props / broadcasts without wiping edits
+    useEffect(() => {
+        if (!task || !isOpen) return;
+        setDataState((prev) => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                github_issue: task.github_issue || null,
+                github_pull_requests: task.github_pull_requests || [],
+            };
+        });
+    }, [
+        task?.github_issue,
+        task?.github_issue?.issue_number,
+        task?.github_issue?.needs_sync,
+        task?.github_issue?.html_url,
+        task?.github_pull_requests,
+        task?.id,
+        isOpen,
+    ]);
 
     // ── Presence Channel & Baton Relay ────────────────────────────────────────
     useEffect(() => {
@@ -234,16 +259,22 @@ export default function TaskModal({
             })
             // Real-time task updates (for other users)
             .listen(".TaskUpdated", (e) => {
-                // If I'm NOT the editor, I should update my local state with the latest broadcast
-                // If I AM the editor, I don't want to overwrite my unsaved changes (the broadcast came from me anyway)
-                if (
-                    Number(e.task.id) === Number(task.id) &&
-                    editorId !== auth.user.id
-                ) {
-                    setDataState((prev) => {
-                        if (!prev) return prev;
+                if (Number(e.task.id) !== Number(task.id)) return;
+
+                // Always merge GitHub sync fields (outbound job may complete while editing)
+                setDataState((prev) => {
+                    if (!prev) return prev;
+                    const next = {
+                        ...prev,
+                        github_issue: e.task.github_issue ?? prev.github_issue,
+                        github_pull_requests:
+                            e.task.github_pull_requests ?? prev.github_pull_requests,
+                    };
+
+                    // If I'm NOT the editor, also apply field updates
+                    if (editorId !== auth.user.id) {
                         return {
-                            ...prev,
+                            ...next,
                             title: e.task.title,
                             description: e.task.description || "",
                             status: e.task.status || "backlog",
@@ -256,8 +287,9 @@ export default function TaskModal({
                                 e.task.dependencies?.map((d) => d.id) || [],
                             attachments: e.task.attachments || [],
                         };
-                    });
-                }
+                    }
+                    return next;
+                });
             })
             // Real-time comments posted by others (CommentPosted now also broadcasts on task channel)
             .listen(".CommentPosted", (e) => {
@@ -320,11 +352,12 @@ export default function TaskModal({
 
     const isEditor = editorId === auth.user.id;
 
-    // ── AutoSave (1 s debounce, editor only) ──────────────────────────────────
-    const autoSave = (newData) => {
+    // ── AutoSave (1 s debounce, editor only; immediate for sync_to_github) ────
+    const autoSave = (newData, { immediate = false } = {}) => {
         if (!isEditor) return;
         if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-        autoSaveTimerRef.current = setTimeout(() => {
+
+        const runSave = () => {
             // Labels are stored as full objects locally; server expects IDs
             const payload = {
                 ...newData,
@@ -344,8 +377,28 @@ export default function TaskModal({
                     payload,
                     { headers: { "X-Requested-With": "XMLHttpRequest" } },
                 )
-                .then(({ data: res }) => onTaskUpdated(task.id, res.task));
-        }, 1000);
+                .then(({ data: res }) => {
+                    onTaskUpdated(task.id, res.task);
+                    setDataState((prev) => {
+                        if (!prev) return prev;
+                        return {
+                            ...prev,
+                            github_issue: res.task.github_issue ?? prev.github_issue,
+                            github_pull_requests:
+                                res.task.github_pull_requests ??
+                                prev.github_pull_requests,
+                            // One-shot flag; durable state lives on github_issue
+                            sync_to_github: false,
+                        };
+                    });
+                });
+        };
+
+        if (immediate) {
+            runSave();
+        } else {
+            autoSaveTimerRef.current = setTimeout(runSave, 1000);
+        }
     };
 
     const handleFieldChange = (field, value) => {
@@ -361,7 +414,7 @@ export default function TaskModal({
                 active: true,
             });
         }
-        autoSave(newData);
+        autoSave(newData, { immediate: field === "sync_to_github" && value === true });
     };
 
     const updateDescription = (nextDescription) => {
@@ -888,8 +941,7 @@ export default function TaskModal({
 
                                 {/* Status, Priority, Due Date, Assignee */}
                                 <div className="flex flex-wrap items-center gap-3">
-                                    <select
-                                        className={`rounded-2xl border px-4 py-2 text-xs font-black uppercase tracking-widest outline-none transition-colors ${!isEditor ? "pointer-events-none opacity-60" : ""}`} style={{ borderColor: "rgba(139,94,60,0.18)", background: "#f3e4c9", color: "#0a2947" }}
+                                    <StyledSelect
                                         value={data.status}
                                         onChange={(e) =>
                                             handleFieldChange(
@@ -898,20 +950,11 @@ export default function TaskModal({
                                             )
                                         }
                                         disabled={!isEditor}
-                                    >
-                                        {statuses.map((s) => (
-                                            <option
-                                                key={s.value}
-                                                value={s.value}
-                                                style={{ background: "#f3e4c9", color: "#0a2947" }}
-                                            >
-                                                {s.label}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        options={statuses}
+                                        aria-label="Task status"
+                                    />
 
-                                    <select
-                                        className={`rounded-2xl border px-4 py-2 text-xs font-black uppercase tracking-widest outline-none transition-colors ${!isEditor ? "pointer-events-none opacity-60" : ""}`} style={{ borderColor: "rgba(139,94,60,0.18)", background: "#f3e4c9", color: "#0a2947" }}
+                                    <StyledSelect
                                         value={data.priority}
                                         onChange={(e) =>
                                             handleFieldChange(
@@ -920,17 +963,9 @@ export default function TaskModal({
                                             )
                                         }
                                         disabled={!isEditor}
-                                    >
-                                        {priorities.map((p) => (
-                                            <option
-                                                key={p.value}
-                                                value={p.value}
-                                                style={{ background: "#f3e4c9", color: "#0a2947" }}
-                                            >
-                                                {p.label}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        options={priorities}
+                                        aria-label="Task priority"
+                                    />
 
                                     {/* Due date */}
                                     <div
@@ -955,32 +990,21 @@ export default function TaskModal({
                                     </div>
 
                                     {/* Assignee */}
-                                    <div
-                                        className={`flex items-center gap-2 rounded-2xl border px-4 py-2 ${!isEditor ? "opacity-60" : ""}`} style={{ borderColor: "rgba(139,94,60,0.18)", background: "#f3e4c9" }}
-                                    >
-                                        <User
-                                            size={13}
-                                            style={{ color: "rgba(10,41,71,0.45)" }}
-                                        />
-                                        <select
-                                            className={`bg-transparent text-xs font-bold outline-none ${!isEditor ? "pointer-events-none" : ""}`} style={{ color: "#0a2947" }}
-                                            value={data.assignee_id || ""}
-                                            onChange={(e) =>
-                                                handleFieldChange(
-                                                    "assignee_id",
-                                                    e.target.value || null,
-                                                )
-                                            }
-                                            disabled={!isEditor}
-                                        >
-                                            <option value="" style={{ background: "#f3e4c9", color: "#0a2947" }}>Unassigned</option>
-                                            {(members || []).map((m) => (
-                                                <option key={m.id} value={m.id} style={{ background: "#f3e4c9", color: "#0a2947" }}>
-                                                    {m.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                    <StyledSelect
+                                        value={data.assignee_id || ""}
+                                        onChange={(e) =>
+                                            handleFieldChange(
+                                                "assignee_id",
+                                                e.target.value || null,
+                                            )
+                                        }
+                                        disabled={!isEditor}
+                                        icon={User}
+                                        placeholder="Unassigned"
+                                        options={(members || []).map((m) => ({ value: m.id, label: m.name }))}
+                                        selectClassName="normal-case tracking-normal font-bold"
+                                        aria-label="Task assignee"
+                                    />
                                 </div>
                             </section>
 
@@ -997,16 +1021,31 @@ export default function TaskModal({
                                     {data.github_issue ? (
                                         <div className="space-y-3">
                                             <div className="flex flex-wrap items-center gap-3">
-                                                <div className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-black uppercase tracking-wider text-[#f3e4c9] bg-[#0a2947] shadow-sm">
-                                                    <GitBranch size={12} />
-                                                    <a href={data.github_issue.html_url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                                                        Issue #{data.github_issue.issue_number}
-                                                    </a>
-                                                </div>
-                                                
+                                                {data.github_issue.issue_number ? (
+                                                    <div className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-black uppercase tracking-wider text-[#f3e4c9] bg-[#0a2947] shadow-sm">
+                                                        <GitBranch size={12} />
+                                                        <a href={data.github_issue.html_url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                                            Issue #{data.github_issue.issue_number}
+                                                        </a>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-black uppercase tracking-wider bg-amber-50 text-amber-800 border-amber-200">
+                                                        <GitBranch size={12} />
+                                                        Queued for creation
+                                                    </div>
+                                                )}
+
                                                 {data.github_issue.needs_sync && (
                                                     <span className="text-[10px] font-bold text-amber-700 animate-pulse bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200">
-                                                        Sync Pending (Scheduler runs every 5m)
+                                                        {data.github_issue.issue_number
+                                                            ? "Changes queued — syncing shortly"
+                                                            : "Creating on GitHub…"}
+                                                    </span>
+                                                )}
+
+                                                {!data.github_issue.needs_sync && data.github_issue.issue_number && data.github_issue.synced_at && (
+                                                    <span className="text-[10px] font-semibold" style={{ color: "rgba(10,41,71,0.45)" }}>
+                                                        Synced
                                                     </span>
                                                 )}
                                             </div>
@@ -1050,7 +1089,7 @@ export default function TaskModal({
                                                         onChange={(e) => handleFieldChange("sync_to_github", e.target.checked)}
                                                         className="rounded border-[#8b5e3c] text-[#8b5e3c] focus:ring-[#8b5e3c]"
                                                     />
-                                                    Create & Link GitHub Issue on Save
+                                                    Create & Link GitHub Issue
                                                 </label>
                                             ) : (
                                                 <p className="text-xs font-bold text-slate-400 italic">
@@ -1699,20 +1738,24 @@ export default function TaskModal({
                                         </button>
                                         
                                         {isWikiDropdownOpen && (
-                                            <div className="absolute bottom-full left-0 mb-2 w-56 max-h-48 overflow-y-auto rounded-xl border bg-white p-2 shadow-xl z-50 custom-scrollbar animate-in slide-in-from-bottom-2 duration-150"
-                                                style={{ borderColor: "rgba(139,94,60,0.18)" }}>
-                                                <p className="text-[9px] font-black uppercase tracking-widest p-1 text-slate-400 border-b mb-1">Select Wiki Page</p>
+                                            <div className="absolute bottom-full left-0 mb-2 w-64 max-h-56 overflow-y-auto rounded-2xl border p-1.5 z-50 custom-scrollbar animate-in slide-in-from-bottom-2 fade-in duration-150"
+                                                style={{ background: "#faf3e3", borderColor: "rgba(139,94,60,0.25)", boxShadow: "0 12px 32px rgba(10,41,71,0.18)" }}>
+                                                <p className="flex items-center gap-1.5 px-2.5 pb-2 pt-1.5 text-[9px] font-black uppercase tracking-widest border-b mb-1.5" style={{ color: "#8b5e3c", borderColor: "rgba(139,94,60,0.15)" }}>
+                                                    <BookOpen size={11} />
+                                                    Select Wiki Page
+                                                </p>
                                                 {(project.wikis || []).length === 0 ? (
-                                                    <p className="text-[10px] italic p-2 text-slate-500">No wiki pages found.</p>
+                                                    <p className="px-2.5 py-3 text-[11px] italic" style={{ color: "rgba(10,41,71,0.5)" }}>No wiki pages found.</p>
                                                 ) : (
                                                     (project.wikis || []).map((w) => (
                                                         <button
                                                             key={w.id}
                                                             type="button"
                                                             onClick={() => handleInsertWikiLink(w)}
-                                                            className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-[#8b5e3c]/5 text-[#0a2947] font-semibold truncate block"
+                                                            className="group flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-[#0a2947] transition-colors hover:bg-[#8b5e3c]/10"
                                                         >
-                                                            {w.title}
+                                                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#8b5e3c]/30 transition-colors group-hover:bg-[#8b5e3c]" />
+                                                            <span className="truncate">{w.title}</span>
                                                         </button>
                                                     ))
                                                 )}

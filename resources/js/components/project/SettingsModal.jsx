@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useForm, router, usePage } from "@inertiajs/react";
 import axios from "axios";
 import { X, Settings, FolderOpen, Save, Tag, Plus, Trash2, Edit2, GitBranch, RefreshCw } from "lucide-react";
+import StyledSelect from "@/components/ui/StyledSelect";
 
 const C = {
     bg:      "#ede0c8",
@@ -566,24 +567,19 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                                                     Select a GitHub Repository
                                                 </label>
                                                 <div className="flex gap-2">
-                                                    <select
+                                                    <StyledSelect
                                                         value={selectedRepoId}
                                                         onChange={(e) => setSelectedRepoId(e.target.value)}
                                                         disabled={linking}
-                                                        className="flex-1 rounded-xl border px-3 py-2.5 text-xs font-bold outline-none transition-all focus:border-[#8b5e3c]"
-                                                        style={{
-                                                            background: "rgba(139,94,60,0.03)",
-                                                            borderColor: C.border,
-                                                            color: C.navy,
-                                                        }}
-                                                    >
-                                                        <option value="">-- Choose Repository --</option>
-                                                        {githubRepos.map(repo => (
-                                                            <option key={repo.github_repo_id} value={repo.github_repo_id}>
-                                                                {repo.full_name} {repo.private ? '(Private)' : ''}
-                                                            </option>
-                                                        ))}
-                                                    </select>
+                                                        className="flex-1"
+                                                        placeholder="Choose a repository…"
+                                                        options={githubRepos.map(repo => ({
+                                                            value: repo.github_repo_id,
+                                                            label: `${repo.full_name}${repo.private ? " (Private)" : ""}`,
+                                                        }))}
+                                                        selectClassName="normal-case tracking-normal font-bold py-2.5"
+                                                        aria-label="Select a GitHub repository"
+                                                    />
                                                     
                                                     <button
                                                         type="button"

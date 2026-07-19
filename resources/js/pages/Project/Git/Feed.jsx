@@ -3,6 +3,7 @@ import WorkspaceLayout from "@/layouts/WorkspaceLayout";
 import { Head, router } from "@inertiajs/react";
 import ProjectHeader from "@/components/project/ProjectHeader";
 import SettingsModal from "@/components/project/SettingsModal";
+import StyledSelect from "@/components/ui/StyledSelect";
 import {
     AlertCircle,
     AlertTriangle,
@@ -186,15 +187,17 @@ export default function Feed({
                                             <h2 className="font-display text-sm font-black uppercase tracking-widest" style={{ color: C.navy }}>Commit history</h2>
                                             <p className="mt-1 text-[10px] font-semibold" style={{ color: C.muted }}>Showing {filteredCommits.length} commits from {filters.branch || "default branch"}</p>
                                         </div>
-                                        <select
+                                        <StyledSelect
                                             value={filters.branch || ""}
                                             onChange={(event) => chooseBranch(event.target.value)}
-                                            className="rounded-xl border bg-transparent px-3 py-2 text-xs font-bold outline-none"
-                                            style={{ borderColor: C.border, color: C.navy }}
+                                            icon={GitBranch}
+                                            options={branches.map((branch) => ({
+                                                value: branch.name,
+                                                label: branch.is_default ? `${branch.name} (default)` : branch.name,
+                                            }))}
+                                            selectClassName="normal-case tracking-normal font-bold"
                                             aria-label="Filter commits by branch"
-                                        >
-                                            {branches.map((branch) => <option key={branch.name} value={branch.name}>{branch.name}{branch.is_default ? " (default)" : ""}</option>)}
-                                        </select>
+                                        />
                                     </div>
                                     <div className="relative">
                                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: C.muted }} />
