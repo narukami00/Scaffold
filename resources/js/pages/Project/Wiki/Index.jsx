@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import WorkspaceLayout from "@/layouts/WorkspaceLayout";
 import { Head, Link, router } from "@inertiajs/react";
 import ProjectHeader from "@/components/project/ProjectHeader";
@@ -46,6 +46,38 @@ export default function Index({ workspace, project, wikis = [], currentWiki = nu
     const [fileContent, setFileContent] = useState("");
     const [fileLoading, setFileLoading] = useState(false);
     const [fileError, setFileError] = useState(null);
+
+    useEffect(() => {
+        if (!project?.id || !window.Echo) return;
+
+        const channel = window.Echo.private(`project.${project.id}`);
+        const reloadWiki = () => {
+            router.reload({ only: ["wikis", "currentWiki"] });
+        };
+
+        channel
+            .listen(".WikiCreated", reloadWiki)
+            .listen(".WikiUpdated", (e) => {
+                if (currentWiki && e.wiki?.slug === currentWiki.slug) {
+                    router.reload({ only: ["wikis", "currentWiki"] });
+                } else {
+                    reloadWiki();
+                }
+            })
+            .listen(".WikiDeleted", (e) => {
+                if (currentWiki && e.slug === currentWiki.slug) {
+                    router.visit(
+                        `/workspaces/${workspace.slug}/projects/${project.slug}/wiki`,
+                    );
+                } else {
+                    reloadWiki();
+                }
+            });
+
+        return () => {
+            window.Echo.leave(`project.${project.id}`);
+        };
+    }, [project?.id, currentWiki?.slug, workspace?.slug, project?.slug]);
 
     const handleViewFile = (href, fileName) => {
         setViewingFileUrl(href);

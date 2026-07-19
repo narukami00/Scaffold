@@ -1,5 +1,6 @@
 import { Head, useForm, Link } from "@inertiajs/react";
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 // ── Scaffold geometric icon mark ─────────────────────────────────────────────
 function ScaffoldMark({ size = 36, className = "" }) {
@@ -119,8 +120,10 @@ function FloatingNodes() {
 }
 
 // ── Input component styled for the cream panel ───────────────────────────────
-function AuthInput({ label, error, id, ...props }) {
+function AuthInput({ label, error, id, type = "text", ...props }) {
     const [focused, setFocused] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const isPassword = type === "password";
     return (
         <div className="space-y-1.5">
             {label && (
@@ -132,22 +135,35 @@ function AuthInput({ label, error, id, ...props }) {
                     {label}
                 </label>
             )}
-            <input
-                id={id}
-                {...props}
-                onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
-                onBlur={(e) => { setFocused(false); props.onBlur?.(e); }}
-                className="w-full rounded-xl px-4 py-3 text-sm font-medium outline-none transition-all duration-200 placeholder:text-[#a89880]"
-                style={{
-                    background: "rgba(255,255,255,0.55)",
-                    border: `1.5px solid ${error ? "#c0392b" : focused ? "#8b5e3c" : "rgba(139,94,60,0.25)"}`,
-                    color: "#2a1a0a",
-                    boxShadow: focused
-                        ? "0 0 0 3px rgba(139, 94, 60, 0.12)"
-                        : "none",
-                    backdropFilter: "blur(4px)",
-                }}
-            />
+            <div className="relative">
+                <input
+                    id={id}
+                    {...props}
+                    type={isPassword && showPassword ? "text" : type}
+                    onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
+                    onBlur={(e) => { setFocused(false); props.onBlur?.(e); }}
+                    className={`w-full rounded-xl px-4 py-3 text-sm font-medium outline-none transition-all duration-200 placeholder:text-[#a89880] ${isPassword ? "pr-12" : ""}`}
+                    style={{
+                        background: "rgba(255,255,255,0.55)",
+                        border: `1.5px solid ${error ? "#c0392b" : focused ? "#8b5e3c" : "rgba(139,94,60,0.25)"}`,
+                        color: "#2a1a0a",
+                        boxShadow: focused ? "0 0 0 3px rgba(139, 94, 60, 0.12)" : "none",
+                        backdropFilter: "blur(4px)",
+                    }}
+                />
+                {isPassword && (
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword((visible) => !visible)}
+                        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl"
+                        style={{ color: "#8b7355" }}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-pressed={showPassword}
+                    >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                )}
+            </div>
             {error && (
                 <p className="text-xs font-medium mt-1" style={{ color: "#c0392b" }}>
                     {error}
@@ -300,38 +316,46 @@ export default function Login() {
                         />
 
                         {/* Remember me */}
-                        <div className="flex items-center gap-2.5">
-                            <div className="relative">
-                                <input
-                                    type="checkbox"
-                                    id="remember"
-                                    checked={data.remember}
-                                    onChange={(e) => setData("remember", e.target.checked)}
-                                    className="sr-only peer"
-                                />
-                                <div
-                                    onClick={() => setData("remember", !data.remember)}
-                                    className="w-4 h-4 rounded cursor-pointer flex items-center justify-center transition-all duration-150"
-                                    style={{
-                                        background: data.remember ? "#8b5e3c" : "rgba(255,255,255,0.6)",
-                                        border: `1.5px solid ${data.remember ? "#8b5e3c" : "rgba(139,94,60,0.3)"}`,
-                                    }}
-                                >
-                                    {data.remember && (
-                                        <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                                            <path d="M1 3.5L3.5 6L8 1" stroke="#f3e4c9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                        </svg>
-                                    )}
+                        <div className="flex items-center justify-between gap-2.5">
+                            <div className="flex items-center gap-2.5">
+                                <div className="relative">
+                                    <input
+                                        type="checkbox"
+                                        id="remember"
+                                        checked={data.remember}
+                                        onChange={(e) => setData("remember", e.target.checked)}
+                                        className="sr-only peer"
+                                    />
+                                    <div
+                                        onClick={() => setData("remember", !data.remember)}
+                                        className="w-4 h-4 rounded cursor-pointer flex items-center justify-center transition-all duration-150"
+                                        style={{
+                                            background: data.remember ? "#8b5e3c" : "rgba(255,255,255,0.6)",
+                                            border: `1.5px solid ${data.remember ? "#8b5e3c" : "rgba(139,94,60,0.3)"}`,
+                                        }}
+                                    >
+                                        {data.remember && (
+                                            <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                                                <path d="M1 3.5L3.5 6L8 1" stroke="#f3e4c9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        )}
+                                    </div>
                                 </div>
+                                <label
+                                    htmlFor="remember"
+                                    className="text-xs font-semibold cursor-pointer select-none uppercase tracking-widest"
+                                    style={{ color: "#8b7355" }}
+                                >
+                                    Remember me
+                                </label>
                             </div>
-                            <label
-                                htmlFor="remember"
-                                onClick={() => setData("remember", !data.remember)}
-                                className="text-xs font-semibold cursor-pointer select-none uppercase tracking-widest"
-                                style={{ color: "#8b7355" }}
+                            <Link
+                                href="/forgot-password"
+                                className="text-xs font-bold transition-colors"
+                                style={{ color: "#8b5e3c" }}
                             >
-                                Remember me
-                            </label>
+                                Forgot password?
+                            </Link>
                         </div>
 
                         {/* Submit */}

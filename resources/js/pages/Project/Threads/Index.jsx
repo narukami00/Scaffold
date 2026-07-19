@@ -178,28 +178,42 @@ export default function ThreadIndex({ workspace, project, threads, filters = {} 
             <div className="flex flex-wrap items-center gap-4 p-4 rounded-xl"
                 style={{ background: "rgba(139,94,60,0.06)", border: `1px solid ${C.border}` }}>
                 {/* Status filter buttons */}
-                <div className="flex rounded-xl p-1 border"
-                    style={{ background: "rgba(243,228,201,0.5)", borderColor: C.border }}>
-                    <button
-                        onClick={() => handleStatusFilter('solved')}
-                        className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
-                        style={{
-                            background: filters.status === 'solved' ? C.brown : 'transparent',
-                            color: filters.status === 'solved' ? '#f3e4c9' : C.muted
-                        }}
-                    >
-                        Solved Only
-                    </button>
-                    <button
-                        onClick={() => handleStatusFilter('unsolved')}
-                        className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
-                        style={{
-                            background: filters.status === 'unsolved' ? C.brown : 'transparent',
-                            color: filters.status === 'unsolved' ? '#f3e4c9' : C.muted
-                        }}
-                    >
-                        Unsolved Only
-                    </button>
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[9px] font-black uppercase tracking-widest mr-1" style={{ color: C.muted }}>
+                        Status:
+                    </span>
+                    {[
+                        { key: null, label: "All" },
+                        { key: "solved", label: "Solved" },
+                        { key: "unsolved", label: "Not solved" },
+                    ].map((option) => {
+                        const isActive = (filters.status || null) === option.key;
+                        return (
+                            <button
+                                key={option.label}
+                                type="button"
+                                onClick={() => {
+                                    if (option.key === null) {
+                                        const newParams = { ...filters };
+                                        delete newParams.status;
+                                        router.get(window.location.pathname, newParams, { preserveState: true });
+                                    } else {
+                                        handleStatusFilter(option.key);
+                                    }
+                                }}
+                                className="px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                style={{
+                                    background: isActive ? C.brown : C.card,
+                                    color: isActive ? "#f3e4c9" : C.navy,
+                                    borderColor: isActive ? C.brown : C.border,
+                                    boxShadow: isActive ? "0 2px 8px rgba(139,94,60,0.25)" : "none",
+                                }}
+                                aria-pressed={isActive}
+                            >
+                                {option.label}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {/* Tag filter badges */}

@@ -1,5 +1,6 @@
 import { Head, useForm, Link } from "@inertiajs/react";
 import { useState } from "react";
+import { Eye, EyeOff, ShieldQuestion } from "lucide-react";
 
 // ── Scaffold geometric icon mark ─────────────────────────────────────────────
 function ScaffoldMark({ size = 36, className = "" }) {
@@ -111,8 +112,10 @@ function FloatingNodes() {
 }
 
 // ── Input component styled for the cream panel ───────────────────────────────
-function AuthInput({ label, error, id, ...props }) {
+function AuthInput({ label, error, id, type = "text", ...props }) {
     const [focused, setFocused] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const isPassword = type === "password";
     return (
         <div className="space-y-1.5">
             {label && (
@@ -124,22 +127,35 @@ function AuthInput({ label, error, id, ...props }) {
                     {label}
                 </label>
             )}
-            <input
-                id={id}
-                {...props}
-                onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
-                onBlur={(e) => { setFocused(false); props.onBlur?.(e); }}
-                className="w-full rounded-xl px-4 py-3 text-sm font-medium outline-none transition-all duration-200 placeholder:text-[#a89880]"
-                style={{
-                    background: "rgba(255,255,255,0.55)",
-                    border: `1.5px solid ${error ? "#c0392b" : focused ? "#8b5e3c" : "rgba(139,94,60,0.25)"}`,
-                    color: "#2a1a0a",
-                    boxShadow: focused
-                        ? "0 0 0 3px rgba(139, 94, 60, 0.12)"
-                        : "none",
-                    backdropFilter: "blur(4px)",
-                }}
-            />
+            <div className="relative">
+                <input
+                    id={id}
+                    {...props}
+                    type={isPassword && showPassword ? "text" : type}
+                    onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
+                    onBlur={(e) => { setFocused(false); props.onBlur?.(e); }}
+                    className={`w-full rounded-xl px-4 py-3 text-sm font-medium outline-none transition-all duration-200 placeholder:text-[#a89880] ${isPassword ? "pr-12" : ""}`}
+                    style={{
+                        background: "rgba(255,255,255,0.55)",
+                        border: `1.5px solid ${error ? "#c0392b" : focused ? "#8b5e3c" : "rgba(139,94,60,0.25)"}`,
+                        color: "#2a1a0a",
+                        boxShadow: focused ? "0 0 0 3px rgba(139, 94, 60, 0.12)" : "none",
+                        backdropFilter: "blur(4px)",
+                    }}
+                />
+                {isPassword && (
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword((visible) => !visible)}
+                        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl"
+                        style={{ color: "#8b7355" }}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-pressed={showPassword}
+                    >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                )}
+            </div>
             {error && (
                 <p className="text-xs font-medium mt-1" style={{ color: "#c0392b" }}>
                     {error}
@@ -254,6 +270,8 @@ export default function Register() {
         title: "",
         bio: "",
         avatar: null,
+        recovery_question: "",
+        recovery_answer: "",
     });
 
     const submit = (e) => {
@@ -429,6 +447,41 @@ export default function Register() {
                             error={errors.password_confirmation}
                             placeholder="••••••••"
                         />
+
+                        <div
+                            className="space-y-3 rounded-2xl border p-4"
+                            style={{ borderColor: "rgba(139,94,60,0.2)", background: "rgba(139,94,60,0.04)" }}
+                        >
+                            <div className="flex items-start gap-3">
+                                <ShieldQuestion size={18} className="mt-0.5 shrink-0" style={{ color: "#8b5e3c" }} />
+                                <div>
+                                    <p className="text-xs font-black uppercase tracking-widest" style={{ color: "#0a2947" }}>
+                                        Optional account recovery
+                                    </p>
+                                    <p className="mt-1 text-xs leading-relaxed" style={{ color: "#8b7355" }}>
+                                        Use a private question whose answer is memorable but difficult for others to discover.
+                                    </p>
+                                </div>
+                            </div>
+                            <AuthInput
+                                id="register-recovery-question"
+                                label="Recovery Question"
+                                value={data.recovery_question}
+                                onChange={(e) => setData("recovery_question", e.target.value)}
+                                error={errors.recovery_question}
+                                placeholder="e.g. What was the name of my first project?"
+                            />
+                            <AuthInput
+                                id="register-recovery-answer"
+                                label="Recovery Answer"
+                                type="password"
+                                value={data.recovery_answer}
+                                onChange={(e) => setData("recovery_answer", e.target.value)}
+                                error={errors.recovery_answer}
+                                placeholder="Your private answer"
+                                autoComplete="off"
+                            />
+                        </div>
 
                         {/* Submit */}
                         <button

@@ -18,8 +18,14 @@ class MediaController extends Controller
             abort(403);
         }
 
+        // Prefer extensions over mimes: SQL dumps are often sniffed as octet-stream.
         $request->validate([
-            'image' => 'required|file|max:10240|mimes:jpg,jpeg,png,gif,webp,txt,text,md,markdown,json,js,ts,py,rs,go,c,cpp,h,hpp,cs,java,sh,bat,html,css,pdf,xml,yaml,yml,sql', // 10MB max
+            'image' => [
+                'required',
+                'file',
+                'max:10240',
+                'extensions:jpg,jpeg,png,gif,webp,txt,text,md,markdown,json,js,ts,py,rs,go,c,cpp,h,hpp,cs,java,sh,bat,html,css,pdf,xml,yaml,yml,sql',
+            ],
         ]);
 
         $file = $request->file('image');
@@ -31,7 +37,7 @@ class MediaController extends Controller
             // mediable_id and type remain null until explicitly attached
             'file_path' => $path,
             'file_name' => $file->getClientOriginalName(),
-            'file_type' => $file->getClientMimeType(),
+            'file_type' => $file->getClientMimeType() ?: $file->getClientOriginalExtension(),
             'file_size' => $file->getSize(),
         ]);
 

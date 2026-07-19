@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class AuthController extends Controller
@@ -28,6 +31,8 @@ class AuthController extends Controller
             "title" => "nullable|string|max:255",
             "bio" => "nullable|string|max:1000",
             "avatar" => "nullable|image|mimes:jpeg,png,jpg,gif,webp|max:4096",
+            "recovery_question" => "nullable|string|min:8|max:255|required_with:recovery_answer",
+            "recovery_answer" => "nullable|string|min:3|max:255|required_with:recovery_question",
         ]);
 
         $user = User::create([
@@ -36,6 +41,10 @@ class AuthController extends Controller
             "password" => $validated["password"],
             "title" => $validated["title"] ?? null,
             "bio" => $validated["bio"] ?? null,
+            "recovery_question" => $validated["recovery_question"] ?? null,
+            "recovery_answer" => isset($validated["recovery_answer"])
+                ? Hash::make($this->normalizeRecoveryAnswer($validated["recovery_answer"]))
+                : null,
         ]);
 
         if ($request->hasFile("avatar")) {
@@ -71,28 +80,25 @@ class AuthController extends Controller
                         imagecopyresampled($dst, $src, 0, 0, $x, $y, 300, 300, $size, $size);
 
                         $filename = "avatar_" . $user->id . "_" . uniqid() . ".png";
-                        $uploadDir = public_path("uploads/avatars");
-                        if (!file_exists($uploadDir)) {
-                            mkdir($uploadDir, 0755, true);
-                        }
+                        $relativePath = "avatars/" . $filename;
+                        Storage::disk("public")->makeDirectory("avatars");
 
-                        imagepng($dst, $uploadDir . "/" . $filename);
+                        ob_start();
+                        imagepng($dst);
+                        $pngData = ob_get_clean();
+                        Storage::disk("public")->put($relativePath, $pngData);
                         imagedestroy($src);
                         imagedestroy($dst);
 
-                        $user->avatar_path = "/uploads/avatars/" . $filename;
+                        $user->avatar_path = "/storage/" . $relativePath;
                         $user->save();
                     }
                 }
             } else {
                 $filename = "avatar_" . $user->id . "_" . uniqid() . "." . $file->getClientOriginalExtension();
-                $uploadDir = public_path("uploads/avatars");
-                if (!file_exists($uploadDir)) {
-                    mkdir($uploadDir, 0755, true);
-                }
-                $file->move($uploadDir, $filename);
+                Storage::disk("public")->putFileAs("avatars", $file, $filename);
 
-                $user->avatar_path = "/uploads/avatars/" . $filename;
+                $user->avatar_path = "/storage/avatars/" . $filename;
                 $user->save();
             }
         }
@@ -138,5 +144,10 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route("login");
+    }
+
+    private function normalizeRecoveryAnswer(string $answer): string
+    {
+        return Str::lower(preg_replace('/\s+/', ' ', trim($answer)));
     }
 }

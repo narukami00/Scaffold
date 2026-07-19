@@ -2,8 +2,8 @@ import React, { useState, useRef } from "react";
 import WorkspaceLayout from "@/layouts/WorkspaceLayout";
 import { Head, usePage, useForm, Link } from "@inertiajs/react";
 import { 
-    CheckCircle2, Clock, Eye, AlertTriangle, BookOpen, 
-    MessageSquare, Mail, Calendar, User as UserIcon, Camera, Edit2, Check, ChevronLeft
+    CheckCircle2, Clock, Eye, EyeOff, AlertTriangle, BookOpen,
+    MessageSquare, Mail, Calendar, User as UserIcon, Camera, Edit2, Check, ChevronLeft, ShieldQuestion
 } from "lucide-react";
 
 const C = {
@@ -47,6 +47,7 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
     const isOwnProfile = Number(auth.user.id) === Number(profileUser.id);
     const [isEditing, setIsEditing] = useState(false);
     const [previewUrl, setPreviewUrl] = useState(null);
+    const [showSecurityValues, setShowSecurityValues] = useState(false);
     const fileInputRef = useRef(null);
 
     const { data, setData, post, processing, errors, clearErrors } = useForm({
@@ -55,6 +56,9 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
         bio: profileUser.bio || "",
         color: profileUser.color,
         avatar: null,
+        recovery_question: "",
+        recovery_answer: "",
+        current_password: "",
     });
 
     const initials = profileUser.name
@@ -215,6 +219,76 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                                     {errors.bio && <p className="text-red-600 text-[10px] font-bold mt-1">{errors.bio}</p>}
                                 </div>
 
+                                <div className="space-y-4 rounded-2xl border p-4" style={{ borderColor: C.border, background: "rgba(10,41,71,0.025)" }}>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-start gap-3">
+                                            <ShieldQuestion size={18} className="mt-0.5 shrink-0" style={{ color: C.brown }} />
+                                            <div>
+                                                <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.navy }}>
+                                                    Password recovery
+                                                </p>
+                                                <p className="mt-1 text-[11px] leading-relaxed" style={{ color: C.muted }}>
+                                                    {profileUser.has_recovery_question
+                                                        ? "A recovery question is configured. Enter a new answer and your current password to replace it."
+                                                        : "Optional. Set a private question to recover access if you forget your password."}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowSecurityValues((value) => !value)}
+                                            className="rounded-lg p-2"
+                                            style={{ color: C.brown }}
+                                            aria-label={showSecurityValues ? "Hide security values" : "Show security values"}
+                                        >
+                                            {showSecurityValues ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.muted }}>Recovery question</label>
+                                            <input
+                                                type="text"
+                                                value={data.recovery_question}
+                                                onChange={(e) => setData("recovery_question", e.target.value)}
+                                                placeholder={profileUser.has_recovery_question
+                                                    ? "Enter a new question to replace the current one"
+                                                    : "What was the name of my first project?"}
+                                                className="w-full rounded-xl border bg-white/40 px-4 py-2 text-xs font-semibold outline-none focus:border-[#8b5e3c]"
+                                                style={{ borderColor: C.border, color: C.navy }}
+                                            />
+                                            {errors.recovery_question && <p className="text-red-600 text-[10px] font-bold">{errors.recovery_question}</p>}
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.muted }}>New recovery answer</label>
+                                            <input
+                                                type={showSecurityValues ? "text" : "password"}
+                                                value={data.recovery_answer}
+                                                onChange={(e) => setData("recovery_answer", e.target.value)}
+                                                placeholder={profileUser.has_recovery_question ? "Enter a new answer to replace it" : "Your private answer"}
+                                                autoComplete="off"
+                                                className="w-full rounded-xl border bg-white/40 px-4 py-2 text-xs font-semibold outline-none focus:border-[#8b5e3c]"
+                                                style={{ borderColor: C.border, color: C.navy }}
+                                            />
+                                            {errors.recovery_answer && <p className="text-red-600 text-[10px] font-bold">{errors.recovery_answer}</p>}
+                                        </div>
+                                    </div>
+                                    {(data.recovery_question || data.recovery_answer) && (
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.muted }}>Current password to confirm</label>
+                                            <input
+                                                type={showSecurityValues ? "text" : "password"}
+                                                value={data.current_password}
+                                                onChange={(e) => setData("current_password", e.target.value)}
+                                                autoComplete="current-password"
+                                                className="w-full rounded-xl border bg-white/40 px-4 py-2 text-xs font-semibold outline-none focus:border-[#8b5e3c]"
+                                                style={{ borderColor: C.border, color: C.navy }}
+                                            />
+                                            {errors.current_password && <p className="text-red-600 text-[10px] font-bold">{errors.current_password}</p>}
+                                        </div>
+                                    )}
+                                </div>
+
                                 {/* Cozy Color selection */}
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest block" style={{ color: C.muted }}>
@@ -249,6 +323,9 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                                                 bio: profileUser.bio || "",
                                                 color: profileUser.color,
                                                 avatar: null,
+                                                recovery_question: "",
+                                                recovery_answer: "",
+                                                current_password: "",
                                             });
                                         }}
                                         className="px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all hover:bg-black/5"

@@ -44,5 +44,7 @@ RUN chown -R www-data:www-data /var/www/html
 # Expose port
 EXPOSE 80
 
-# Run migrations and start Apache
-CMD php artisan migrate --force && php artisan reverb:start --host=127.0.0.1 --port=8080 & apache2-foreground
+# Run migrations, ensure public storage symlink, start Reverb + Apache
+CMD php artisan migrate --force \
+    && (php artisan storage:link || true) \
+    && php artisan reverb:start --host=127.0.0.1 --port=8080 & apache2-foreground

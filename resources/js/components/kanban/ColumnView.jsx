@@ -176,7 +176,7 @@ export default function ColumnView({
     return (
         <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
             <div className="relative h-full">
-                <div className="flex h-full gap-4 overflow-x-auto p-3 select-none sm:gap-6 sm:p-6 pb-24">
+                <div className="flex h-full gap-4 overflow-x-auto p-3 pb-16 select-none sm:gap-6 sm:p-6 sm:pb-20">
                     {columns.map((column) => (
                         <div
                             key={column.id}

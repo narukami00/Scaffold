@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Project;
 use App\Models\Wiki;
 use App\Models\Workspace;
+use App\Events\WikiCreated;
+use App\Events\WikiUpdated;
+use App\Events\WikiDeleted;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -100,6 +103,8 @@ class WikiController extends Controller
             'content' => $validated['content'],
         ]);
 
+        broadcast(new WikiCreated($wiki))->toOthers();
+
         return redirect()->route('workspaces.projects.wiki.show', [
             'workspace' => $workspace->slug,
             'project' => $project->slug,
@@ -152,6 +157,8 @@ class WikiController extends Controller
             'content' => $validated['content'],
         ]);
 
+        broadcast(new WikiUpdated($wiki->fresh()))->toOthers();
+
         return redirect()->route('workspaces.projects.wiki.show', [
             'workspace' => $workspace->slug,
             'project' => $project->slug,
@@ -172,7 +179,11 @@ class WikiController extends Controller
             abort(404);
         }
 
+        $wikiId = $wiki->id;
+        $slug = $wiki->slug;
         $wiki->delete();
+
+        broadcast(new WikiDeleted($wikiId, $project->id, $slug))->toOthers();
 
         return redirect()->route('workspaces.projects.wiki.index', [
             'workspace' => $workspace->slug,

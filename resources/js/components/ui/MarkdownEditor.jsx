@@ -90,7 +90,20 @@ export default function MarkdownEditor({
             console.error('File upload failed', error);
             const reverted = newValue.replace(placeholderText, '');
             onChange(reverted);
-            alert('Failed to upload file. Max size 10MB.');
+            const serverMsg =
+                error?.response?.data?.errors?.image?.[0] ||
+                error?.response?.data?.message ||
+                null;
+            const status = error?.response?.status;
+            if (serverMsg) {
+                alert(serverMsg);
+            } else if (status === 413) {
+                alert('File is too large for the server (max 10MB).');
+            } else if (status === 422) {
+                alert('This file type is not allowed.');
+            } else {
+                alert('Failed to upload file. Please try again.');
+            }
         } finally {
             setIsUploading(false);
         }

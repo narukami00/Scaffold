@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\RecoveryController;
 use App\Http\Controllers\WorkspaceController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\ProjectController;
@@ -26,7 +27,23 @@ Route::post("/register", [AuthController::class, "register"]);
 Route::get("/login", [AuthController::class, "showLogin"])->name("login");
 Route::post("/login", [AuthController::class, "login"]);
 
-
+Route::middleware("guest")->group(function () {
+    Route::get("/forgot-password", [RecoveryController::class, "showEmail"])
+        ->name("password.recovery");
+    Route::post("/forgot-password", [RecoveryController::class, "findAccount"])
+        ->middleware("throttle:5,1")
+        ->name("password.recovery.find");
+    Route::get("/forgot-password/question", [RecoveryController::class, "showQuestion"])
+        ->name("password.recovery.question");
+    Route::post("/forgot-password/question", [RecoveryController::class, "verifyAnswer"])
+        ->middleware("throttle:5,1")
+        ->name("password.recovery.verify");
+    Route::get("/forgot-password/reset", [RecoveryController::class, "showReset"])
+        ->name("password.recovery.reset");
+    Route::post("/forgot-password/reset", [RecoveryController::class, "reset"])
+        ->middleware("throttle:5,1")
+        ->name("password.recovery.update");
+});
 
 // Public webhook for GitHub App events
 Route::post("/webhooks/github", [
@@ -285,6 +302,14 @@ Route::middleware("auth")->group(function () {
                 TaskController::class,
                 "transferControl",
             ])->name("tasks.transfer-control");
+            Route::post("/projects/{project}/tasks/{task}/lock", [
+                TaskController::class,
+                "lock",
+            ])->name("tasks.lock");
+            Route::post("/projects/{project}/tasks/{task}/unlock", [
+                TaskController::class,
+                "unlock",
+            ])->name("tasks.unlock");
             // Label Operations (managed by Owner)
             Route::post("/projects/{project}/labels", [
                 \App\Http\Controllers\LabelController::class,

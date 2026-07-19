@@ -14,6 +14,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import axios from "axios";
 import { Plus, LayoutGrid, Zap, Minimize2, Map, HelpCircle } from "lucide-react";
+import { usePage } from "@inertiajs/react";
 import TaskNode from "@/components/flow/TaskNode";
 import { wouldCreateCycle } from "@/utils/cycleDetection";
 import { getResolvableDependencies } from "@/utils/taskDependencies";
@@ -81,6 +82,7 @@ function buildNodes(
             id: task.id.toString(),
             type: "customTaskNode",
             position,
+            draggable: !userId,
             data: { 
                 task, 
                 onTaskClick,
@@ -146,6 +148,8 @@ function FlowViewInner({
     density = "informed",
 }) {
     const { screenToFlowPosition, fitView } = useReactFlow();
+    const { auth } = usePage().props;
+    const currentUserId = auth?.user?.id;
 
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -203,11 +207,15 @@ function FlowViewInner({
 
     const onNodeDragStart = useCallback(
         (_event, node) => {
+            const lockOwnerId = locks[node.id] ?? locks[Number(node.id)];
+            if (lockOwnerId && Number(lockOwnerId) !== Number(currentUserId)) {
+                return;
+            }
             axios.post(
                 `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${node.id}/lock`,
-            );
+            ).catch(console.error);
         },
-        [workspace.slug, project.slug],
+        [workspace.slug, project.slug, locks, currentUserId],
     );
 
     const onNodeDragStop = useCallback(
@@ -413,7 +421,7 @@ function FlowViewInner({
     }, [fitView]);
 
     return (
-        <div className="relative h-full w-full" onClick={closeContextMenu}>
+        <div className="relative h-full min-h-[55vh] w-full sm:min-h-[60vh] lg:min-h-0" onClick={closeContextMenu}>
             {/* ── Cycle detection error toast ── */}
             {errorToast && (
                 <div className="pointer-events-none absolute inset-x-0 top-6 z-50 flex justify-center px-6">
@@ -443,8 +451,9 @@ function FlowViewInner({
                 minZoom={0.15}
                 maxZoom={2.5}
                 deleteKeyCode={["Delete", "Backspace"]}
-                style={{ background: C.bg }}
+                style={{ background: C.bg, width: "100%", height: "100%" }}
                 proOptions={{ hideAttribution: true }}
+                nodesDraggable
             >
                 {/* Dot-grid background matching the parchment theme */}
                 <Background

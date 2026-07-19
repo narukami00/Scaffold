@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Events\TaskUpdated;
 use App\Events\TaskDeleted;
+use App\Events\TaskLocked;
+use App\Events\TaskUnlocked;
 
 class TaskController extends Controller
 {
@@ -177,6 +179,42 @@ class TaskController extends Controller
                 $request->newEditorId,
             ),
         )->toOthers();
+
+        return response()->json(["success" => true]);
+    }
+
+    /**
+     * Lock a task while a user is dragging it on the board/flow.
+     */
+    public function lock(Workspace $workspace, Project $project, Task $task)
+    {
+        if (!$workspace->members()->where("users.id", Auth::id())->exists()) {
+            abort(403);
+        }
+
+        if ((int) $task->project_id !== (int) $project->id) {
+            abort(404);
+        }
+
+        broadcast(new TaskLocked($task->id, $project->id, Auth::id()))->toOthers();
+
+        return response()->json(["success" => true]);
+    }
+
+    /**
+     * Unlock a task after drag ends.
+     */
+    public function unlock(Workspace $workspace, Project $project, Task $task)
+    {
+        if (!$workspace->members()->where("users.id", Auth::id())->exists()) {
+            abort(403);
+        }
+
+        if ((int) $task->project_id !== (int) $project->id) {
+            abort(404);
+        }
+
+        broadcast(new TaskUnlocked($task->id, $project->id))->toOthers();
 
         return response()->json(["success" => true]);
     }

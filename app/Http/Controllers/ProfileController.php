@@ -11,6 +11,9 @@ use App\Models\Workspace;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class ProfileController extends Controller
@@ -89,6 +92,12 @@ class ProfileController extends Controller
                 "title" => $user->title,
                 "bio" => $user->bio,
                 "avatar_path" => $user->avatar_path,
+                "recovery_question" => (int) $user->id === (int) Auth::id()
+                    ? $user->recovery_question
+                    : null,
+                "has_recovery_question" => (int) $user->id === (int) Auth::id()
+                    && filled($user->recovery_question)
+                    && filled($user->recovery_answer),
                 "color" => $userColor,
                 "joined_at" => $memberPivot->pivot->created_at ? $memberPivot->pivot->created_at->toDateString() : null,
             ],
@@ -120,7 +129,24 @@ class ProfileController extends Controller
             "bio" => "nullable|string|max:1000",
             "color" => "nullable|string|max:7",
             "avatar" => "nullable|image|mimes:jpeg,png,jpg,gif,webp|max:4096",
+            "recovery_question" => "nullable|string|min:8|max:255|required_with:recovery_answer",
+            "recovery_answer" => "nullable|string|min:3|max:255|required_with:recovery_question",
+            "current_password" => "nullable|string",
         ]);
+
+        if ($request->filled("recovery_question") || $request->filled("recovery_answer")) {
+            $request->validate([
+                "recovery_question" => "required|string|min:8|max:255",
+                "recovery_answer" => "required|string|min:3|max:255",
+                "current_password" => "required|current_password",
+            ]);
+
+            $user->recovery_question = $request->string("recovery_question")->trim()->toString();
+            $normalizedAnswer = Str::lower(
+                preg_replace('/\s+/', ' ', trim($request->string("recovery_answer")->toString())),
+            );
+            $user->recovery_answer = Hash::make($normalizedAnswer);
+        }
 
         // Process avatar upload and crop to 1:1 square using GD
         if ($request->hasFile("avatar")) {
@@ -163,39 +189,32 @@ class ProfileController extends Controller
                         imagecopyresampled($dst, $src, 0, 0, $x, $y, 300, 300, $size, $size);
 
                         $filename = "avatar_" . $user->id . "_" . uniqid() . ".png";
-                        $uploadDir = public_path("uploads/avatars");
-                        if (!file_exists($uploadDir)) {
-                            mkdir($uploadDir, 0755, true);
-                        }
+                        $relativePath = "avatars/" . $filename;
+                        Storage::disk("public")->makeDirectory("avatars");
 
-                        // Save as PNG
-                        imagepng($dst, $uploadDir . "/" . $filename);
+                        // Save into storage/app/public so storage:link can serve it
+                        ob_start();
+                        imagepng($dst);
+                        $pngData = ob_get_clean();
+                        Storage::disk("public")->put($relativePath, $pngData);
                         imagedestroy($src);
                         imagedestroy($dst);
 
                         // Delete old avatar if exists
-                        if ($user->avatar_path && file_exists(public_path($user->avatar_path))) {
-                            @unlink(public_path($user->avatar_path));
-                        }
+                        $this->deleteStoredAvatar($user->avatar_path);
 
-                        $user->avatar_path = "/uploads/avatars/" . $filename;
+                        $user->avatar_path = "/storage/" . $relativePath;
                     }
                 }
             } else {
                 // GD is missing: just save raw file directly
                 $filename = "avatar_" . $user->id . "_" . uniqid() . "." . $file->getClientOriginalExtension();
-                $uploadDir = public_path("uploads/avatars");
-                if (!file_exists($uploadDir)) {
-                    mkdir($uploadDir, 0755, true);
-                }
-                $file->move($uploadDir, $filename);
+                $relativePath = "avatars/" . $filename;
+                Storage::disk("public")->putFileAs("avatars", $file, $filename);
 
-                // Delete old avatar if exists
-                if ($user->avatar_path && file_exists(public_path($user->avatar_path))) {
-                    @unlink(public_path($user->avatar_path));
-                }
+                $this->deleteStoredAvatar($user->avatar_path);
 
-                $user->avatar_path = "/uploads/avatars/" . $filename;
+                $user->avatar_path = "/storage/" . $relativePath;
             }
         }
 
@@ -213,5 +232,21 @@ class ProfileController extends Controller
         }
 
         return redirect()->back();
+    }
+
+    private function deleteStoredAvatar(?string $avatarPath): void
+    {
+        if (!$avatarPath) {
+            return;
+        }
+
+        if (str_starts_with($avatarPath, "/storage/")) {
+            Storage::disk("public")->delete(ltrim(substr($avatarPath, strlen("/storage/")), "/"));
+            return;
+        }
+
+        if (str_starts_with($avatarPath, "/uploads/") && file_exists(public_path($avatarPath))) {
+            @unlink(public_path($avatarPath));
+        }
     }
 }

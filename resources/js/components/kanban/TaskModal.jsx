@@ -78,6 +78,8 @@ export default function TaskModal({
     const [newComment, setNewComment] = useState("");
     const [newChecklistItem, setNewChecklistItem] = useState("");
     const [ghostChecklistItem, setGhostChecklistItem] = useState(null);
+    const [ghostDescription, setGhostDescription] = useState(null);
+    const [ghostChecklistActivity, setGhostChecklistActivity] = useState(null);
     const [isLightboxOpen, setIsLightboxOpen] = useState(null); // string URL | null
     const [isLabelPickerOpen, setIsLabelPickerOpen] = useState(false);
     const [isWikiDropdownOpen, setIsWikiDropdownOpen] = useState(false);
@@ -90,6 +92,8 @@ export default function TaskModal({
     const channelRef = useRef(null);
     const autoSaveTimerRef = useRef(null);
     const ghostTimerRef = useRef(null);
+    const ghostDescTimerRef = useRef(null);
+    const ghostChecklistActivityTimerRef = useRef(null);
     const labelPickerRef = useRef(null);
     const descriptionRef = useRef(null);
 
@@ -193,6 +197,32 @@ export default function TaskModal({
                     );
                 }
             })
+            .listenForWhisper("typing-description", (e) => {
+                setGhostDescription(
+                    e.active ? { user: e.user } : null,
+                );
+                if (ghostDescTimerRef.current) clearTimeout(ghostDescTimerRef.current);
+                if (e.active) {
+                    ghostDescTimerRef.current = setTimeout(
+                        () => setGhostDescription(null),
+                        2500,
+                    );
+                }
+            })
+            .listenForWhisper("editing-checklist", (e) => {
+                setGhostChecklistActivity(
+                    e.active ? { user: e.user } : null,
+                );
+                if (ghostChecklistActivityTimerRef.current) {
+                    clearTimeout(ghostChecklistActivityTimerRef.current);
+                }
+                if (e.active) {
+                    ghostChecklistActivityTimerRef.current = setTimeout(
+                        () => setGhostChecklistActivity(null),
+                        2500,
+                    );
+                }
+            })
             // Viewer whispers a control request to the editor
             .listenForWhisper("request-control", (e) => {
                 setControlRequests((prev) =>
@@ -266,6 +296,10 @@ export default function TaskModal({
         return () => {
             window.Echo.leave(`task.${task.id}`);
             if (ghostTimerRef.current) clearTimeout(ghostTimerRef.current);
+            if (ghostDescTimerRef.current) clearTimeout(ghostDescTimerRef.current);
+            if (ghostChecklistActivityTimerRef.current) {
+                clearTimeout(ghostChecklistActivityTimerRef.current);
+            }
         };
     }, [isOpen, task?.id]);
 
@@ -320,10 +354,22 @@ export default function TaskModal({
         }
         const newData = { ...data, [field]: value };
         setDataState(newData);
+        if (field === "checklist" && isEditor) {
+            channelRef.current?.whisper("editing-checklist", {
+                user: auth.user.name,
+                active: true,
+            });
+        }
         autoSave(newData);
     };
 
     const updateDescription = (nextDescription) => {
+        if (isEditor) {
+            channelRef.current?.whisper("typing-description", {
+                user: auth.user.name,
+                active: true,
+            });
+        }
         handleFieldChange("description", nextDescription);
     };
 
@@ -678,12 +724,13 @@ export default function TaskModal({
                             </button>
                         )}
 
-                        {onTaskDelete && (
+                        {onTaskDelete && isEditor && (
                             confirmingDelete ? (
                                 <div className="flex items-center gap-2">
                                     <button
                                         type="button"
                                         onClick={() => {
+                                            if (!isEditor) return;
                                             onTaskDelete(task.id);
                                             setConfirmingDelete(false);
                                         }}
@@ -706,7 +753,7 @@ export default function TaskModal({
                                     type="button"
                                     onClick={() => setConfirmingDelete(true)}
                                     className="rounded-2xl border p-3 transition-all hover:scale-110 active:scale-95" style={{ borderColor: "rgba(192,57,43,0.25)", background: "rgba(192,57,43,0.03)", color: "#c0392b" }}
-                                    title="Delete task"
+                                    title="Delete task (editor only)"
                                 >
                                     <Trash2 size={20} />
                                 </button>
@@ -1020,6 +1067,11 @@ export default function TaskModal({
                                     <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: "#8b5e3c" }}>
                                         <ChevronRight size={14} style={{ color: "#8b5e3c" }} />
                                         Description
+                                        {ghostDescription?.user && !isEditor && (
+                                            <span className="normal-case tracking-normal font-bold animate-pulse" style={{ color: "rgba(10,41,71,0.55)" }}>
+                                                · {ghostDescription.user} is typing…
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <button
@@ -1154,6 +1206,11 @@ export default function TaskModal({
                                     <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.24em] text-slate-700">
                                         <CheckCircle2 size={14} style={{ color: "#8b5e3c" }} />
                                         Checklist
+                                        {ghostChecklistActivity?.user && !isEditor && (
+                                            <span className="normal-case tracking-normal font-bold animate-pulse" style={{ color: "rgba(10,41,71,0.55)" }}>
+                                                · {ghostChecklistActivity.user} is editing…
+                                            </span>
+                                        )}
                                     </div>
                                     {totalCount > 0 && (
                                         <span className="text-[10px] font-black" style={{ color: "#0a2947" }}>

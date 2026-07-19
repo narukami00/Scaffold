@@ -331,12 +331,12 @@ export default function Board({ workspace, project, members = [] }) {
     );
 
     return (
-        <div className="flex min-h-[70vh] h-full flex-col space-y-4 sm:min-h-[75vh] sm:space-y-6 lg:min-h-0">
+        <div className="flex h-[calc(100dvh-8rem)] flex-col space-y-4 sm:h-[calc(100dvh-7rem)] sm:space-y-6 lg:h-full lg:min-h-0">
             <Head title={`${project.name} - Board`} />
 
             <ProjectHeader workspace={workspace} project={project} activeTab="board" />
 
-            <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end">
+            <header className="flex shrink-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-end">
                 <div className="flex flex-wrap items-center gap-3 rounded-2xl p-1.5"
                     style={{ background: "rgba(139,94,60,0.08)", border: "1px solid rgba(139,94,60,0.18)" }}>
                     <div className="flex flex-1 items-center rounded-xl p-1 lg:flex-none"
@@ -388,7 +388,7 @@ export default function Board({ workspace, project, members = [] }) {
                 </div>
             </header>
 
-            <div className="relative min-h-[60vh] flex-1 overflow-hidden rounded-[28px] border-2 shadow-inner sm:min-h-[65vh] sm:rounded-[40px] lg:min-h-0"
+            <div className="relative min-h-0 flex-1 overflow-hidden rounded-[28px] border-2 shadow-inner sm:rounded-[40px]"
                 style={{ background: "rgba(139,94,60,0.03)", borderColor: "rgba(139,94,60,0.15)" }}>
                 {view === "columns" ? (
                     <ColumnView
