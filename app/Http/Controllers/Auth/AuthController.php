@@ -31,6 +31,7 @@ class AuthController extends Controller
             "title" => "nullable|string|max:255",
             "bio" => "nullable|string|max:1000",
             "avatar" => "nullable|image|mimes:jpeg,png,jpg,gif,webp|max:4096",
+            "avatar_url" => ["nullable", "url", "max:2048", "regex:/^https:\\/\\//i"],
             "recovery_question" => "nullable|string|min:8|max:255|required_with:recovery_answer",
             "recovery_answer" => "nullable|string|min:3|max:255|required_with:recovery_question",
         ]);
@@ -41,6 +42,7 @@ class AuthController extends Controller
             "password" => $validated["password"],
             "title" => $validated["title"] ?? null,
             "bio" => $validated["bio"] ?? null,
+            "avatar_path" => $validated["avatar_url"] ?? null,
             "recovery_question" => $validated["recovery_question"] ?? null,
             "recovery_answer" => isset($validated["recovery_answer"])
                 ? Hash::make($this->normalizeRecoveryAnswer($validated["recovery_answer"]))

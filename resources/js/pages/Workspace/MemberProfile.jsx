@@ -56,6 +56,7 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
         bio: profileUser.bio || "",
         color: profileUser.color,
         avatar: null,
+        avatar_url: "",
         recovery_question: "",
         recovery_answer: "",
         current_password: "",
@@ -114,8 +115,8 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                                 color: "#f3e4c9", 
                                 borderColor: C.navy 
                             }}>
-                            {previewUrl ? (
-                                <img src={previewUrl} alt="Avatar preview" className="w-full h-full object-cover" />
+                            {previewUrl || data.avatar_url ? (
+                                <img src={previewUrl || data.avatar_url} alt="Avatar preview" className="w-full h-full object-cover" />
                             ) : profileUser.avatar_path ? (
                                 <img src={profileUser.avatar_path} alt={profileUser.name} className="w-full h-full object-cover" />
                             ) : (
@@ -217,6 +218,20 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                                         style={{ borderColor: C.border, color: C.navy }}
                                     />
                                     {errors.bio && <p className="text-red-600 text-[10px] font-bold mt-1">{errors.bio}</p>}
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.muted }}>Profile image URL</label>
+                                    <input
+                                        type="url"
+                                        value={data.avatar_url}
+                                        onChange={(e) => setData("avatar_url", e.target.value)}
+                                        placeholder="https://example.com/profile.jpg"
+                                        className="w-full rounded-xl border bg-white/40 px-4 py-2 text-xs font-semibold outline-none focus:border-[#8b5e3c]"
+                                        style={{ borderColor: C.border, color: C.navy }}
+                                    />
+                                    <p className="text-[10px]" style={{ color: C.muted }}>HTTPS image links remain available across Render redeploys.</p>
+                                    {errors.avatar_url && <p className="text-red-600 text-[10px] font-bold">{errors.avatar_url}</p>}
                                 </div>
 
                                 <div className="space-y-4 rounded-2xl border p-4" style={{ borderColor: C.border, background: "rgba(10,41,71,0.025)" }}>
@@ -323,6 +338,7 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                                                 bio: profileUser.bio || "",
                                                 color: profileUser.color,
                                                 avatar: null,
+                                                avatar_url: "",
                                                 recovery_question: "",
                                                 recovery_answer: "",
                                                 current_password: "",

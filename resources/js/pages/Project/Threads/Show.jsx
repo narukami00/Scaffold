@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import WorkspaceLayout from '@/layouts/WorkspaceLayout';
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
-import { ChevronLeft, MessageSquare, Clock, User, Pin, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, MessageSquare, Clock, User, Pin, CheckCircle2, Pencil, Trash2, X, Save } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import MarkdownEditor from '@/components/ui/MarkdownEditor';
 import CommentTree from '@/components/threads/CommentTree';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import ProjectHeader from '@/components/project/ProjectHeader';
+import SafeMarkdown from '@/components/ui/SafeMarkdown';
 
 // ── Palette tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -27,6 +26,7 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
     
     const [thread, setThread] = useState(initialThread);
     const [isReactionOpen, setIsReactionOpen] = useState(false);
+    const [isEditingThread, setIsEditingThread] = useState(false);
 
     const groupedReactions = useMemo(() => {
         if (!thread.reactions) return {};
@@ -53,6 +53,11 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
         body: '',
         parent_id: null,
     });
+    const threadEdit = useForm({
+        title: initialThread.title || '',
+        body: initialThread.body || '',
+        tags: initialThread.tags || [],
+    });
 
     const submitReply = (e) => {
         e.preventDefault();
@@ -66,6 +71,19 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
         router.post(`/workspaces/${workspace.slug}/projects/${project.slug}/threads/${thread.id}/pin`, {}, {
             preserveScroll: true,
         });
+    };
+
+    const updateThread = (event) => {
+        event.preventDefault();
+        threadEdit.patch(`/workspaces/${workspace.slug}/projects/${project.slug}/threads/${thread.id}`, {
+            preserveScroll: true,
+            onSuccess: () => setIsEditingThread(false),
+        });
+    };
+
+    const deleteThread = () => {
+        if (!window.confirm('Delete this entire thread and all of its replies? This cannot be undone.')) return;
+        router.delete(`/workspaces/${workspace.slug}/projects/${project.slug}/threads/${thread.id}`);
     };
 
     const toggleReaction = (reactable_type, reactable_id, emoji) => {
@@ -88,6 +106,36 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
                         if (exists) return prev;
                         return { ...prev, replies: [...prev.replies, e.reply] }
                     });
+                }
+            })
+            .listen('.ThreadUpdated', (e) => {
+                if (Number(e.thread.id) === Number(thread.id)) {
+                    setThread(prev => ({ ...prev, ...e.thread }));
+                }
+            })
+            .listen('.ThreadDeleted', (e) => {
+                if (Number(e.threadId) === Number(thread.id)) {
+                    router.visit(`/workspaces/${workspace.slug}/projects/${project.slug}/threads`);
+                }
+            })
+            .listen('.ThreadReplyUpdated', (e) => {
+                if (Number(e.reply.thread_id) === Number(thread.id)) {
+                    setThread(prev => ({
+                        ...prev,
+                        replies: prev.replies.map(reply =>
+                            Number(reply.id) === Number(e.reply.id) ? e.reply : reply
+                        ),
+                    }));
+                }
+            })
+            .listen('.ThreadReplyDeleted', (e) => {
+                if (Number(e.reply.thread_id) === Number(thread.id)) {
+                    setThread(prev => ({
+                        ...prev,
+                        replies: prev.replies.map(reply =>
+                            Number(reply.id) === Number(e.reply.id) ? e.reply : reply
+                        ),
+                    }));
                 }
             })
             .listen('.ReactionToggled', (e) => {
@@ -132,6 +180,10 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
 
         return () => {
             channel.stopListening('.ThreadReplyCreated');
+            channel.stopListening('.ThreadUpdated');
+            channel.stopListening('.ThreadDeleted');
+            channel.stopListening('.ThreadReplyUpdated');
+            channel.stopListening('.ThreadReplyDeleted');
             channel.stopListening('.ReactionToggled');
             channel.stopListening('.ReplyMarkedDefinitive');
             window.Echo.leave(`project.${project.id}`);
@@ -141,6 +193,11 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
 
     useEffect(() => {
         setThread(initialThread);
+        threadEdit.setData({
+            title: initialThread.title || '',
+            body: initialThread.body || '',
+            tags: initialThread.tags || [],
+        });
     }, [initialThread]);
 
     return (
@@ -203,28 +260,105 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
                                         <Clock className="w-3.5 h-3.5" />
                                         {safeFormatDistance(thread.created_at)}
                                     </span>
+                                    {thread.edited_at && (
+                                        <span className="rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider" style={{ borderColor: C.border, color: C.brown }}>
+                                            Edited
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
-                        
-                        {currentUserId === workspace.owner_id && (
-                            <button onClick={toggleThreadPin} title="Pin Thread"
-                                className={`p-2 rounded-xl transition-all border ${
-                                    thread.is_pinned 
-                                    ? 'bg-amber-500/10 text-amber-700 border-amber-500/20 shadow-sm' 
-                                    : 'text-slate-400 hover:text-slate-700 border-transparent hover:border-slate-300 bg-transparent'
-                                }`}>
-                                <Pin className="w-4 h-4" />
-                            </button>
-                        )}
+
+                        <div className="flex items-center gap-1">
+                            {Number(currentUserId) === Number(thread.user_id) && (
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditingThread(true)}
+                                    title="Edit thread"
+                                    className="rounded-xl border p-2 transition hover:bg-black/5"
+                                    style={{ borderColor: C.border, color: C.brown }}
+                                >
+                                    <Pencil size={15} />
+                                </button>
+                            )}
+                            {(Number(currentUserId) === Number(thread.user_id) || Number(currentUserId) === Number(workspace.owner_id)) && (
+                                <button
+                                    type="button"
+                                    onClick={deleteThread}
+                                    title="Delete thread"
+                                    className="rounded-xl border p-2 text-red-700 transition hover:bg-red-50"
+                                    style={{ borderColor: "rgba(185,28,28,0.2)" }}
+                                >
+                                    <Trash2 size={15} />
+                                </button>
+                            )}
+                            {Number(currentUserId) === Number(workspace.owner_id) && (
+                                <button onClick={toggleThreadPin} title="Pin Thread"
+                                    className={`p-2 rounded-xl transition-all border ${
+                                        thread.is_pinned
+                                        ? 'bg-amber-500/10 text-amber-700 border-amber-500/20 shadow-sm'
+                                        : 'text-slate-400 hover:text-slate-700 border-transparent hover:border-slate-300 bg-transparent'
+                                    }`}>
+                                    <Pin className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {/* Content */}
-                    <div className="prose prose-sm max-w-none mb-8 text-slate-800 leading-relaxed font-normal">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {isEditingThread ? (
+                        <form onSubmit={updateThread} className="mb-8 space-y-3 rounded-2xl border p-4" style={{ borderColor: C.border }}>
+                            <input
+                                value={threadEdit.data.title}
+                                onChange={(event) => threadEdit.setData('title', event.target.value)}
+                                placeholder="Discussion title"
+                                className="w-full rounded-xl border bg-white/50 px-4 py-2 text-sm font-bold outline-none focus:border-[#8b5e3c]"
+                                style={{ borderColor: C.border, color: C.navy }}
+                            />
+                            <input
+                                value={(threadEdit.data.tags || []).join(', ')}
+                                onChange={(event) => threadEdit.setData(
+                                    'tags',
+                                    event.target.value
+                                        .split(',')
+                                        .map(tag => tag.trim())
+                                        .filter(Boolean),
+                                )}
+                                placeholder="Tags, separated by commas"
+                                className="w-full rounded-xl border bg-white/50 px-4 py-2 text-xs font-semibold outline-none focus:border-[#8b5e3c]"
+                                style={{ borderColor: C.border, color: C.navy }}
+                            />
+                            <MarkdownEditor
+                                value={threadEdit.data.body}
+                                onChange={(value) => threadEdit.setData('body', value)}
+                                uploadUrl={`/workspaces/${workspace.slug}/media/upload`}
+                                placeholder="Update your discussion..."
+                            />
+                            {threadEdit.errors.body && <p className="text-xs font-bold text-red-700">{threadEdit.errors.body}</p>}
+                            <div className="flex justify-end gap-2">
+                                <button type="button" onClick={() => setIsEditingThread(false)} className="flex items-center gap-1 rounded-xl px-3 py-2 text-xs font-bold" style={{ color: C.muted }}>
+                                    <X size={14} /> Cancel
+                                </button>
+                                <button type="submit" disabled={threadEdit.processing || !threadEdit.data.body.trim()} className="flex items-center gap-1 rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-50" style={{ background: C.brown, color: "#f3e4c9" }}>
+                                    <Save size={14} /> Save changes
+                                </button>
+                            </div>
+                        </form>
+                    ) : (
+                        <SafeMarkdown className="prose prose-sm max-w-none mb-8 text-slate-800 leading-relaxed font-normal">
                             {thread.body}
-                        </ReactMarkdown>
-                    </div>
+                        </SafeMarkdown>
+                    )}
+
+                    {thread.tags?.length > 0 && !isEditingThread && (
+                        <div className="mb-5 flex flex-wrap gap-2">
+                            {thread.tags.map(tag => (
+                                <span key={tag} className="rounded-lg border px-2.5 py-1 text-[9px] font-black uppercase tracking-wider" style={{ borderColor: C.border, color: C.brown, background: "rgba(139,94,60,0.06)" }}>
+                                    {tag}
+                                </span>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Reactions & Info */}
                     <div className="flex items-center gap-2 border-t pt-4" style={{ borderColor: C.border }}>

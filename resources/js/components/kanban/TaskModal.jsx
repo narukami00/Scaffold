@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import { Link } from "@inertiajs/react";
 import { pruneDependencyIds, isTaskBlocked } from "@/utils/taskDependencies";
 import ReactMarkdown from "react-markdown";
+import SafeMarkdown from "@/components/ui/SafeMarkdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -1631,8 +1632,7 @@ export default function TaskModal({
                                                 color: Number(comment.user_id) === Number(auth.user.id) ? "#f3e4c9" : "#0a2947",
                                             }}
                                         >
-                                            <ReactMarkdown
-                                                remarkPlugins={[remarkGfm]}
+                                            <SafeMarkdown
                                                 components={{
                                                     p: ({ children }) => <p className="m-0 inline">{children}</p>,
                                                     a: ({ href, children, ...props }) => {
@@ -1658,7 +1658,7 @@ export default function TaskModal({
                                                 }}
                                             >
                                                 {comment.body}
-                                            </ReactMarkdown>
+                                            </SafeMarkdown>
                                         </div>
                                     </div>
                                 ))}

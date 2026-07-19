@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import WorkspaceLayout from '@/layouts/WorkspaceLayout';
 import { Head, Link, useForm, router } from '@inertiajs/react';
 import { MessageSquare, Pin, Clock, User, PlusCircle, Check, CheckCircle2, Tag } from 'lucide-react';
@@ -25,6 +25,22 @@ export default function ThreadIndex({ workspace, project, threads, filters = {} 
         title: '',
         body: '',
     });
+
+    useEffect(() => {
+        if (!window.Echo || !project?.id) return;
+        const channel = window.Echo.private(`project.${project.id}`);
+        const refresh = () => router.reload({ only: ['threads'] });
+
+        channel
+            .listen('.ThreadCreated', refresh)
+            .listen('.ThreadUpdated', refresh)
+            .listen('.ThreadDeleted', refresh)
+            .listen('.ThreadReplyCreated', refresh)
+            .listen('.ThreadReplyDeleted', refresh)
+            .listen('.ReplyMarkedDefinitive', refresh);
+
+        return () => window.Echo.leave(`project.${project.id}`);
+    }, [project?.id]);
 
     const submitThread = (e) => {
         e.preventDefault();
@@ -330,6 +346,11 @@ export default function ThreadIndex({ workspace, project, threads, filters = {} 
                                             <Clock className="w-3.5 h-3.5" />
                                             {safeFormatDistance(thread.created_at)}
                                         </span>
+                                        {thread.edited_at && (
+                                            <span className="rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-wider" style={{ borderColor: C.border, color: C.brown }}>
+                                                Edited
+                                            </span>
+                                        )}
                                         <span className="flex items-center gap-1.5 ml-auto font-semibold" style={{ color: C.brown }}>
                                             <MessageSquare className="w-3.5 h-3.5" />
                                             {thread.replies_count} {thread.replies_count === 1 ? 'reply' : 'replies'}

@@ -260,6 +260,11 @@ Route::middleware("auth")->group(function () {
                 \App\Http\Controllers\ThreadReplyController::class,
                 "store",
             ])->name("workspaces.projects.threads.replies.store");
+
+            Route::patch("/projects/{project}/threads/{thread}/replies/{reply}", [
+                \App\Http\Controllers\ThreadReplyController::class,
+                "update",
+            ])->name("workspaces.projects.threads.replies.update");
             
             Route::post("/projects/{project}/threads/{thread}/replies/{reply}/definitive", [
                 \App\Http\Controllers\ThreadReplyController::class,

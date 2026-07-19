@@ -12,7 +12,11 @@ class Thread extends Model
     protected static function booted()
     {
         static::deleting(function ($thread) {
-            $thread->replies->each->delete();
+            $thread->replies->each(function ($reply) {
+                $reply->reactions()->delete();
+                $reply->media()->delete();
+                $reply->delete();
+            });
             $thread->reactions()->delete();
             $thread->media()->delete();
         });
@@ -25,11 +29,13 @@ class Thread extends Model
         "body",
         "tags",
         "is_pinned",
+        "edited_at",
     ];
 
     protected $casts = [
         "is_pinned" => "boolean",
         "tags" => "array",
+        "edited_at" => "datetime",
     ];
 
     public function project()

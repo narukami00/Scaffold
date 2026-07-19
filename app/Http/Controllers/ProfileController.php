@@ -129,6 +129,7 @@ class ProfileController extends Controller
             "bio" => "nullable|string|max:1000",
             "color" => "nullable|string|max:7",
             "avatar" => "nullable|image|mimes:jpeg,png,jpg,gif,webp|max:4096",
+            "avatar_url" => ["nullable", "url", "max:2048", "regex:/^https:\\/\\//i"],
             "recovery_question" => "nullable|string|min:8|max:255|required_with:recovery_answer",
             "recovery_answer" => "nullable|string|min:3|max:255|required_with:recovery_question",
             "current_password" => "nullable|string",
@@ -216,6 +217,9 @@ class ProfileController extends Controller
 
                 $user->avatar_path = "/storage/" . $relativePath;
             }
+        } elseif ($request->filled("avatar_url")) {
+            $this->deleteStoredAvatar($user->avatar_path);
+            $user->avatar_path = $request->string("avatar_url")->trim()->toString();
         }
 
         // Update fields

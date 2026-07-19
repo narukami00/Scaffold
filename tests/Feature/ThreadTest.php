@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Project;
 use App\Models\Thread;
+use App\Models\ThreadReply;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -161,6 +162,84 @@ class ThreadTest extends TestCase
             "user_id" => $this->user->id,
             "reactable_type" => "App\\Models\\Thread",
             "reactable_id" => $thread->id,
+        ]);
+    }
+
+    public function test_author_can_edit_thread_and_edited_timestamp_is_recorded(): void
+    {
+        $thread = $this->project->threads()->create([
+            "user_id" => $this->user->id,
+            "title" => "Original",
+            "body" => "Original body",
+        ]);
+
+        $this->actingAs($this->user)->patch(route(
+            "workspaces.projects.threads.update",
+            [$this->workspace->slug, $this->project->slug, $thread->id],
+        ), [
+            "title" => "Updated",
+            "body" => "Updated body",
+            "tags" => [],
+        ])->assertRedirect();
+
+        $thread->refresh();
+        $this->assertSame("Updated body", $thread->body);
+        $this->assertNotNull($thread->edited_at);
+    }
+
+    public function test_reply_author_can_edit_reply(): void
+    {
+        $thread = $this->project->threads()->create([
+            "user_id" => $this->user->id,
+            "title" => "Thread",
+            "body" => "Body",
+        ]);
+        $reply = $thread->replies()->create([
+            "user_id" => $this->user->id,
+            "body" => "Original reply",
+        ]);
+
+        $this->actingAs($this->user)->patch(route(
+            "workspaces.projects.threads.replies.update",
+            [$this->workspace->slug, $this->project->slug, $thread->id, $reply->id],
+        ), ["body" => "Edited reply"])->assertRedirect();
+
+        $reply->refresh();
+        $this->assertSame("Edited reply", $reply->body);
+        $this->assertNotNull($reply->edited_at);
+    }
+
+    public function test_deleting_reply_creates_tombstone_and_preserves_children(): void
+    {
+        $thread = $this->project->threads()->create([
+            "user_id" => $this->user->id,
+            "title" => "Thread",
+            "body" => "Body",
+        ]);
+        $reply = $thread->replies()->create([
+            "user_id" => $this->user->id,
+            "body" => "Parent reply",
+        ]);
+        $child = $thread->replies()->create([
+            "user_id" => $this->user->id,
+            "parent_id" => $reply->id,
+            "body" => "Child reply",
+        ]);
+
+        $this->actingAs($this->user)->delete(route(
+            "workspaces.projects.threads.replies.destroy",
+            [$this->workspace->slug, $this->project->slug, $thread->id, $reply->id],
+        ))->assertRedirect();
+
+        $this->assertDatabaseHas("thread_replies", [
+            "id" => $reply->id,
+            "is_deleted" => true,
+            "body" => "[deleted]",
+        ]);
+        $this->assertDatabaseHas("thread_replies", [
+            "id" => $child->id,
+            "parent_id" => $reply->id,
+            "body" => "Child reply",
         ]);
     }
 }

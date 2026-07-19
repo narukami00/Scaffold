@@ -1,8 +1,7 @@
 import React, { useRef, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { Image as ImageIcon, Loader2 } from 'lucide-react';
 import axios from 'axios';
+import SafeMarkdown from '@/components/ui/SafeMarkdown';
 
 // ── Palette tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -38,12 +37,22 @@ export default function MarkdownEditor({
     };
 
     const handlePaste = async (e) => {
-        if (!uploadUrl) return;
-
         const items = e.clipboardData.items;
         const fileItem = Array.from(items).find(item => item.kind === 'file');
 
-        if (!fileItem) return;
+        if (!fileItem) {
+            const pasted = e.clipboardData.getData('text/plain').trim();
+            if (/^https:\/\/[^\s]+\.(?:png|jpe?g|gif|webp|avif)(?:\?[^\s]*)?$/i.test(pasted)) {
+                e.preventDefault();
+                const textarea = textareaRef.current;
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                onChange(`${value.slice(0, start)}![External image](${pasted})${value.slice(end)}`);
+            }
+            return;
+        }
+
+        if (!uploadUrl) return;
 
         e.preventDefault();
         const file = fileItem.getAsFile();
@@ -166,9 +175,7 @@ export default function MarkdownEditor({
                 ) : (
                     <div className="prose prose-sm max-w-none min-h-[120px] px-1 text-slate-800">
                         {value ? (
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {value}
-                            </ReactMarkdown>
+                            <SafeMarkdown>{value}</SafeMarkdown>
                         ) : (
                             <span className="italic" style={{ color: C.muted }}>Nothing to preview.</span>
                         )}

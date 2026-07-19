@@ -3,11 +3,10 @@ import WorkspaceLayout from "@/layouts/WorkspaceLayout";
 import { Head, Link, router } from "@inertiajs/react";
 import ProjectHeader from "@/components/project/ProjectHeader";
 import { FileText, Plus, Search, Edit2, Trash2, BookOpen, Calendar, User, X, Loader2 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import axios from "axios";
 import hljs from "highlight.js";
 import "highlight.js/styles/github-dark.css";
+import SafeMarkdown from "@/components/ui/SafeMarkdown";
 
 const getFileExtension = (url) => {
     if (!url) return "";
@@ -259,9 +258,8 @@ export default function Index({ workspace, project, wikis = [], currentWiki = nu
                             </div>
 
                             {/* Wiki Body Content */}
-                            <div className="prose prose-sm max-w-none text-slate-800 leading-relaxed font-normal">
-                                <ReactMarkdown 
-                                    remarkPlugins={[remarkGfm]}
+                            <SafeMarkdown
+                                    className="prose prose-sm max-w-none text-slate-800 leading-relaxed font-normal"
                                     components={{
                                         a: ({ href, children, ...props }) => {
                                             if (isViewableFile(href)) {
@@ -280,10 +278,9 @@ export default function Index({ workspace, project, wikis = [], currentWiki = nu
                                             return <a href={href} target="_blank" rel="noreferrer" {...props}>{children}</a>;
                                         }
                                     }}
-                                >
-                                    {currentWiki.content}
-                                </ReactMarkdown>
-                            </div>
+                            >
+                                {currentWiki.content}
+                            </SafeMarkdown>
                         </div>
                     ) : (
                         <div className="flex h-96 flex-col items-center justify-center space-y-4 text-center">
@@ -380,9 +377,9 @@ export default function Index({ workspace, project, wikis = [], currentWiki = nu
                         ) : (getFileExtension(viewingFileUrl) === "md" || getFileExtension(viewingFileUrl) === "markdown") ? (
                             <div className="flex-1 overflow-y-auto mt-4 rounded-xl border p-6 bg-[#fdfaf3] text-slate-800 max-h-[60vh] custom-scrollbar prose prose-sm max-w-none"
                                  style={{ borderColor: C.border }}>
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                <SafeMarkdown>
                                     {fileContent}
-                                </ReactMarkdown>
+                                </SafeMarkdown>
                             </div>
                         ) : (
                             <div className="flex-1 overflow-y-auto mt-4 rounded-xl border p-4 bg-slate-950 text-slate-100 max-h-[60vh] custom-scrollbar">

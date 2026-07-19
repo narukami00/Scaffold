@@ -270,6 +270,7 @@ export default function Register() {
         title: "",
         bio: "",
         avatar: null,
+        avatar_url: "",
         recovery_question: "",
         recovery_answer: "",
     });
@@ -428,6 +429,15 @@ export default function Register() {
                             label="Profile Photo"
                             error={errors.avatar}
                             onChange={(file) => setData("avatar", file)}
+                        />
+                        <AuthInput
+                            id="register-avatar-url"
+                            label="Or paste a profile image URL"
+                            type="url"
+                            value={data.avatar_url}
+                            onChange={(e) => setData("avatar_url", e.target.value)}
+                            error={errors.avatar_url}
+                            placeholder="https://example.com/profile.jpg"
                         />
                         <AuthInput
                             id="register-password"

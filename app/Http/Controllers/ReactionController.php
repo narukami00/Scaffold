@@ -15,6 +15,12 @@ class ReactionController extends Controller
      */
     public function toggle(Request $request, Workspace $workspace, Project $project)
     {
+        $isOwner = (int) $workspace->owner_id === (int) $request->user()->id;
+        $isMember = $workspace->members()
+            ->where('users.id', $request->user()->id)
+            ->exists();
+        abort_unless($isOwner || $isMember, 403);
+
         $request->validate([
             'reactable_type' => 'required|string',
             'reactable_id' => 'required|integer',
@@ -35,6 +41,18 @@ class ReactionController extends Controller
 
         if (!class_exists($modelClass)) {
             abort(400, 'Invalid reactable type');
+        }
+
+        $reactable = $modelClass::findOrFail($request->reactable_id);
+        $reactableProjectId = match ($baseName) {
+            'Thread' => $reactable->project_id,
+            'ThreadReply' => $reactable->thread?->project_id,
+            'Task' => $reactable->project_id,
+            'TaskComment' => $reactable->task?->project_id,
+        };
+        abort_unless((int) $reactableProjectId === (int) $project->id, 404);
+        if ($baseName === 'ThreadReply') {
+            abort_if($reactable->is_deleted, 409, 'Deleted replies cannot receive reactions.');
         }
 
         $userReaction = Reaction::where('user_id', $userId)

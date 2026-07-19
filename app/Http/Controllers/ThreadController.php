@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Events\ThreadCreated;
+use App\Events\ThreadDeleted;
+use App\Events\ThreadUpdated;
 use App\Models\Project;
 use App\Models\Thread;
 use App\Models\Workspace;
@@ -16,6 +18,8 @@ class ThreadController extends Controller
      */
     public function index(Request $request, Workspace $workspace, Project $project)
     {
+        $this->ensureMember($request, $workspace);
+
         $query = $project->threads()
             ->with(['user'])
             ->withCount('replies')
@@ -58,6 +62,8 @@ class ThreadController extends Controller
      */
     public function store(Request $request, Workspace $workspace, Project $project)
     {
+        $this->ensureMember($request, $workspace);
+
         $request->validate([
             'title' => 'nullable|string|max:255',
             'body' => 'required|string',
@@ -82,8 +88,10 @@ class ThreadController extends Controller
     /**
      * Display the specified thread.
      */
-    public function show(Workspace $workspace, Project $project, Thread $thread)
+    public function show(Request $request, Workspace $workspace, Project $project, Thread $thread)
     {
+        $this->ensureMember($request, $workspace);
+
         $thread->load([
             'user',
             'reactions.user',
@@ -103,6 +111,8 @@ class ThreadController extends Controller
      */
     public function update(Request $request, Workspace $workspace, Project $project, Thread $thread)
     {
+        $this->ensureMember($request, $workspace);
+
         if ($thread->user_id !== $request->user()->id) {
             abort(403);
         }
@@ -118,7 +128,11 @@ class ThreadController extends Controller
             'title' => $request->title,
             'body' => $request->body,
             'tags' => $request->tags ?? [],
+            'edited_at' => now(),
         ]);
+
+        $thread->load('user', 'reactions.user');
+        ThreadUpdated::dispatch($thread);
 
         return back();
     }
@@ -128,12 +142,17 @@ class ThreadController extends Controller
      */
     public function destroy(Request $request, Workspace $workspace, Project $project, Thread $thread)
     {
+        $this->ensureMember($request, $workspace);
+
         // Only author or workspace owner can delete
         if ($thread->user_id !== $request->user()->id && (int)$workspace->owner_id !== (int)$request->user()->id) {
             abort(403);
         }
 
+        $threadId = $thread->id;
+        $projectId = $project->id;
         $thread->delete();
+        ThreadDeleted::dispatch($threadId, $projectId);
 
         return redirect()->route('workspaces.projects.threads.index', [$workspace->slug, $project->slug]);
     }
@@ -143,6 +162,8 @@ class ThreadController extends Controller
      */
     public function pin(Request $request, Workspace $workspace, Project $project, Thread $thread)
     {
+        $this->ensureMember($request, $workspace);
+
         // Only workspace owner can pin
         if ((int)$workspace->owner_id !== (int)$request->user()->id) {
             abort(403);
@@ -153,5 +174,15 @@ class ThreadController extends Controller
         ]);
 
         return back();
+    }
+
+    private function ensureMember(Request $request, Workspace $workspace): void
+    {
+        $isOwner = (int) $workspace->owner_id === (int) $request->user()->id;
+        $isMember = $workspace->members()
+            ->where('users.id', $request->user()->id)
+            ->exists();
+
+        abort_unless($isOwner || $isMember, 403);
     }
 }

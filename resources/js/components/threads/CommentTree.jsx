@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { User, MessageSquare, CheckCircle, Reply } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { CheckCircle, Reply, Pencil, Trash2, X, Save, MessageSquareOff } from 'lucide-react';
 import MarkdownEditor from '@/components/ui/MarkdownEditor';
-import { useForm, usePage, Link } from '@inertiajs/react';
+import SafeMarkdown from '@/components/ui/SafeMarkdown';
+import { useForm, Link, router } from '@inertiajs/react';
 
 // ── Palette tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -52,6 +51,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
     const [isReactionOpen, setIsReactionOpen] = useState(false);
     const [isReplying, setIsReplying] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
     const children = allReplies.filter(r => r.parent_id === reply.id);
     
     // Group reactions by emoji
@@ -68,6 +68,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
         body: '',
         parent_id: reply.id
     });
+    const editForm = useForm({ body: reply.body || '' });
 
     const submitReply = (e) => {
         e.preventDefault();
@@ -86,21 +87,42 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
         });
     };
 
+    const submitEdit = (event) => {
+        event.preventDefault();
+        editForm.patch(`/workspaces/${workspace.slug}/projects/${project.slug}/threads/${reply.thread_id}/replies/${reply.id}`, {
+            preserveScroll: true,
+            onSuccess: () => setIsEditing(false),
+        });
+    };
+
+    const deleteReply = () => {
+        if (!window.confirm('Delete this comment? Its replies will remain visible.')) return;
+        router.delete(`/workspaces/${workspace.slug}/projects/${project.slug}/threads/${reply.thread_id}/replies/${reply.id}`, {
+            preserveScroll: true,
+        });
+    };
+
     return (
         <div className={`flex relative mt-4 ${depth >= 2 ? '-ml-7 sm:ml-0' : ''} ${reply.is_definitive ? 'bg-emerald-500/[0.02] -mx-4 px-4 py-3 border border-emerald-500/20 rounded-xl' : ''}`}>
             {/* Thread linking line */}
             <div className="flex flex-col items-center mr-2 sm:mr-3 mt-1 cursor-pointer group" onClick={() => setIsCollapsed(!isCollapsed)}>
-                <Link
-                    href={workspace ? `/workspaces/${workspace.slug}/members/${reply.user_id}` : "#"}
-                    className="hover:scale-110 active:scale-95 transition-all z-10"
-                >
-                    <img 
-                        src={reply.user?.avatar_path || reply.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(reply.user?.name || 'U')}&background=random`} 
-                        alt={reply.user?.name}
-                        className={`rounded-full box-content border-[3px] ${depth > 0 ? 'w-6 h-6' : 'w-8 h-8'}`} 
-                        style={{ borderColor: C.card, background: C.brown }}
-                    />
-                </Link>
+                {reply.is_deleted ? (
+                    <div className={`z-10 flex items-center justify-center rounded-full border-[3px] ${depth > 0 ? 'h-6 w-6' : 'h-8 w-8'}`} style={{ borderColor: C.card, background: "#d3d4c0", color: C.muted }}>
+                        <MessageSquareOff size={depth > 0 ? 12 : 15} />
+                    </div>
+                ) : (
+                    <Link
+                        href={workspace ? `/workspaces/${workspace.slug}/members/${reply.user_id}` : "#"}
+                        className="hover:scale-110 active:scale-95 transition-all z-10"
+                    >
+                        <img
+                            src={reply.user?.avatar_path || reply.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(reply.user?.name || 'U')}&background=random`}
+                            alt={reply.user?.name}
+                            className={`rounded-full box-content border-[3px] object-cover ${depth > 0 ? 'w-6 h-6' : 'w-8 h-8'}`}
+                            style={{ borderColor: C.card, background: C.brown }}
+                        />
+                    </Link>
+                )}
                 {!isCollapsed && children.length > 0 && (
                     <div className="w-[2px] bg-slate-300 flex-1 my-1 group-hover:bg-[#8b5e3c]/50 transition-colors rounded-full" />
                 )}
@@ -109,19 +131,28 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
             <div className="flex-1 min-w-0">
                 <div className="pl-1">
                     <div className="flex items-center gap-2 mb-1 group">
-                        <Link
-                            href={workspace ? `/workspaces/${workspace.slug}/members/${reply.user_id}` : "#"}
-                            className="font-semibold text-sm hover:underline"
-                            style={{ color: C.navy }}
-                        >
-                            {reply.user?.name}
-                        </Link>
+                        {reply.is_deleted ? (
+                            <span className="text-sm font-semibold italic" style={{ color: C.muted }}>Deleted comment</span>
+                        ) : (
+                            <Link
+                                href={workspace ? `/workspaces/${workspace.slug}/members/${reply.user_id}` : "#"}
+                                className="font-semibold text-sm hover:underline"
+                                style={{ color: C.navy }}
+                            >
+                                {reply.user?.name}
+                            </Link>
+                        )}
                         <span className="text-xs" style={{ color: C.muted }}>
                             {safeFormatDistance(reply.created_at)}
                         </span>
+                        {reply.edited_at && !reply.is_deleted && (
+                            <span className="rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-wider" style={{ borderColor: C.border, color: C.brown }}>
+                                Edited
+                            </span>
+                        )}
                         
                         {/* Definitive Marker */}
-                        {reply.is_definitive && (
+                        {reply.is_definitive && !reply.is_deleted && (
                             <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded ml-2">
                                 <CheckCircle className="w-2.5 h-2.5" />
                                 Solution
@@ -129,7 +160,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                         )}
                         
                         {/* Solved Controls */}
-                        {!reply.is_definitive && (currentUserId === workspace.owner_id || currentUserId === threadUserId) && (
+                        {!reply.is_deleted && !reply.is_definitive && (currentUserId === workspace.owner_id || currentUserId === threadUserId) && (
                             <button 
                                 onClick={toggleDefinitive} 
                                 className="ml-auto flex items-center gap-1 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer"
@@ -140,7 +171,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                                 Mark Solved
                             </button>
                         )}
-                        {reply.is_definitive && (currentUserId === workspace.owner_id || currentUserId === threadUserId) && (
+                        {!reply.is_deleted && reply.is_definitive && (currentUserId === workspace.owner_id || currentUserId === threadUserId) && (
                             <button 
                                 onClick={toggleDefinitive} 
                                 className="ml-auto flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-700 hover:text-slate-500 transition-all cursor-pointer"
@@ -151,14 +182,38 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                     </div>
 
                     {!isCollapsed && (
-                        <div className="prose prose-sm max-w-none text-slate-800 leading-relaxed font-normal">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{reply.body}</ReactMarkdown>
-                        </div>
+                        reply.is_deleted ? (
+                            <div className="rounded-xl border border-dashed px-4 py-3 text-sm italic" style={{ borderColor: C.border, color: C.muted, background: "rgba(10,41,71,0.025)" }}>
+                                This comment was deleted.
+                            </div>
+                        ) : isEditing ? (
+                            <form onSubmit={submitEdit} className="space-y-2">
+                                <MarkdownEditor
+                                    value={editForm.data.body}
+                                    onChange={(value) => editForm.setData('body', value)}
+                                    uploadUrl={`/workspaces/${workspace.slug}/media/upload`}
+                                    placeholder="Edit your comment..."
+                                />
+                                {editForm.errors.body && <p className="text-xs font-bold text-red-700">{editForm.errors.body}</p>}
+                                <div className="flex justify-end gap-2">
+                                    <button type="button" onClick={() => setIsEditing(false)} className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold" style={{ color: C.muted }}>
+                                        <X size={13} /> Cancel
+                                    </button>
+                                    <button type="submit" disabled={editForm.processing || !editForm.data.body.trim()} className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold disabled:opacity-50" style={{ background: C.brown, color: "#f3e4c9" }}>
+                                        <Save size={13} /> Save
+                                    </button>
+                                </div>
+                            </form>
+                        ) : (
+                            <SafeMarkdown className="prose prose-sm max-w-none text-slate-800 leading-relaxed font-normal">
+                                {reply.body}
+                            </SafeMarkdown>
+                        )
                     )}
                 </div>
 
                 {/* Actions & Reactions Row */}
-                {!isCollapsed && (
+                {!isCollapsed && !reply.is_deleted && (
                     <div className="flex flex-wrap items-center gap-2 mt-2 pl-1">
                         <button 
                             onClick={() => setIsReplying(!isReplying)}
@@ -167,6 +222,25 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                             <Reply className="w-3.5 h-3.5" />
                             Reply
                         </button>
+
+                        {Number(currentUserId) === Number(reply.user_id) && (
+                            <button
+                                type="button"
+                                onClick={() => setIsEditing(true)}
+                                className="flex items-center gap-1 text-xs font-semibold text-slate-500 transition-colors hover:text-[#8b5e3c]"
+                            >
+                                <Pencil size={13} /> Edit
+                            </button>
+                        )}
+                        {(Number(currentUserId) === Number(reply.user_id) || Number(currentUserId) === Number(workspace.owner_id)) && (
+                            <button
+                                type="button"
+                                onClick={deleteReply}
+                                className="flex items-center gap-1 text-xs font-semibold text-slate-500 transition-colors hover:text-red-700"
+                            >
+                                <Trash2 size={13} /> Delete
+                            </button>
+                        )}
                         
                         {/* Reactions List */}
                         <div className="flex items-center gap-1 ml-2">
@@ -210,7 +284,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                 )}
                 
                 {/* Composer for nested reply */}
-                {!isCollapsed && isReplying && (
+                {!isCollapsed && !reply.is_deleted && isReplying && (
                     <form onSubmit={submitReply} className="mt-3 pl-1 mb-2">
                         <MarkdownEditor 
                             value={data.body}
