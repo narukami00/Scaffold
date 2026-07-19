@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Image as ImageIcon, Loader2 } from 'lucide-react';
 import axios from 'axios';
-import SafeMarkdown from '@/components/ui/SafeMarkdown';
+import SafeMarkdown, { isPastableImageUrl } from '@/components/ui/SafeMarkdown';
 
 // ── Palette tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -42,7 +42,7 @@ export default function MarkdownEditor({
 
         if (!fileItem) {
             const pasted = e.clipboardData.getData('text/plain').trim();
-            if (/^https:\/\/[^\s]+\.(?:png|jpe?g|gif|webp|avif)(?:\?[^\s]*)?$/i.test(pasted)) {
+            if (isPastableImageUrl(pasted)) {
                 e.preventDefault();
                 const textarea = textareaRef.current;
                 const start = textarea.selectionStart;

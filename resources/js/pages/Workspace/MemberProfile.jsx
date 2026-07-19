@@ -231,7 +231,7 @@ export default function MemberProfile({ profileUser, stats, assignedTasks }) {
                                         style={{ borderColor: C.border, color: C.navy }}
                                     />
                                     <p className="text-[10px]" style={{ color: C.muted }}>
-                                        Paste a direct image link ending in .jpg/.png/.webp. From Google Images: open the image, then “Copy image address” — not the Google page URL.
+                                        Paste a Google “Copy image address” link (gstatic) or any direct .jpg/.png/.webp URL.
                                     </p>
                                     {errors.avatar_url && <p className="text-red-600 text-[10px] font-bold">{errors.avatar_url}</p>}
                                 </div>

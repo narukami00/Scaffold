@@ -25,7 +25,7 @@ export default function AppLayout({ children, onNewProject }) {
     const { auth, workspace, workspaceProjects, project } = usePage().props;
     const user = auth?.user;
 
-    // Persist sidebar open state across transitions
+    // Persist sidebar open state across transitions (desktop only)
     const [open, setOpen] = useState(() => {
         if (typeof window !== "undefined") {
             const saved = localStorage.getItem("scaffold_sidebar_open");
@@ -39,6 +39,12 @@ export default function AppLayout({ children, onNewProject }) {
     const [projectSearchQuery, setProjectSearchQuery] = useState("");
     const [windowHeight, setWindowHeight] = useState(typeof window !== "undefined" ? window.innerHeight : 800);
     const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState("");
+    // Tailwind `lg` = 1024px. Below that the nav is a top bar, not a sidebar —
+    // never apply the desktop "minimized" icon-rail layout there.
+    const [isDesktop, setIsDesktop] = useState(() =>
+        typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : true
+    );
+    const navExpanded = !isDesktop || open;
 
     const workspaces = auth?.workspaces || [];
     const filteredWorkspaces = workspaces.filter(ws =>
@@ -54,6 +60,18 @@ export default function AppLayout({ children, onNewProject }) {
         const handleResize = () => setWindowHeight(window.innerHeight);
         window.addEventListener("resize", handleResize);
         return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const mq = window.matchMedia("(min-width: 1024px)");
+        const onChange = (event) => {
+            setIsDesktop(event.matches);
+            if (event.matches) setMobileMenuOpen(false);
+        };
+        setIsDesktop(mq.matches);
+        mq.addEventListener("change", onChange);
+        return () => mq.removeEventListener("change", onChange);
     }, []);
 
     const toggleOpen = (val) => {
@@ -77,10 +95,10 @@ export default function AppLayout({ children, onNewProject }) {
             >
                 {/* Logo */}
                 <div
-                    className={`flex items-center h-16 shrink-0 border-b px-4 ${open ? "justify-between px-5" : "justify-center"}`}
+                    className={`flex items-center h-16 shrink-0 border-b px-4 ${navExpanded ? "justify-between px-5" : "justify-center"}`}
                     style={{ borderColor: "#1a3f6e" }}
                 >
-                    {open ? (
+                    {navExpanded ? (
                         <Link href="/workspaces" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2.5 min-w-0">
                             <ScaffoldMark size={26} />
                             <span className="font-display font-black text-lg truncate"
@@ -126,12 +144,12 @@ export default function AppLayout({ children, onNewProject }) {
                 <nav className="flex-1 p-3 overflow-y-auto space-y-0.5">
 
                     {/* Workspaces link */}
-                    <NavItem href="/workspaces" icon={<LayoutDashboard size={15} strokeWidth={2} />} label="Workspaces" open={open} onClick={() => setMobileMenuOpen(false)} />
+                    <NavItem href="/workspaces" icon={<LayoutDashboard size={15} strokeWidth={2} />} label="Workspaces" open={navExpanded} onClick={() => setMobileMenuOpen(false)} />
 
                     {/* Workspaces list if not currently inside any workspace */}
                     {!workspace && (
                         <div className="pt-4 space-y-2">
-                            {open && (
+                            {navExpanded && (
                                 <div className="space-y-2 px-3">
                                     <p className="text-[9px] font-bold uppercase tracking-[0.2em]"
                                         style={{ color: "rgba(211,212,192,0.35)" }}>
@@ -167,12 +185,12 @@ export default function AppLayout({ children, onNewProject }) {
                                             </span>
                                         }
                                         label={ws.name}
-                                        open={open}
+                                        open={navExpanded}
                                         exactMatch
                                     />
                                 ))}
 
-                                {filteredWorkspaces.length > 5 && open && (
+                                {filteredWorkspaces.length > 5 && navExpanded && (
                                     <div className="px-3 text-[9px] font-bold uppercase tracking-wider text-slate-500 py-1">
                                         + {filteredWorkspaces.length - 5} more workspaces
                                     </div>
@@ -184,7 +202,7 @@ export default function AppLayout({ children, onNewProject }) {
                     {/* Workspace + projects section */}
                     {workspace && (
                         <div className="pt-4">
-                            {open && (
+                            {navExpanded && (
                                 <p className="px-3 pb-1.5 text-[9px] font-bold uppercase tracking-[0.2em]"
                                     style={{ color: "rgba(211,212,192,0.35)" }}>
                                     Workspace
@@ -201,7 +219,7 @@ export default function AppLayout({ children, onNewProject }) {
                                     </span>
                                 }
                                 label={workspace.name}
-                                open={open}
+                                open={navExpanded}
                                 exactMatch
                             />
 
@@ -216,7 +234,7 @@ export default function AppLayout({ children, onNewProject }) {
 
                                 return (
                                     <div className="mt-1 space-y-0.5">
-                                        {open && (
+                                        {navExpanded && (
                                             <div className="flex items-center justify-between px-3 py-1">
                                                 <p className="text-[9px] font-bold uppercase tracking-[0.2em]"
                                                     style={{ color: "rgba(211,212,192,0.3)" }}>
@@ -225,11 +243,11 @@ export default function AppLayout({ children, onNewProject }) {
                                             </div>
                                         )}
                                         {visibleProjects.map(proj => (
-                                            <ProjectNavItem key={proj.id} project={proj} workspace={workspace} open={open} onClick={() => setMobileMenuOpen(false)} />
+                                            <ProjectNavItem key={proj.id} project={proj} workspace={workspace} open={navExpanded} onClick={() => setMobileMenuOpen(false)} />
                                         ))}
 
                                         {showSeeMore && (
-                                            open ? (
+                                            navExpanded ? (
                                                 <button
                                                     onClick={() => setIsProjectSearchOpen(true)}
                                                     className="w-full flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all duration-150"
@@ -255,7 +273,7 @@ export default function AppLayout({ children, onNewProject }) {
                             })()}
 
                             {/* Settings link */}
-                            {open ? (
+                            {navExpanded ? (
                                 <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(26,63,110,0.5)" }}>
                                     <Link
                                         href={`/workspaces/${workspace.slug}?tab=settings`} onClick={() => setMobileMenuOpen(false)}
@@ -289,7 +307,7 @@ export default function AppLayout({ children, onNewProject }) {
                 <div className="shrink-0 border-t p-3" style={{ borderColor: "#1a3f6e" }}>
                     <Link
                         href={profileHref}
-                        className={`flex items-center gap-3 px-2 py-2 mb-2 rounded-xl transition-all hover:bg-white/5 ${!open ? "justify-center px-0" : ""}`}
+                        className={`flex items-center gap-3 px-2 py-2 mb-2 rounded-xl transition-all hover:bg-white/5 ${!navExpanded ? "justify-center px-0" : ""}`}
                     >
                         {user.avatar_path ? (
                             <img src={user.avatar_path} alt={user.name} className="w-8 h-8 rounded-full object-cover shrink-0" />
@@ -299,7 +317,7 @@ export default function AppLayout({ children, onNewProject }) {
                                 {initials}
                             </div>
                         )}
-                        {open && (
+                        {navExpanded && (
                             <div className="min-w-0 flex-1">
                                 <div className="truncate text-sm font-semibold animate-in fade-in duration-200" style={{ color: "#f3e4c9" }}>
                                     {user?.name || "User"}
@@ -312,13 +330,13 @@ export default function AppLayout({ children, onNewProject }) {
                     </Link>
                     <Link
                         href="/logout" method="post" as="button" type="button"
-                        className={`w-full rounded-xl py-2 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 transition-all duration-150 ${open ? "px-3 justify-start" : "justify-center px-0"}`}
+                        className={`w-full rounded-xl py-2 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 transition-all duration-150 ${navExpanded ? "px-3 justify-start" : "justify-center px-0"}`}
                         style={{ background: "rgba(243,228,201,0.05)", border: "1px solid rgba(243,228,201,0.1)", color: "rgba(211,212,192,0.5)" }}
                         onMouseEnter={e => { e.currentTarget.style.background = "rgba(243,228,201,0.1)"; e.currentTarget.style.color = "#f3e4c9"; e.currentTarget.style.borderColor = "rgba(243,228,201,0.2)"; }}
                         onMouseLeave={e => { e.currentTarget.style.background = "rgba(243,228,201,0.05)"; e.currentTarget.style.color = "rgba(211,212,192,0.5)"; e.currentTarget.style.borderColor = "rgba(243,228,201,0.1)"; }}
                     >
                         <LogOut size={13} />
-                        {open && "Logout"}
+                        {navExpanded && "Logout"}
                     </Link>
                 </div>
             </aside>

@@ -8,7 +8,8 @@ class AvatarUrl
 {
     /**
      * Normalize and validate a pasted avatar URL.
-     * Accepts direct HTTPS image links, and extracts imgurl from Google Images pages.
+     * Accepts direct HTTPS image links, Google thumbnail CDNs, and extracts
+     * imgurl from Google Images "imgres" pages.
      */
     public static function normalize(?string $url): ?string
     {
@@ -39,6 +40,45 @@ class AvatarUrl
         return $url;
     }
 
+    public static function isLikelyImageUrl(string $url): bool
+    {
+        if (! preg_match('/^https:\\/\\//i', $url)) {
+            return false;
+        }
+
+        $parts = parse_url($url);
+        if ($parts === false) {
+            return false;
+        }
+
+        $host = strtolower($parts['host'] ?? '');
+        $path = $parts['path'] ?? '';
+
+        // Standard direct file links: .../photo.jpg?token=...
+        if (preg_match('/\\.(png|jpe?g|gif|webp|avif)$/i', $path)) {
+            return true;
+        }
+
+        // Google Images result thumbnails (Copy image address)
+        // e.g. https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9Gc...&s=10
+        if (
+            str_ends_with($host, '.gstatic.com')
+            && (str_starts_with($path, '/images') || $path === '/images')
+        ) {
+            return true;
+        }
+
+        // Google-hosted user content / photos CDN
+        if (
+            str_ends_with($host, '.googleusercontent.com')
+            || $host === 'googleusercontent.com'
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
     public static function rules(): array
     {
         return [
@@ -65,9 +105,8 @@ class AvatarUrl
                     return;
                 }
 
-                $path = parse_url($normalized, PHP_URL_PATH) ?: '';
-                if (! preg_match('/\\.(png|jpe?g|gif|webp|avif)$/i', $path)) {
-                    $fail('Paste a direct image link (URL ending in .jpg, .png, .gif, or .webp). From Google Images: open the image, then use “Copy image address”.');
+                if (! self::isLikelyImageUrl($normalized)) {
+                    $fail('Paste an image address (Google “Copy image address”, or a link ending in .jpg/.png/.webp).');
                 }
             },
         ];
@@ -92,10 +131,9 @@ class AvatarUrl
             ]);
         }
 
-        $path = parse_url($normalized, PHP_URL_PATH) ?: '';
-        if (! preg_match('/\\.(png|jpe?g|gif|webp|avif)$/i', $path)) {
+        if (! self::isLikelyImageUrl($normalized)) {
             throw ValidationException::withMessages([
-                'avatar_url' => 'Paste a direct image link (URL ending in .jpg, .png, .gif, or .webp). From Google Images: open the image, then use “Copy image address”.',
+                'avatar_url' => 'Paste an image address (Google “Copy image address”, or a link ending in .jpg/.png/.webp).',
             ]);
         }
 
