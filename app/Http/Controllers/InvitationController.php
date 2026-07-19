@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceInvitation;
 use App\Helpers\Notifier;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -91,27 +90,26 @@ class InvitationController extends Controller
             ->firstOrFail();
 
         $workspace = Workspace::findOrFail($invitation->workspace_id);
+        $userId = Auth::id();
 
         // Predefined premium palette
         $colors = [
-            "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", 
-            "#06b6d4", "#f97316", "#14b8a6", "#6366f1", "#d946ef", "#84cc16"
+            "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899",
+            "#06b6d4", "#f97316", "#14b8a6", "#6366f1", "#d946ef", "#84cc16",
         ];
         $randomColor = $colors[array_rand($colors)];
 
-        DB::transaction(function () use ($invitation, $workspace, $randomColor) {
-            // Add the user to the workspace members if not already one
-            $workspace->members()->syncWithoutDetaching([
-                Auth::id() => [
-                    "role" => $invitation->role,
-                    "joined_at" => now(),
-                    "color" => $randomColor,
-                ]
+        // Avoid DB::transaction here: Neon pooled connections often abort
+        // mid-transaction and surface a misleading 25P02 follow-on error.
+        if (!$workspace->members()->where("users.id", $userId)->exists()) {
+            $workspace->members()->attach($userId, [
+                "role" => $invitation->role ?: "member",
+                "joined_at" => now(),
+                "color" => $randomColor,
             ]);
+        }
 
-            // Update status instead of deleting (for audit log)
-            $invitation->update(["status" => "accepted"]);
-        });
+        $invitation->update(["status" => "accepted"]);
 
         // Mark corresponding notification as read if it exists
         if (Auth::check()) {
