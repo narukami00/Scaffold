@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Events\GitHubActivityUpdated;
 use App\Models\GitHubRepository;
 use App\Models\GitHubIssue;
 use App\Models\GitHubPullRequest;
@@ -40,29 +41,33 @@ class ProcessGitHubWebhookJob implements ShouldQueue
             return;
         }
 
-        $repository = GitHubRepository::where('github_repo_id', $repoId)->first();
-        if (!$repository) {
+        $repositories = GitHubRepository::where('github_repo_id', $repoId)->get();
+        if ($repositories->isEmpty()) {
             Log::info("No local project linked to GitHub repository ID: {$repoId}. Ignoring event.");
             return;
         }
 
-        switch ($this->eventType) {
-            case 'push':
-                $this->handlePush($repository);
-                break;
-            case 'pull_request':
-                $this->handlePullRequest($repository);
-                break;
-            case 'issues':
-                $this->handleIssues($repository);
-                break;
-            case 'create':
-            case 'delete':
-                $this->handleBranchEvent($repository);
-                break;
-            default:
-                Log::info("Ignoring unhandled GitHub event type: {$this->eventType}");
-                break;
+        foreach ($repositories as $repository) {
+            switch ($this->eventType) {
+                case 'push':
+                    $this->handlePush($repository);
+                    break;
+                case 'pull_request':
+                    $this->handlePullRequest($repository);
+                    break;
+                case 'issues':
+                    $this->handleIssues($repository);
+                    break;
+                case 'create':
+                case 'delete':
+                    $this->handleBranchEvent($repository);
+                    break;
+                default:
+                    Log::info("Ignoring unhandled GitHub event type: {$this->eventType}");
+                    continue 2;
+            }
+
+            GitHubActivityUpdated::dispatch($repository->project_id, $this->eventType);
         }
     }
 
@@ -70,6 +75,15 @@ class ProcessGitHubWebhookJob implements ShouldQueue
     {
         $commits = $this->payload['commits'] ?? [];
         Log::info("Processing push with " . count($commits) . " commits.");
+
+        $ref = $this->payload['ref'] ?? '';
+        if (str_starts_with($ref, 'refs/heads/')) {
+            $branchName = substr($ref, strlen('refs/heads/'));
+            GitHubBranch::updateOrCreate(
+                ['github_repo_id' => $repository->id, 'name' => $branchName],
+                ['last_commit_sha' => $this->payload['after'] ?? ''],
+            );
+        }
 
         foreach ($commits as $commit) {
             $message = $commit['message'] ?? '';
@@ -82,10 +96,15 @@ class ProcessGitHubWebhookJob implements ShouldQueue
                 continue;
             }
 
-            // Check if message matches closing keywords
-            $isClose = preg_match('/(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#(\d+)/i', $message);
+            preg_match_all(
+                '/(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#(\d+)/i',
+                $message,
+                $closingMatches,
+            );
+            $closingIssueNumbers = array_map('intval', $closingMatches[1] ?? []);
 
             foreach ($matches[1] as $issueNumber) {
+                $isClose = in_array((int) $issueNumber, $closingIssueNumbers, true);
                 // Find local task via mapped GitHub issue
                 $githubIssue = GitHubIssue::where('github_repo_id', $repository->id)
                     ->where('issue_number', $issueNumber)
@@ -138,7 +157,15 @@ class ProcessGitHubWebhookJob implements ShouldQueue
         $pr = $this->payload['pull_request'] ?? [];
         $prNumber = $pr['number'] ?? null;
 
-        if (!$prNumber || !in_array($action, ['opened', 'closed', 'reopened', 'synchronize', 'edited'])) {
+        if (!$prNumber || !in_array($action, [
+            'opened',
+            'closed',
+            'reopened',
+            'synchronize',
+            'edited',
+            'ready_for_review',
+            'converted_to_draft',
+        ], true)) {
             return;
         }
 
@@ -152,7 +179,10 @@ class ProcessGitHubWebhookJob implements ShouldQueue
         $baseBranch = $pr['base']['ref'] ?? '';
 
         // Find referenced issue number in title/body
-        $taskId = null;
+        $existingPullRequest = GitHubPullRequest::where('github_repo_id', $repository->id)
+            ->where('pr_number', $prNumber)
+            ->first();
+        $taskId = $existingPullRequest?->task_id;
         preg_match('/(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#(\d+)/i', $title . "\n" . $body, $matches);
         if (!empty($matches[1])) {
             $issueNumber = (int)$matches[1];
@@ -275,7 +305,9 @@ class ProcessGitHubWebhookJob implements ShouldQueue
                     'name' => $ref,
                 ],
                 [
-                    'last_commit_sha' => $this->payload['master_branch'] ?? '',
+                    // GitHub's create payload only includes the source branch
+                    // name, not its SHA. The next push/API refresh fills this.
+                    'last_commit_sha' => '',
                 ]
             );
         } elseif ($this->eventType === 'delete') {

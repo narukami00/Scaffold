@@ -34,6 +34,7 @@ WORKDIR /var/www/html
 
 # Copy project files (including the pre-built public/build folder)
 COPY . .
+RUN chmod +x /var/www/html/docker/start.sh
 
 # Install dependencies (ignoring scripts initially to avoid bootstrap issue during build)
 RUN composer install --no-interaction --optimize-autoloader --no-dev
@@ -44,7 +45,5 @@ RUN chown -R www-data:www-data /var/www/html
 # Expose port
 EXPOSE 80
 
-# Run migrations, ensure public storage symlink, start Reverb + Apache
-CMD php artisan migrate --force \
-    && (php artisan storage:link || true) \
-    && php artisan reverb:start --host=127.0.0.1 --port=8080 & apache2-foreground
+# Run migrations, queue worker, scheduler, Reverb, and Apache
+CMD ["/var/www/html/docker/start.sh"]

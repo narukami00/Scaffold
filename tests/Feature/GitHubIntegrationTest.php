@@ -16,6 +16,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use App\Jobs\ProcessGitHubWebhookJob;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class GitHubIntegrationTest extends TestCase
@@ -164,6 +165,37 @@ class GitHubIntegrationTest extends TestCase
         ]);
     }
 
+    public function test_project_cannot_link_installation_from_another_workspace(): void
+    {
+        $otherOwner = User::factory()->create();
+        $otherWorkspace = Workspace::create([
+            'name' => 'Other Workspace',
+            'owner_id' => $otherOwner->id,
+        ]);
+        $otherWorkspace->members()->attach($otherOwner->id);
+        $foreignInstallation = GitHubInstallation::create([
+            'workspace_id' => $otherWorkspace->id,
+            'github_installation_id' => '654321',
+            'account_login' => 'other-org',
+            'account_type' => 'Organization',
+        ]);
+
+        $this->actingAs($this->user)->postJson(
+            "/workspaces/{$this->workspace->slug}/projects/{$this->project->slug}/github/link",
+            [
+                'github_repo_id' => 999111,
+                'github_installation_id' => $foreignInstallation->id,
+                'full_name' => 'other-org/private-repo',
+                'default_branch' => 'main',
+                'html_url' => 'https://github.com/other-org/private-repo',
+            ],
+        )->assertUnprocessable();
+
+        $this->assertDatabaseMissing('github_repositories', [
+            'project_id' => $this->project->id,
+        ]);
+    }
+
     public function test_webhook_receives_payload_verifies_signature_and_dispatches_job(): void
     {
         Queue::fake();
@@ -196,6 +228,15 @@ class GitHubIntegrationTest extends TestCase
         ]);
 
         Queue::assertPushed(ProcessGitHubWebhookJob::class);
+    }
+
+    public function test_webhook_rejects_missing_github_headers(): void
+    {
+        config(['services.github.webhook_secret' => null]);
+
+        $this->postJson('/webhooks/github', ['repository' => ['id' => 999111]])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Required GitHub webhook headers are missing.');
     }
 
     public function test_sync_outbound_command_syncs_modified_tasks(): void
@@ -238,5 +279,84 @@ class GitHubIntegrationTest extends TestCase
         $this->assertFalse($githubIssue->needs_sync);
         $this->assertEquals(88, $githubIssue->issue_number);
         $this->assertEquals('https://github.com/devspace-org/laravel-app/issues/88', $githubIssue->html_url);
+    }
+
+    public function test_activity_feed_loads_branch_filtered_commits_issues_and_pull_requests(): void
+    {
+        $installation = GitHubInstallation::create([
+            'workspace_id' => $this->workspace->id,
+            'github_installation_id' => '123456',
+            'account_login' => 'devspace-org',
+            'account_type' => 'Organization',
+        ]);
+        GitHubRepository::create([
+            'project_id' => $this->project->id,
+            'github_installation_id' => $installation->id,
+            'github_repo_id' => 999111,
+            'full_name' => 'devspace-org/laravel-app',
+            'default_branch' => 'main',
+            'html_url' => 'https://github.com/devspace-org/laravel-app',
+        ]);
+
+        Http::fake([
+            'https://api.github.com/repos/devspace-org/laravel-app/branches*' => Http::response([[
+                'name' => 'feature/activity',
+                'commit' => ['sha' => 'abc123'],
+                'protected' => true,
+            ]]),
+            'https://api.github.com/repos/devspace-org/laravel-app/commits*' => Http::response([[
+                'sha' => 'abc123',
+                'html_url' => 'https://github.com/devspace-org/laravel-app/commit/abc123',
+                'commit' => ['author' => [
+                    'name' => 'Rafsan',
+                    'email' => 'raf@example.com',
+                    'date' => '2026-07-19T12:00:00Z',
+                ], 'message' => 'Improve activity feed'],
+                'author' => ['login' => 'rafsan', 'avatar_url' => 'https://avatars.example/1'],
+            ]]),
+            'https://api.github.com/repos/devspace-org/laravel-app/pulls*' => Http::response([[
+                'number' => 7,
+                'title' => 'Add analytics',
+                'state' => 'open',
+                'merged_at' => null,
+                'draft' => false,
+                'html_url' => 'https://github.com/devspace-org/laravel-app/pull/7',
+                'head' => ['ref' => 'feature/activity'],
+                'base' => ['ref' => 'main'],
+                'user' => ['login' => 'rafsan', 'avatar_url' => null],
+                'updated_at' => '2026-07-19T12:30:00Z',
+            ]]),
+            'https://api.github.com/repos/devspace-org/laravel-app/issues*' => Http::response([[
+                'number' => 9,
+                'title' => 'Activity filters',
+                'state' => 'open',
+                'html_url' => 'https://github.com/devspace-org/laravel-app/issues/9',
+                'user' => ['login' => 'rafsan', 'avatar_url' => null],
+                'labels' => [['name' => 'enhancement', 'color' => '8b5e3c']],
+                'updated_at' => '2026-07-19T12:45:00Z',
+            ]]),
+        ]);
+
+        $response = $this->actingAs($this->user)->get(route('projects.activity', [
+            'workspace' => $this->workspace->slug,
+            'project' => $this->project->slug,
+            'branch' => 'feature/activity',
+        ]));
+
+        $response->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->component('Project/Git/Feed')
+            ->where('filters.branch', 'feature/activity')
+            ->has('commits', 1)
+            ->has('branches', 1)
+            ->has('pullRequests', 1)
+            ->has('issues', 1)
+            ->where('analytics.open_issues', 1)
+            ->where('analytics.open_pull_requests', 1)
+        );
+
+        Http::assertSent(fn ($request) =>
+            str_contains($request->url(), '/commits')
+            && $request['sha'] === 'feature/activity'
+        );
     }
 }

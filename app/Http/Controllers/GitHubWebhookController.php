@@ -14,6 +14,11 @@ class GitHubWebhookController extends Controller
         $signature = $request->header('X-Hub-Signature-256');
         $secret = config('services.github.webhook_secret');
 
+        if (!$secret && app()->environment('production')) {
+            Log::critical('GITHUB_WEBHOOK_SECRET is missing in production.');
+            return response()->json(['message' => 'Webhook is not configured.'], 503);
+        }
+
         if ($secret) {
             if (!$signature) {
                 abort(403, 'Signature header missing.');
@@ -27,20 +32,22 @@ class GitHubWebhookController extends Controller
 
         $deliveryId = $request->header('X-GitHub-Delivery');
         $eventType = $request->header('X-GitHub-Event');
-
-        if ($deliveryId) {
-            // Check deduplication
-            if (GitHubWebhookDelivery::where('delivery_id', $deliveryId)->exists()) {
-                return response()->json(['success' => true, 'message' => 'Duplicate event skipped.']);
-            }
-
-            // Log the delivery
-            GitHubWebhookDelivery::create([
-                'delivery_id' => $deliveryId,
-                'event_type' => $eventType ?? 'unknown',
-                'processed_at' => now(),
-            ]);
+        if (!$deliveryId || !$eventType) {
+            return response()->json([
+                'message' => 'Required GitHub webhook headers are missing.',
+            ], 422);
         }
+
+        // Check deduplication
+        if (GitHubWebhookDelivery::where('delivery_id', $deliveryId)->exists()) {
+            return response()->json(['success' => true, 'message' => 'Duplicate event skipped.']);
+        }
+
+        GitHubWebhookDelivery::create([
+            'delivery_id' => $deliveryId,
+            'event_type' => $eventType,
+            'processed_at' => now(),
+        ]);
 
         // Dispatch job for async processing
         $payload = $request->json()->all();

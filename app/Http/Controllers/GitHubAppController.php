@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class GitHubAppController extends Controller
 {
@@ -249,7 +250,11 @@ class GitHubAppController extends Controller
 
         $validated = $request->validate([
             'github_repo_id' => 'required|numeric',
-            'github_installation_id' => 'required|exists:github_installations,id',
+            'github_installation_id' => [
+                'required',
+                Rule::exists('github_installations', 'id')
+                    ->where(fn ($query) => $query->where('workspace_id', $workspace->id)),
+            ],
             'full_name' => 'required|string',
             'default_branch' => 'required|string',
             'html_url' => 'required|url',
