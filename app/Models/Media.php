@@ -11,6 +11,7 @@ class Media extends Model
 
     protected $fillable = [
         "user_id",
+        "project_id",
         "mediable_id",
         "mediable_type",
         "file_path",
@@ -33,5 +34,10 @@ class Media extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
     }
 }

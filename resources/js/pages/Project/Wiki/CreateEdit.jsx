@@ -99,6 +99,7 @@ export default function CreateEdit({ workspace, project, wiki = null, isEdit = f
                             onChange={(val) => setData("content", val)}
                             placeholder="Write your wiki documentation here in Markdown format..."
                             uploadUrl={`/workspaces/${workspace.slug}/media/upload`}
+                            projectId={project.id}
                             disabled={processing}
                         />
                         {errors.content && (

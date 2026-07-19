@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Media;
+use App\Models\Project;
 use App\Models\Workspace;
 use Illuminate\Http\Request;
 
@@ -20,6 +21,11 @@ class MediaController extends Controller
 
         // Prefer extensions over mimes: SQL dumps are often sniffed as octet-stream.
         $request->validate([
+            'project_id' => [
+                'nullable',
+                'integer',
+                'exists:projects,id',
+            ],
             'image' => [
                 'required',
                 'file',
@@ -28,12 +34,22 @@ class MediaController extends Controller
             ],
         ]);
 
+        $project = null;
+        if ($request->filled('project_id')) {
+            $project = Project::findOrFail($request->integer('project_id'));
+            abort_unless(
+                (int) $project->workspace_id === (int) $workspace->id,
+                404,
+            );
+        }
+
         $file = $request->file('image');
         // Store in a generic uploads directory segmented by workspace
         $path = $file->store("workspaces/{$workspace->id}/media", 'public');
 
         $media = Media::create([
             'user_id' => $request->user()->id,
+            'project_id' => $project?->id,
             // mediable_id and type remain null until explicitly attached
             'file_path' => $path,
             'file_name' => $file->getClientOriginalName(),

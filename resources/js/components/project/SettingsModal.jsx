@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useForm, router, usePage } from "@inertiajs/react";
 import axios from "axios";
-import { X, Settings, FolderOpen, Save, Tag, Plus, Trash2, Edit2, GitBranch, RefreshCw } from "lucide-react";
+import { X, Settings, FolderOpen, Save, Tag, Plus, Trash2, Edit2, GitBranch, RefreshCw, AlertTriangle } from "lucide-react";
 import StyledSelect from "@/components/ui/StyledSelect";
 
 const C = {
@@ -29,6 +29,10 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
     const isOwner = auth?.user?.id === workspace.owner_id;
 
     const [activeTab, setActiveTab] = useState("general");
+    const [confirmingProjectDelete, setConfirmingProjectDelete] = useState(false);
+    const [deleteConfirmation, setDeleteConfirmation] = useState("");
+    const [deleteError, setDeleteError] = useState("");
+    const deleteProjectForm = useForm({});
 
     // Settings Modal dynamic states
     const [labels, setLabels] = useState([]);
@@ -61,6 +65,10 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
     useEffect(() => {
         if (isOpen) {
             loadSettingsData();
+        } else {
+            setConfirmingProjectDelete(false);
+            setDeleteConfirmation("");
+            setDeleteError("");
         }
     }, [isOpen, project.slug]);
 
@@ -157,6 +165,23 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                 onClose();
             },
         });
+    };
+
+    const handleDeleteProject = () => {
+        if (deleteConfirmation !== project.name) return;
+
+        setDeleteError("");
+        deleteProjectForm.delete(
+            `/workspaces/${workspace.slug}/projects/${project.slug}`,
+            {
+                onError: (formErrors) => {
+                    setDeleteError(
+                        formErrors?.message ||
+                        "The project could not be deleted. Please try again.",
+                    );
+                },
+            },
+        );
     };
 
     const handleCreateLabel = (e) => {
@@ -289,7 +314,8 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                 {/* Tab content area */}
                 <div className="flex-1 overflow-y-auto mt-6 custom-scrollbar pr-1">
                     {activeTab === "general" && (
-                        /* General Settings Form */
+                        <div className="space-y-6">
+                        {/* General Settings Form */}
                         <form onSubmit={handleSubmitGeneral} className="space-y-5">
                             {/* Project Name */}
                             <div className="space-y-1.5">
@@ -342,6 +368,105 @@ export default function SettingsModal({ workspace, project, isOpen, onClose }) {
                                 </button>
                             </div>
                         </form>
+
+                        {isOwner && (
+                            <section
+                                className="space-y-4 rounded-2xl p-5"
+                                style={{
+                                    background: "rgba(192,57,43,0.04)",
+                                    border: "1px solid rgba(192,57,43,0.2)",
+                                }}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+                                    <h3 className="text-xs font-black uppercase tracking-widest text-red-700">
+                                        Danger Zone
+                                    </h3>
+                                </div>
+                                <p className="text-xs leading-relaxed" style={{ color: C.muted }}>
+                                    Permanently delete <strong>{project.name}</strong> and its
+                                    tasks, threads, wiki pages, labels, uploaded files, and local
+                                    GitHub synchronization data. Remote GitHub resources will not
+                                    be changed.
+                                </p>
+
+                                {confirmingProjectDelete ? (
+                                    <div
+                                        className="space-y-4 rounded-xl p-4"
+                                        style={{
+                                            background: "rgba(192,57,43,0.08)",
+                                            border: "1px solid rgba(192,57,43,0.2)",
+                                        }}
+                                    >
+                                        <div className="flex items-start gap-2">
+                                            <AlertTriangle
+                                                size={16}
+                                                className="mt-0.5 shrink-0 text-red-700"
+                                            />
+                                            <p className="text-xs leading-relaxed" style={{ color: C.navy }}>
+                                                This cannot be undone. Type{" "}
+                                                <strong>{project.name}</strong> to confirm.
+                                            </p>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={deleteConfirmation}
+                                            onChange={(event) => {
+                                                setDeleteConfirmation(event.target.value);
+                                                setDeleteError("");
+                                            }}
+                                            disabled={deleteProjectForm.processing}
+                                            className="w-full rounded-xl border bg-white/60 px-3 py-2.5 text-xs font-bold outline-none focus:border-red-600"
+                                            style={{ borderColor: "rgba(192,57,43,0.3)", color: C.navy }}
+                                            placeholder={project.name}
+                                            autoComplete="off"
+                                        />
+                                        {(deleteError || deleteProjectForm.errors?.delete_project) && (
+                                            <p className="text-[10px] font-bold text-red-700">
+                                                {deleteError || deleteProjectForm.errors.delete_project}
+                                            </p>
+                                        )}
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={handleDeleteProject}
+                                                disabled={
+                                                    deleteProjectForm.processing ||
+                                                    deleteConfirmation !== project.name
+                                                }
+                                                className="rounded-xl bg-red-700 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-white transition-all hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-40"
+                                            >
+                                                {deleteProjectForm.processing
+                                                    ? "Deleting…"
+                                                    : "Delete Project Permanently"}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setConfirmingProjectDelete(false);
+                                                    setDeleteConfirmation("");
+                                                    setDeleteError("");
+                                                }}
+                                                disabled={deleteProjectForm.processing}
+                                                className="rounded-xl border px-4 py-2.5 text-xs font-bold transition-all disabled:opacity-50"
+                                                style={{ borderColor: C.border, color: C.muted }}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => setConfirmingProjectDelete(true)}
+                                        className="rounded-xl bg-red-700 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-white transition-all hover:bg-red-800"
+                                    >
+                                        Delete Project
+                                    </button>
+                                )}
+                            </section>
+                        )}
+                        </div>
                     )}
 
                     {activeTab === "labels" && (

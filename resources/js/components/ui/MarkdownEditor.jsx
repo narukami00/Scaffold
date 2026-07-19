@@ -20,6 +20,7 @@ export default function MarkdownEditor({
     onChange,
     placeholder = 'Write something...',
     uploadUrl,
+    projectId = null,
     disabled = false,
 }) {
     const [view, setView] = useState('write');
@@ -86,6 +87,9 @@ export default function MarkdownEditor({
 
         const formData = new FormData();
         formData.append('image', file);
+        if (projectId) {
+            formData.append('project_id', projectId);
+        }
 
         try {
             const { data } = await axios.post(uploadUrl, formData, {

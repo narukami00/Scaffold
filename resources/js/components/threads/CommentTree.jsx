@@ -192,6 +192,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                                     value={editForm.data.body}
                                     onChange={(value) => editForm.setData('body', value)}
                                     uploadUrl={`/workspaces/${workspace.slug}/media/upload`}
+                                    projectId={project.id}
                                     placeholder="Edit your comment..."
                                 />
                                 {editForm.errors.body && <p className="text-xs font-bold text-red-700">{editForm.errors.body}</p>}
@@ -290,6 +291,7 @@ const ReplyNode = ({ reply, allReplies, workspace, project, currentUserId, onRea
                             value={data.body}
                             onChange={val => setData('body', val)}
                             uploadUrl={`/workspaces/${workspace.slug}/media/upload`}
+                            projectId={project.id}
                             placeholder={`Reply to ${reply.user?.name}...`}
                         />
                         <div className="flex justify-end gap-2 mt-2">

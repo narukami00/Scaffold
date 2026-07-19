@@ -143,6 +143,7 @@ export default function ThreadIndex({ workspace, project, threads, filters = {} 
                                 value={data.body}
                                 onChange={val => setData('body', val)}
                                 uploadUrl={`/workspaces/${workspace.slug}/media/upload`}
+                                projectId={project.id}
                                 placeholder="What's on your mind? (Markdown & Image Drop supported)"
                             />
                             {errors.body && <span className="text-xs text-red-700 block">{errors.body}</span>}

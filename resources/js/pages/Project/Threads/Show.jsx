@@ -332,6 +332,7 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
                                 value={threadEdit.data.body}
                                 onChange={(value) => threadEdit.setData('body', value)}
                                 uploadUrl={`/workspaces/${workspace.slug}/media/upload`}
+                                projectId={project.id}
                                 placeholder="Update your discussion..."
                             />
                             {threadEdit.errors.body && <p className="text-xs font-bold text-red-700">{threadEdit.errors.body}</p>}
@@ -418,6 +419,7 @@ export default function ThreadShow({ workspace, project, thread: initialThread }
                             value={data.body}
                             onChange={val => setData('body', val)}
                             uploadUrl={`/workspaces/${workspace.slug}/media/upload`}
+                            projectId={project.id}
                             placeholder="Add a comment to this thread..."
                         />
                         <div className="flex justify-end gap-2 mt-3">

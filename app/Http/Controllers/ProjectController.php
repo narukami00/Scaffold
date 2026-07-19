@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreProjectRequest;
 use App\Models\Project;
 use App\Models\Workspace;
+use App\Services\ProjectDeletionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use RuntimeException;
 
 class ProjectController extends Controller
 {
@@ -293,19 +295,34 @@ class ProjectController extends Controller
     /**
      * Permanently delete a project and all of its tasks.
      */
-    public function destroy(Workspace $workspace, Project $project)
+    public function destroy(
+        Request $request,
+        Workspace $workspace,
+        Project $project,
+        ProjectDeletionService $deletionService,
+    )
     {
-        if ($workspace->owner_id !== Auth::id()) {
-            abort(403);
+        abort_unless(
+            (int) $workspace->owner_id === (int) $request->user()->id,
+            403,
+        );
+
+        abort_unless(
+            (int) $project->workspace_id === (int) $workspace->id,
+            404,
+        );
+
+        try {
+            $deletionService->delete($project);
+        } catch (RuntimeException $exception) {
+            return back()->withErrors([
+                'delete_project' => $exception->getMessage(),
+            ]);
         }
 
-        if ($project->workspace_id !== $workspace->id) {
-            abort(404);
-        }
-
-        $project->delete();
-
-        return redirect()->route("workspaces.show", $workspace->slug);
+        return redirect()
+            ->route("workspaces.show", $workspace->slug)
+            ->with("success", "Project deleted permanently.");
     }
 
     /**
