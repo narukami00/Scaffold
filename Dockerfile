@@ -17,7 +17,8 @@ RUN apt-get update && apt-get install -y \
 
 # Configure and install GD and other PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo pdo_pgsql pgsql gd zip bcmath opcache
+    && docker-php-ext-configure pcntl --enable-pcntl \
+    && docker-php-ext-install pdo pdo_pgsql pgsql gd zip bcmath opcache pcntl
 
 # Enable Apache modules and copy virtual host configuration
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
