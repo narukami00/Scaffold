@@ -67,7 +67,19 @@ const moveTask = (items, taskId, nextStatus, nextIndex) => {
     );
 };
 
-export default function Board({ workspace, project, members = [] }) {
+const normalizeTaskLocks = (raw = {}) => {
+    const next = {};
+
+    Object.entries(raw).forEach(([taskId, userId]) => {
+        if (userId) {
+            next[Number(taskId)] = Number(userId);
+        }
+    });
+
+    return next;
+};
+
+export default function Board({ workspace, project, members = [], taskLocks = {} }) {
     const { auth } = usePage().props;
     const currentUserId = auth?.user?.id;
     const [view, setView] = useState("columns");
@@ -114,9 +126,13 @@ export default function Board({ workspace, project, members = [] }) {
         setSelectedTaskId(null);
     }, []);
 
-    const [locks, setLocks] = useState({}); // { taskId: userId }
+    const [locks, setLocks] = useState(() => normalizeTaskLocks(taskLocks));
     const [presenceMembers, setPresenceMembers] = useState([]);
     const lastActivityRef = useRef(Date.now());
+
+    useEffect(() => {
+        setLocks(normalizeTaskLocks(taskLocks));
+    }, [project.id]);
 
     useEffect(() => {
         if (!isModalOpen) return;
@@ -161,16 +177,6 @@ export default function Board({ workspace, project, members = [] }) {
                 setPresenceMembers((prev) =>
                     prev.filter((u) => u.id !== user.id),
                 );
-                // Automatically release any locks held by the user who left
-                setLocks((prev) => {
-                    const next = { ...prev };
-                    Object.keys(next).forEach((taskId) => {
-                        if (next[taskId] === user.id) {
-                            delete next[taskId];
-                        }
-                    });
-                    return next;
-                });
             })
             .error((error) => {
                 console.error("Presence channel error:", error);

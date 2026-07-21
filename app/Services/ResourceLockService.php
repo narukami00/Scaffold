@@ -63,4 +63,22 @@ class ResourceLockService
     {
         Cache::forget($this->key($type, $id));
     }
+
+    /**
+     * @return array<int, int> Map of resource id => holding user id
+     */
+    public function holdersFor(string $type, array $ids): array
+    {
+        $holders = [];
+
+        foreach ($ids as $id) {
+            $holder = $this->holder($type, (int) $id);
+
+            if ($holder !== null) {
+                $holders[(int) $id] = $holder;
+            }
+        }
+
+        return $holders;
+    }
 }

@@ -6,6 +6,7 @@ use App\Http\Requests\StoreProjectRequest;
 use App\Models\Project;
 use App\Models\Workspace;
 use App\Services\ProjectDeletionService;
+use App\Services\ResourceLockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -219,8 +220,11 @@ class ProjectController extends Controller
     /**
      * The Kanban Board tab.
      */
-    public function board(Workspace $workspace, Project $project)
-    {
+    public function board(
+        Workspace $workspace,
+        Project $project,
+        ResourceLockService $locks,
+    ) {
         if (!$workspace->members()->where('users.id', Auth::id())->exists()) {
             abort(403);
         }
@@ -255,10 +259,16 @@ class ProjectController extends Controller
                 ];
             });
 
+        $taskLocks = $locks->holdersFor(
+            'task',
+            $project->tasks->pluck('id')->all(),
+        );
+
         return Inertia::render("Project/Board", [
             "workspace" => $workspace,
             "project" => $project,
             "members" => $members,
+            "taskLocks" => $taskLocks,
         ]);
     }
 
