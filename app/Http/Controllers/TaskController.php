@@ -14,6 +14,7 @@ use App\Events\TaskUpdated;
 use App\Events\TaskDeleted;
 use App\Events\TaskLocked;
 use App\Events\TaskUnlocked;
+use App\Services\ResourceLockService;
 
 class TaskController extends Controller
 {
@@ -68,9 +69,22 @@ class TaskController extends Controller
         Workspace $workspace,
         Project $project,
         Task $task,
+        ResourceLockService $locks,
     ) {
         if (!$workspace->members()->where("users.id", Auth::id())->exists()) {
             abort(403);
+        }
+
+        if ($locks->isLockedByOther('task', $task->id, (int) Auth::id())) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'message' => 'This task is being edited by another member.',
+                ], 423);
+            }
+
+            return back()->withErrors([
+                'task' => 'This task is being edited by another member.',
+            ]);
         }
 
         // Gating validation: cannot change status to done if unresolved dependencies exist
@@ -188,8 +202,12 @@ class TaskController extends Controller
     /**
      * Lock a task while a user is dragging it on the board/flow.
      */
-    public function lock(Workspace $workspace, Project $project, Task $task)
-    {
+    public function lock(
+        Workspace $workspace,
+        Project $project,
+        Task $task,
+        ResourceLockService $locks,
+    ) {
         if (!$workspace->members()->where("users.id", Auth::id())->exists()) {
             abort(403);
         }
@@ -198,7 +216,18 @@ class TaskController extends Controller
             abort(404);
         }
 
-        broadcast(new TaskLocked($task->id, $project->id, Auth::id()))->toOthers();
+        $userId = (int) Auth::id();
+
+        if (!$locks->acquire('task', $task->id, $userId)) {
+            $holder = $locks->holder('task', $task->id);
+
+            return response()->json([
+                'message' => 'This task is locked by another member.',
+                'userId' => $holder,
+            ], 409);
+        }
+
+        broadcast(new TaskLocked($task->id, $project->id, $userId));
 
         return response()->json(["success" => true]);
     }
@@ -206,8 +235,12 @@ class TaskController extends Controller
     /**
      * Unlock a task after drag ends.
      */
-    public function unlock(Workspace $workspace, Project $project, Task $task)
-    {
+    public function unlock(
+        Workspace $workspace,
+        Project $project,
+        Task $task,
+        ResourceLockService $locks,
+    ) {
         if (!$workspace->members()->where("users.id", Auth::id())->exists()) {
             abort(403);
         }
@@ -216,7 +249,8 @@ class TaskController extends Controller
             abort(404);
         }
 
-        broadcast(new TaskUnlocked($task->id, $project->id))->toOthers();
+        $locks->release('task', $task->id, (int) Auth::id());
+        broadcast(new TaskUnlocked($task->id, $project->id));
 
         return response()->json(["success" => true]);
     }
@@ -224,11 +258,23 @@ class TaskController extends Controller
     /**
      * Delete a task immediately.
      */
-    public function destroy(Workspace $workspace, Project $project, Task $task)
-    {
+    public function destroy(
+        Workspace $workspace,
+        Project $project,
+        Task $task,
+        ResourceLockService $locks,
+    ) {
         if (!$workspace->members()->where("users.id", Auth::id())->exists()) {
             abort(403);
         }
+
+        if ($locks->isLockedByOther('task', $task->id, (int) Auth::id())) {
+            return response()->json([
+                'message' => 'This task is being edited by another member.',
+            ], 423);
+        }
+
+        $locks->forceRelease('task', $task->id);
 
         $taskId = $task->id;
         $projectId = $project->id;

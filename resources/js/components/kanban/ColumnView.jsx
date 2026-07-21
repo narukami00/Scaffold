@@ -38,6 +38,8 @@ export default function ColumnView({
     recentTaskIds = [],
     deletingTaskIds = [],
 }) {
+    const isLocked = (taskId) => Boolean(locks[taskId]);
+
     const columns = [
         { id: "backlog", title: "Backlog" },
         { id: "in_progress", title: "In Progress" },
@@ -66,7 +68,13 @@ export default function ColumnView({
     const getOccupant = (taskId) => {
         const userId = locks[taskId];
         if (!userId) return null;
-        return presenceMembers.find((m) => m.id === userId);
+        return (
+            presenceMembers.find((m) => m.id === userId) ||
+            workspace.members?.find((m) => m.id === userId) || {
+                id: userId,
+                name: "Someone",
+            }
+        );
     };
 
     const getOccupantColor = (taskId) => {
@@ -85,9 +93,13 @@ export default function ColumnView({
 
     const onDragStart = (start) => {
         const { draggableId } = start;
-        if (locks[draggableId]) return;
+        if (isLocked(Number(draggableId))) return;
         axios.post(lockUrl(draggableId)).catch((error) => {
-            console.error("Failed to broadcast task lock", error);
+            if (error.response?.status === 409 && error.response?.data?.userId) {
+                console.warn("Task is locked by another member.");
+            } else {
+                console.error("Failed to broadcast task lock", error);
+            }
         });
     };
 
@@ -99,7 +111,7 @@ export default function ColumnView({
         }
 
         if (destination.droppableId === "task-trash") {
-            if (!locks[draggableId] && onTaskDelete) {
+            if (!isLocked(Number(draggableId)) && onTaskDelete) {
                 flushSync(() => {
                     onTaskDelete(Number(draggableId), { instant: true });
                 });
@@ -108,7 +120,7 @@ export default function ColumnView({
             return;
         }
 
-        if (locks[draggableId]) {
+        if (isLocked(Number(draggableId))) {
             axios.post(unlockUrl(draggableId)).catch(() => {});
             return;
         }
@@ -216,7 +228,7 @@ export default function ColumnView({
                                         {tasksByStatus[column.id].map(
                                             (task, index) => {
                                                 const occupant = getOccupant(task.id);
-                                                const isLocked = !!occupant;
+                                                const taskLocked = isLocked(task.id);
                                                 const occupantColor = getOccupantColor(task.id);
                                                 const isRecent = recentTaskIds.includes(task.id);
                                                 const isDeleting = deletingTaskIds.includes(task.id);
@@ -228,7 +240,7 @@ export default function ColumnView({
                                                         key={task.id.toString()}
                                                         draggableId={task.id.toString()}
                                                         index={index}
-                                                        isDragDisabled={isLocked}
+                                                        isDragDisabled={taskLocked}
                                                     >
                                                         {(provided) => (
                                                             <div
@@ -238,21 +250,21 @@ export default function ColumnView({
                                                                 onClick={() => onTaskClick(task.id)}
                                                                 style={{
                                                                     ...provided.draggableProps.style,
-                                                                    borderColor: isLocked ? occupantColor : isDone ? "rgba(45,106,79,0.2)" : C.border,
-                                                                    boxShadow: isLocked
+                                                                    borderColor: taskLocked ? occupantColor : isDone ? "rgba(45,106,79,0.2)" : C.border,
+                                                                    boxShadow: taskLocked
                                                                         ? `0 0 15px ${occupantColor}33`
                                                                         : "0 2px 10px rgba(139,94,60,0.06)",
                                                                     background: isDone ? "rgba(45,106,79,0.02)" : C.card,
                                                                 }}
                                                                 className={`group relative cursor-pointer rounded-2xl border p-4 transition-all hover:scale-[1.01] ${
                                                                     isTaskBlocked(task, tasks) ? "opacity-60" : ""
-                                                                } ${isLocked ? "opacity-90" : ""} ${isRecent ? "task-pop-in" : ""} ${
+                                                                } ${taskLocked ? "opacity-90" : ""} ${isRecent ? "task-pop-in" : ""} ${
                                                                     isDeleting ? "task-pop-out pointer-events-none" : ""
                                                                 }`}
-                                                                title={isLocked ? `${occupant?.name} is editing...` : ""}
+                                                                title={taskLocked ? `${occupant?.name || "Someone"} is editing…` : ""}
                                                             >
                                                                 {/* Presence Badge */}
-                                                                {isLocked && (
+                                                                {taskLocked && (
                                                                     <div
                                                                         className="absolute -top-2 -left-1 z-10 flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-white shadow-lg animate-in zoom-in duration-300"
                                                                         style={{ backgroundColor: occupantColor }}

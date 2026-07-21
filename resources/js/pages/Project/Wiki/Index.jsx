@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import WorkspaceLayout from "@/layouts/WorkspaceLayout";
 import { Head, Link, router } from "@inertiajs/react";
 import ProjectHeader from "@/components/project/ProjectHeader";
-import { FileText, Plus, Search, Edit2, Trash2, BookOpen, Calendar, User, X, Loader2 } from "lucide-react";
+import { FileText, Plus, Search, Edit2, Trash2, BookOpen, Calendar, X, Loader2, Lock } from "lucide-react";
 import axios from "axios";
 import hljs from "highlight.js";
 import "highlight.js/styles/github-dark.css";
 import SafeMarkdown from "@/components/ui/SafeMarkdown";
+import { usePage } from "@inertiajs/react";
 
 const getFileExtension = (url) => {
     if (!url) return "";
@@ -39,7 +40,10 @@ const C = {
 };
 
 export default function Index({ workspace, project, wikis = [], currentWiki = null }) {
+    const { auth } = usePage().props;
+    const currentUserId = auth?.user?.id;
     const [searchQuery, setSearchQuery] = useState("");
+    const [wikiLocks, setWikiLocks] = useState({});
     const [viewingFileUrl, setViewingFileUrl] = useState(null);
     const [viewingFileName, setViewingFileName] = useState("");
     const [fileContent, setFileContent] = useState("");
@@ -71,6 +75,16 @@ export default function Index({ workspace, project, wikis = [], currentWiki = nu
                 } else {
                     reloadWiki();
                 }
+            })
+            .listen(".WikiLocked", (e) => {
+                setWikiLocks((prev) => ({ ...prev, [e.wikiId]: e.userId }));
+            })
+            .listen(".WikiUnlocked", (e) => {
+                setWikiLocks((prev) => {
+                    const next = { ...prev };
+                    delete next[e.wikiId];
+                    return next;
+                });
             });
 
         return () => {
@@ -128,11 +142,27 @@ export default function Index({ workspace, project, wikis = [], currentWiki = nu
     );
 
     const handleDelete = (wikiSlug) => {
+        if (currentWiki && isWikiLockedByOther(currentWiki.id)) {
+            alert("This wiki page is being edited by another member.");
+            return;
+        }
+
         if (confirm("Are you sure you want to delete this wiki page?")) {
             router.delete(
                 `/workspaces/${workspace.slug}/projects/${project.slug}/wiki/${wikiSlug}`
             );
         }
+    };
+
+    const getWikiLockOwnerName = (wikiId) => {
+        const userId = wikiLocks[wikiId];
+        if (!userId) return null;
+        return workspace.members?.find((member) => member.id === userId)?.name || "Someone";
+    };
+
+    const isWikiLockedByOther = (wikiId) => {
+        const userId = wikiLocks[wikiId];
+        return userId && Number(userId) !== Number(currentUserId);
     };
 
     return (
@@ -234,19 +264,35 @@ export default function Index({ workspace, project, wikis = [], currentWiki = nu
                                 </div>
 
                                 <div className="flex items-center gap-2">
-                                    <Link
-                                        href={`/workspaces/${workspace.slug}/projects/${project.slug}/wiki/${currentWiki.slug}/edit`}
-                                        className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all"
-                                        style={{ borderColor: C.border, color: C.muted, background: "rgba(139,94,60,0.03)" }}
-                                        onMouseEnter={e => { e.currentTarget.style.borderColor = C.brown; e.currentTarget.style.color = C.brown; }}
-                                        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}
-                                    >
-                                        <Edit2 size={12} />
-                                        Edit
-                                    </Link>
+                                    {currentWiki && isWikiLockedByOther(currentWiki.id) ? (
+                                        <span
+                                            className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
+                                            style={{
+                                                borderColor: "rgba(180,83,9,0.25)",
+                                                color: "#b45309",
+                                                background: "rgba(180,83,9,0.08)",
+                                            }}
+                                            title={`${getWikiLockOwnerName(currentWiki.id)} is editing`}
+                                        >
+                                            <Lock size={12} />
+                                            Locked by {getWikiLockOwnerName(currentWiki.id)}
+                                        </span>
+                                    ) : (
+                                        <Link
+                                            href={`/workspaces/${workspace.slug}/projects/${project.slug}/wiki/${currentWiki.slug}/edit`}
+                                            className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all"
+                                            style={{ borderColor: C.border, color: C.muted, background: "rgba(139,94,60,0.03)" }}
+                                            onMouseEnter={e => { e.currentTarget.style.borderColor = C.brown; e.currentTarget.style.color = C.brown; }}
+                                            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}
+                                        >
+                                            <Edit2 size={12} />
+                                            Edit
+                                        </Link>
+                                    )}
                                     <button
                                         onClick={() => handleDelete(currentWiki.slug)}
-                                        className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all"
+                                        disabled={Boolean(currentWiki && isWikiLockedByOther(currentWiki.id))}
+                                        className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all disabled:cursor-not-allowed disabled:opacity-50"
                                         style={{ borderColor: "rgba(192,57,43,0.25)", color: "#c0392b", background: "rgba(192,57,43,0.03)" }}
                                         onMouseEnter={e => { e.currentTarget.style.background = "rgba(192,57,43,0.08)"; }}
                                         onMouseLeave={e => { e.currentTarget.style.background = "rgba(192,57,43,0.03)"; }}

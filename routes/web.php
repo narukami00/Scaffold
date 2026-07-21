@@ -201,6 +201,16 @@ Route::middleware("auth")->group(function () {
                 \App\Http\Controllers\WikiController::class,
                 "update",
             ])->name("workspaces.projects.wiki.update");
+
+            Route::post("/projects/{project}/wiki/{wiki}/lock", [
+                \App\Http\Controllers\WikiController::class,
+                "lock",
+            ])->name("workspaces.projects.wiki.lock");
+
+            Route::post("/projects/{project}/wiki/{wiki}/unlock", [
+                \App\Http\Controllers\WikiController::class,
+                "unlock",
+            ])->name("workspaces.projects.wiki.unlock");
             
             Route::delete("/projects/{project}/wiki/{wiki}", [
                 \App\Http\Controllers\WikiController::class,

@@ -202,9 +202,6 @@ export default function Board({ workspace, project, members = [] }) {
                 );
             })
             .listen(".TaskLocked", (e) => {
-                if (e.userId === currentUserId) {
-                    return;
-                }
                 setLocks((prev) => ({ ...prev, [e.taskId]: e.userId }));
             })
             .listen(".TaskUnlocked", (e) => {

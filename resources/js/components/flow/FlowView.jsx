@@ -208,14 +208,19 @@ function FlowViewInner({
     const onNodeDragStart = useCallback(
         (_event, node) => {
             const lockOwnerId = locks[node.id] ?? locks[Number(node.id)];
-            if (lockOwnerId && Number(lockOwnerId) !== Number(currentUserId)) {
+            if (lockOwnerId) {
                 return;
             }
             axios.post(
                 `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${node.id}/lock`,
             ).catch(console.error);
         },
-        [workspace.slug, project.slug, locks, currentUserId],
+        [workspace.slug, project.slug, locks],
+    );
+
+    const isTaskLocked = useCallback(
+        (taskId) => Boolean(locks[taskId] ?? locks[Number(taskId)]),
+        [locks],
     );
 
     const onNodeDragStop = useCallback(
@@ -250,6 +255,14 @@ function FlowViewInner({
             const { source, target } = params;
 
             if (source === target) return;
+
+            if (isTaskLocked(source) || isTaskLocked(target)) {
+                setErrorToast(
+                    "This task is being edited and cannot be changed right now.",
+                );
+                setTimeout(() => setErrorToast(null), 4500);
+                return;
+            }
 
             const targetTask = tasks.find((t) => t.id.toString() === target);
             if (!targetTask) return;
@@ -321,12 +334,20 @@ function FlowViewInner({
                     });
                 });
         },
-        [tasks, onTaskUpdated, patchTask],
+        [tasks, onTaskUpdated, patchTask, isTaskLocked],
     );
 
     const onEdgesDelete = useCallback(
         (deletedEdges) => {
             deletedEdges.forEach((edge) => {
+                if (isTaskLocked(edge.source) || isTaskLocked(edge.target)) {
+                    setErrorToast(
+                        "This task is being edited and cannot be changed right now.",
+                    );
+                    setTimeout(() => setErrorToast(null), 4500);
+                    return;
+                }
+
                 const targetTask = tasks.find(
                     (t) => t.id.toString() === edge.target,
                 );
@@ -357,7 +378,7 @@ function FlowViewInner({
                     });
             });
         },
-        [tasks, onTaskUpdated, patchTask],
+        [tasks, onTaskUpdated, patchTask, isTaskLocked],
     );
 
     const onPaneContextMenu = useCallback(

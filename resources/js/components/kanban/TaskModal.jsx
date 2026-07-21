@@ -92,6 +92,7 @@ export default function TaskModal({
     const [confirmingDelete, setConfirmingDelete] = useState(false);
 
     const channelRef = useRef(null);
+    const editorIdRef = useRef(editorId);
     const autoSaveTimerRef = useRef(null);
     const ghostTimerRef = useRef(null);
     const ghostDescTimerRef = useRef(null);
@@ -272,7 +273,7 @@ export default function TaskModal({
                     };
 
                     // If I'm NOT the editor, also apply field updates
-                    if (editorId !== auth.user.id) {
+                    if (editorIdRef.current !== auth.user.id) {
                         return {
                             ...next,
                             title: e.task.title,
@@ -334,7 +335,11 @@ export default function TaskModal({
                 clearTimeout(ghostChecklistActivityTimerRef.current);
             }
         };
-    }, [isOpen, task?.id]);
+    }, [isOpen, task?.id, auth.user.id]);
+
+    useEffect(() => {
+        editorIdRef.current = editorId;
+    }, [editorId]);
 
     // Close label picker when clicking outside
     useEffect(() => {
@@ -351,6 +356,30 @@ export default function TaskModal({
     }, [isLabelPickerOpen]);
 
     const isEditor = editorId === auth.user.id;
+
+    // Broadcast a project-wide lock while this user holds the edit baton.
+    useEffect(() => {
+        if (!isOpen || !task || !isEditor) return;
+
+        const lockUrl = `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.id}/lock`;
+        const unlockUrl = `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.id}/unlock`;
+
+        axios
+            .post(lockUrl, null, {
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+            })
+            .catch((error) => {
+                console.error("Failed to lock task for editing", error);
+            });
+
+        return () => {
+            axios
+                .post(unlockUrl, null, {
+                    headers: { "X-Requested-With": "XMLHttpRequest" },
+                })
+                .catch(() => {});
+        };
+    }, [isOpen, task?.id, isEditor, workspace.slug, project.slug]);
 
     // ── AutoSave (1 s debounce, editor only; immediate for sync_to_github) ────
     const autoSave = (newData, { immediate = false } = {}) => {

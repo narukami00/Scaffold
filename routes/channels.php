@@ -67,6 +67,36 @@ Broadcast::channel("task.{taskId}", function ($user, $taskId) {
     ];
 });
 
+Broadcast::channel("wiki.{wikiId}", function ($user, $wikiId) {
+    $wiki = \App\Models\Wiki::find($wikiId);
+    if (!$wiki) {
+        return false;
+    }
+
+    $workspace = $wiki->project->workspace;
+
+    if ((int) $workspace->owner_id === (int) $user->id) {
+        return [
+            "id" => $user->id,
+            "name" => $user->name,
+            "color" => "#f59e0b",
+            "joined_at" => now()->timestamp,
+        ];
+    }
+
+    $member = $workspace->members()->find($user->id);
+    if (!$member) {
+        return false;
+    }
+
+    return [
+        "id" => $user->id,
+        "name" => $user->name,
+        "color" => $member->pivot->color ?? "#6366f1",
+        "joined_at" => now()->timestamp,
+    ];
+});
+
 Broadcast::channel("presence-thread.{threadId}", function ($user, $threadId) {
     // Walk thread → project → workspace to validate membership
     $thread = \App\Models\Thread::find($threadId);
