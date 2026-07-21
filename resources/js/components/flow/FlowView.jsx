@@ -14,7 +14,6 @@ import {
 import "@xyflow/react/dist/style.css";
 import axios from "axios";
 import { Plus, LayoutGrid, Zap, Minimize2, Map, HelpCircle } from "lucide-react";
-import { usePage } from "@inertiajs/react";
 import TaskNode from "@/components/flow/TaskNode";
 import { wouldCreateCycle } from "@/utils/cycleDetection";
 import { getResolvableDependencies } from "@/utils/taskDependencies";
@@ -62,7 +61,28 @@ function buildNodes(
     recentTaskIds = [],
     deletingTaskIds = [],
     density = "informed",
+    currentUserId = null,
 ) {
+    const lockOwnerId = (taskId) =>
+        locks[taskId] ?? locks[String(taskId)] ?? locks[Number(taskId)];
+
+    const isLockedByOther = (taskId) => {
+        const ownerId = lockOwnerId(taskId);
+        return (
+            ownerId &&
+            currentUserId &&
+            Number(ownerId) !== Number(currentUserId)
+        );
+    };
+
+    const resolveMember = (userId) => {
+        if (!userId) return null;
+        if (workspace?.owner?.id === userId) {
+            return workspace.owner;
+        }
+        return workspace?.members?.find((member) => member.id === userId) || null;
+    };
+
     const colIndex = {};
 
     return tasks.map((task) => {
@@ -75,22 +95,26 @@ function buildNodes(
             ? { x: task.x_pos, y: task.y_pos }
             : getAutoPosition(task, idx);
 
-        const userId = locks[task.id];
-        const occupantMember = workspace?.members?.find((m) => m.id === userId);
+        const userId = lockOwnerId(task.id);
+        const lockedByOther = isLockedByOther(task.id);
+        const occupantMember = resolveMember(userId);
 
         return {
             id: task.id.toString(),
             type: "customTaskNode",
             position,
-            draggable: !userId,
+            draggable: !lockedByOther,
             data: { 
                 task, 
                 onTaskClick,
                 onTaskDelete,
                 workspace,
-                isLocked: !!userId,
+                isLocked: lockedByOther,
                 occupantName: occupantMember?.name || "Someone",
-                occupantColor: occupantMember?.pivot?.color || "#8b5e3c",
+                occupantColor:
+                    workspace?.owner?.id === userId
+                        ? "#f59e0b"
+                        : occupantMember?.pivot?.color || "#8b5e3c",
                 isRecent: recentTaskIds.includes(task.id),
                 isDeleting: deletingTaskIds.includes(task.id),
                 isBlocked: getResolvableDependencies(task, tasks).some(
@@ -146,10 +170,9 @@ function FlowViewInner({
     recentTaskIds = [],
     deletingTaskIds = [],
     density = "informed",
+    currentUserId = null,
 }) {
     const { screenToFlowPosition, fitView } = useReactFlow();
-    const { auth } = usePage().props;
-    const currentUserId = auth?.user?.id;
 
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -189,6 +212,7 @@ function FlowViewInner({
                 recentTaskIds,
                 deletingTaskIds,
                 density,
+                currentUserId,
             ),
         );
         setEdges(buildEdges(tasks));
@@ -203,24 +227,42 @@ function FlowViewInner({
         recentTaskIds,
         deletingTaskIds,
         density,
+        currentUserId,
     ]);
+
+    const lockOwnerId = useCallback(
+        (taskId) =>
+            locks[taskId] ?? locks[String(taskId)] ?? locks[Number(taskId)],
+        [locks],
+    );
+
+    const isLockedByOther = useCallback(
+        (taskId) => {
+            const ownerId = lockOwnerId(taskId);
+            return (
+                ownerId &&
+                currentUserId &&
+                Number(ownerId) !== Number(currentUserId)
+            );
+        },
+        [currentUserId, lockOwnerId],
+    );
 
     const onNodeDragStart = useCallback(
         (_event, node) => {
-            const lockOwnerId = locks[node.id] ?? locks[Number(node.id)];
-            if (lockOwnerId) {
+            if (isLockedByOther(Number(node.id))) {
                 return;
             }
             axios.post(
                 `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${node.id}/lock`,
             ).catch(console.error);
         },
-        [workspace.slug, project.slug, locks],
+        [workspace.slug, project.slug, isLockedByOther],
     );
 
     const isTaskLocked = useCallback(
-        (taskId) => Boolean(locks[taskId] ?? locks[Number(taskId)]),
-        [locks],
+        (taskId) => isLockedByOther(Number(taskId)),
+        [isLockedByOther],
     );
 
     const onNodeDragStop = useCallback(

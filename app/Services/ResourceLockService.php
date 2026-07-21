@@ -40,7 +40,7 @@ class ResourceLockService
         $current = $this->holder($type, $id);
 
         if ($current === null) {
-            return true;
+            return false;
         }
 
         if ($current !== $userId) {

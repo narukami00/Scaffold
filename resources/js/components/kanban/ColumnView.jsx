@@ -37,8 +37,19 @@ export default function ColumnView({
     presenceMembers = [],
     recentTaskIds = [],
     deletingTaskIds = [],
+    currentUserId = null,
 }) {
-    const isLocked = (taskId) => Boolean(locks[taskId]);
+    const lockOwnerId = (taskId) =>
+        locks[taskId] ?? locks[String(taskId)] ?? locks[Number(taskId)];
+
+    const isLockedByOther = (taskId) => {
+        const ownerId = lockOwnerId(taskId);
+        return (
+            ownerId &&
+            currentUserId &&
+            Number(ownerId) !== Number(currentUserId)
+        );
+    };
 
     const columns = [
         { id: "backlog", title: "Backlog" },
@@ -66,11 +77,12 @@ export default function ColumnView({
         ).toString();
 
     const getOccupant = (taskId) => {
-        const userId = locks[taskId];
+        const userId = lockOwnerId(taskId);
         if (!userId) return null;
         return (
             presenceMembers.find((m) => m.id === userId) ||
-            workspace.members?.find((m) => m.id === userId) || {
+            workspace.members?.find((m) => m.id === userId) ||
+            (workspace.owner?.id === userId ? workspace.owner : null) || {
                 id: userId,
                 name: "Someone",
             }
@@ -78,8 +90,11 @@ export default function ColumnView({
     };
 
     const getOccupantColor = (taskId) => {
-        const userId = locks[taskId];
+        const userId = lockOwnerId(taskId);
         if (!userId) return null;
+        if (workspace.owner?.id === userId) {
+            return "#f59e0b";
+        }
         const member = workspace.members?.find((m) => m.id === userId);
         return member?.pivot?.color || "#3b82f6";
     };
@@ -93,7 +108,8 @@ export default function ColumnView({
 
     const onDragStart = (start) => {
         const { draggableId } = start;
-        if (isLocked(Number(draggableId))) return;
+        const taskId = Number(draggableId);
+        if (isLockedByOther(taskId)) return;
         axios.post(lockUrl(draggableId)).catch((error) => {
             if (error.response?.status === 409 && error.response?.data?.userId) {
                 console.warn("Task is locked by another member.");
@@ -105,27 +121,31 @@ export default function ColumnView({
 
     const onDragEnd = async (result) => {
         const { destination, source, draggableId } = result;
+        const task = tasks.find((t) => t.id.toString() === draggableId);
+
         if (!destination) {
             axios.post(unlockUrl(draggableId)).catch(() => {});
             return;
         }
 
         if (destination.droppableId === "task-trash") {
-            if (!isLocked(Number(draggableId)) && onTaskDelete) {
+            if (!isLockedByOther(Number(draggableId)) && onTaskDelete) {
                 flushSync(() => {
-                    onTaskDelete(Number(draggableId), { instant: true });
+                    onTaskDelete(Number(draggableId), {
+                        instant: true,
+                        snapshot: task,
+                    });
                 });
             }
             axios.post(unlockUrl(draggableId)).catch(() => {});
             return;
         }
 
-        if (isLocked(Number(draggableId))) {
+        if (isLockedByOther(Number(draggableId))) {
             axios.post(unlockUrl(draggableId)).catch(() => {});
             return;
         }
 
-        const task = tasks.find((t) => t.id.toString() === draggableId);
         if (!task) {
             axios.post(unlockUrl(draggableId)).catch(() => {});
             return;
@@ -228,7 +248,7 @@ export default function ColumnView({
                                         {tasksByStatus[column.id].map(
                                             (task, index) => {
                                                 const occupant = getOccupant(task.id);
-                                                const taskLocked = isLocked(task.id);
+                                                const taskLocked = isLockedByOther(task.id);
                                                 const occupantColor = getOccupantColor(task.id);
                                                 const isRecent = recentTaskIds.includes(task.id);
                                                 const isDeleting = deletingTaskIds.includes(task.id);

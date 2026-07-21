@@ -249,8 +249,9 @@ class TaskController extends Controller
             abort(404);
         }
 
-        $locks->release('task', $task->id, (int) Auth::id());
-        broadcast(new TaskUnlocked($task->id, $project->id));
+        if ($locks->release('task', $task->id, (int) Auth::id())) {
+            broadcast(new TaskUnlocked($task->id, $project->id));
+        }
 
         return response()->json(["success" => true]);
     }

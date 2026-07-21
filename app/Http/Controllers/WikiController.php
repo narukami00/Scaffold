@@ -26,6 +26,8 @@ class WikiController extends Controller
             abort(403);
         }
 
+        $workspace->loadMissing(['owner', 'members']);
+
         $wikis = $project->wikis()->orderBy('title')->get();
         $firstWiki = $wikis->first();
 
@@ -58,6 +60,8 @@ class WikiController extends Controller
         if ($wiki->project_id !== $project->id) {
             abort(404);
         }
+
+        $workspace->loadMissing(['owner', 'members']);
 
         $wikis = $project->wikis()->orderBy('title')->get();
 
@@ -127,6 +131,8 @@ class WikiController extends Controller
         if ($wiki->project_id !== $project->id) {
             abort(404);
         }
+
+        $workspace->loadMissing(['owner', 'members']);
 
         return Inertia::render('Project/Wiki/CreateEdit', [
             'workspace' => $workspace,
@@ -227,8 +233,9 @@ class WikiController extends Controller
             abort(404);
         }
 
-        $locks->release('wiki', $wiki->id, (int) Auth::id());
-        broadcast(new WikiUnlocked($wiki->id, $project->id));
+        if ($locks->release('wiki', $wiki->id, (int) Auth::id())) {
+            broadcast(new WikiUnlocked($wiki->id, $project->id));
+        }
 
         return response()->json(['success' => true]);
     }

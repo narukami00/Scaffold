@@ -26,13 +26,24 @@ export default function CreateEdit({ workspace, project, wiki = null, isEdit = f
         content: wiki ? wiki.content : "",
     });
 
-    const [editorId, setEditorId] = useState(auth?.user?.id ?? null);
+    const [editorId, setEditorId] = useState(null);
+    const [presenceReady, setPresenceReady] = useState(false);
     const [presence, setPresence] = useState([]);
     const channelRef = useRef(null);
+    const holdsEditLockRef = useRef(false);
 
     const isEditor = !isEdit || editorId === auth?.user?.id;
-    const editorName =
-        presence.find((user) => user.id === editorId)?.name || "Another member";
+    const editorName = (() => {
+        if (!editorId) return "Another member";
+        if (workspace.owner?.id === editorId) {
+            return workspace.owner.name;
+        }
+        return (
+            presence.find((user) => user.id === editorId)?.name ||
+            workspace.members?.find((member) => member.id === editorId)?.name ||
+            "Another member"
+        );
+    })();
 
     useEffect(() => {
         if (!isEdit || !wiki?.id || !window.Echo) return;
@@ -47,6 +58,7 @@ export default function CreateEdit({ workspace, project, wiki = null, isEdit = f
                     (a, b) => a.joined_at - b.joined_at,
                 );
                 setEditorId(sorted[0]?.id ?? null);
+                setPresenceReady(true);
             })
             .joining((user) => {
                 setPresence((prev) => [...prev, user]);
@@ -74,8 +86,9 @@ export default function CreateEdit({ workspace, project, wiki = null, isEdit = f
     }, [isEdit, wiki?.id]);
 
     useEffect(() => {
-        if (!isEdit || !wiki?.id || !isEditor) return;
+        if (!isEdit || !wiki?.id || !presenceReady || !isEditor) return;
 
+        let cancelled = false;
         const lockUrl = `/workspaces/${workspace.slug}/projects/${project.slug}/wiki/${wiki.slug}/lock`;
         const unlockUrl = `/workspaces/${workspace.slug}/projects/${project.slug}/wiki/${wiki.slug}/unlock`;
 
@@ -83,18 +96,35 @@ export default function CreateEdit({ workspace, project, wiki = null, isEdit = f
             .post(lockUrl, null, {
                 headers: { "X-Requested-With": "XMLHttpRequest" },
             })
+            .then(() => {
+                if (!cancelled) {
+                    holdsEditLockRef.current = true;
+                }
+            })
             .catch((error) => {
                 console.error("Failed to lock wiki for editing", error);
             });
 
         return () => {
+            cancelled = true;
+            if (!holdsEditLockRef.current) return;
+
+            holdsEditLockRef.current = false;
             axios
                 .post(unlockUrl, null, {
                     headers: { "X-Requested-With": "XMLHttpRequest" },
                 })
                 .catch(() => {});
         };
-    }, [isEdit, wiki?.id, wiki?.slug, isEditor, workspace.slug, project.slug]);
+    }, [
+        isEdit,
+        wiki?.id,
+        wiki?.slug,
+        presenceReady,
+        isEditor,
+        workspace.slug,
+        project.slug,
+    ]);
 
     const handleSubmit = (e) => {
         e.preventDefault();

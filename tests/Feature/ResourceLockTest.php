@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Models\Workspace;
 use App\Services\ResourceLockService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
+use App\Events\TaskUnlocked;
 use Tests\TestCase;
 
 class ResourceLockTest extends TestCase
@@ -54,6 +56,29 @@ class ResourceLockTest extends TestCase
         );
 
         $response->assertStatus(409);
+    }
+
+    public function test_task_unlock_does_not_broadcast_when_caller_is_not_lock_holder(): void
+    {
+        Event::fake([TaskUnlocked::class]);
+
+        [$workspace, $project, $owner, $member] = $this->workspaceWithMember();
+
+        $task = Task::create([
+            'project_id' => $project->id,
+            'title' => 'Shared task',
+            'status' => 'backlog',
+            'priority' => 'medium',
+        ]);
+
+        app(ResourceLockService::class)->acquire('task', $task->id, $owner->id);
+
+        $this->actingAs($member)->postJson(
+            "/workspaces/{$workspace->slug}/projects/{$project->slug}/tasks/{$task->id}/unlock",
+        )->assertOk();
+
+        Event::assertNotDispatched(TaskUnlocked::class);
+        $this->assertSame($owner->id, app(ResourceLockService::class)->holder('task', $task->id));
     }
 
     public function test_wiki_update_is_rejected_when_locked_by_another_member(): void

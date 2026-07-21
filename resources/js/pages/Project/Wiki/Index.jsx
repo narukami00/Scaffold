@@ -154,10 +154,21 @@ export default function Index({ workspace, project, wikis = [], currentWiki = nu
         }
     };
 
+    const resolveUserName = (userId) => {
+        if (!userId) return null;
+        if (Number(workspace.owner?.id) === Number(userId)) {
+            return workspace.owner.name;
+        }
+        return (
+            workspace.members?.find(
+                (member) => Number(member.id) === Number(userId),
+            )?.name || null
+        );
+    };
+
     const getWikiLockOwnerName = (wikiId) => {
         const userId = wikiLocks[wikiId];
-        if (!userId) return null;
-        return workspace.members?.find((member) => member.id === userId)?.name || "Someone";
+        return resolveUserName(userId) || "Someone";
     };
 
     const isWikiLockedByOther = (wikiId) => {

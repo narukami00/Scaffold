@@ -299,8 +299,12 @@ export default function Board({ workspace, project, members = [] }) {
     );
 
     const deleteTask = useCallback(
-        async (taskId, { instant = false } = {}) => {
+        async (taskId, { instant = false, snapshot = null } = {}) => {
             const normalizedId = Number(taskId);
+            const taskSnapshot =
+                snapshot ??
+                tasks.find((task) => Number(task.id) === normalizedId) ??
+                null;
 
             if (instant) {
                 handleTaskDeleted(normalizedId, { instant: true });
@@ -314,17 +318,42 @@ export default function Board({ workspace, project, members = [] }) {
                             Accept: "application/json",
                             "X-Requested-With": "XMLHttpRequest",
                         },
-                    }
+                    },
                 );
 
                 if (!instant) {
                     handleTaskDeleted(normalizedId);
                 }
+
+                setLocks((prev) => {
+                    const next = { ...prev };
+                    delete next[normalizedId];
+                    delete next[String(normalizedId)];
+                    return next;
+                });
             } catch (error) {
+                if (instant && taskSnapshot) {
+                    setTasks((currentTasks) => {
+                        if (
+                            currentTasks.some(
+                                (task) => Number(task.id) === normalizedId,
+                            )
+                        ) {
+                            return currentTasks;
+                        }
+
+                        return sortTasks([...currentTasks, taskSnapshot]);
+                    });
+                }
+
+                const message =
+                    error.response?.data?.message ||
+                    "This task could not be deleted.";
+                window.alert(message);
                 console.error("Failed to delete task", error);
             }
         },
-        [handleTaskDeleted, project.slug, workspace.slug],
+        [handleTaskDeleted, project.slug, tasks, workspace.slug],
     );
 
     return (
@@ -401,6 +430,7 @@ export default function Board({ workspace, project, members = [] }) {
                         presenceMembers={presenceMembers}
                         recentTaskIds={recentTaskIds}
                         deletingTaskIds={deletingTaskIds}
+                        currentUserId={currentUserId}
                     />
                 ) : (
                     <FlowView
@@ -415,6 +445,7 @@ export default function Board({ workspace, project, members = [] }) {
                         recentTaskIds={recentTaskIds}
                         deletingTaskIds={deletingTaskIds}
                         density={density}
+                        currentUserId={currentUserId}
                     />
                 )}
             </div>

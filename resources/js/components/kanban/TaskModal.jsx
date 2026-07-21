@@ -73,7 +73,8 @@ export default function TaskModal({
     // ── State & Refs ──────────────────────────────────────────────────────────
     const [data, setDataState] = useState(null);
     const [presence, setPresence] = useState([]);
-    const [editorId, setEditorId] = useState(auth?.user?.id || null);
+    const [editorId, setEditorId] = useState(null);
+    const [presenceReady, setPresenceReady] = useState(false);
     const [isSidePanelOpen, setIsSidePanelOpen] = useState(true);
     const [requestingAccess, setRequestingAccess] = useState(false);
     const [controlRequests, setControlRequests] = useState([]);
@@ -93,6 +94,7 @@ export default function TaskModal({
 
     const channelRef = useRef(null);
     const editorIdRef = useRef(editorId);
+    const holdsEditLockRef = useRef(false);
     const autoSaveTimerRef = useRef(null);
     const ghostTimerRef = useRef(null);
     const ghostDescTimerRef = useRef(null);
@@ -106,6 +108,8 @@ export default function TaskModal({
     // broadcast, wiping any in-progress edits.
     useEffect(() => {
         if (task && isOpen) {
+            setPresenceReady(false);
+            setEditorId(null);
             setDataState({
                 title: task.title,
                 description: task.description || "",
@@ -122,7 +126,6 @@ export default function TaskModal({
                 github_pull_requests: task.github_pull_requests || [],
                 sync_to_github: false,
             });
-            setEditorId(auth?.user?.id || null);
             // Reset transient UI state for fresh open
             setControlRequests([]);
             setRequestingAccess(false);
@@ -187,6 +190,7 @@ export default function TaskModal({
                     (a, b) => a.joined_at - b.joined_at,
                 );
                 setEditorId(sorted[0]?.id ?? null);
+                setPresenceReady(true);
             })
             .joining((user) => {
                 setPresence((prev) => [...prev, user]);
@@ -359,8 +363,9 @@ export default function TaskModal({
 
     // Broadcast a project-wide lock while this user holds the edit baton.
     useEffect(() => {
-        if (!isOpen || !task || !isEditor) return;
+        if (!isOpen || !task || !presenceReady || !isEditor) return;
 
+        let cancelled = false;
         const lockUrl = `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.id}/lock`;
         const unlockUrl = `/workspaces/${workspace.slug}/projects/${project.slug}/tasks/${task.id}/unlock`;
 
@@ -368,18 +373,34 @@ export default function TaskModal({
             .post(lockUrl, null, {
                 headers: { "X-Requested-With": "XMLHttpRequest" },
             })
+            .then(() => {
+                if (!cancelled) {
+                    holdsEditLockRef.current = true;
+                }
+            })
             .catch((error) => {
                 console.error("Failed to lock task for editing", error);
             });
 
         return () => {
+            cancelled = true;
+            if (!holdsEditLockRef.current) return;
+
+            holdsEditLockRef.current = false;
             axios
                 .post(unlockUrl, null, {
                     headers: { "X-Requested-With": "XMLHttpRequest" },
                 })
                 .catch(() => {});
         };
-    }, [isOpen, task?.id, isEditor, workspace.slug, project.slug]);
+    }, [
+        isOpen,
+        task?.id,
+        presenceReady,
+        isEditor,
+        workspace.slug,
+        project.slug,
+    ]);
 
     // ── AutoSave (1 s debounce, editor only; immediate for sync_to_github) ────
     const autoSave = (newData, { immediate = false } = {}) => {
