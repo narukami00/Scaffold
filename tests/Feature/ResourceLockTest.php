@@ -105,6 +105,28 @@ class ResourceLockTest extends TestCase
         $this->assertSame('Original content', $wiki->fresh()->content);
     }
 
+    public function test_active_locks_endpoint_returns_current_task_locks(): void
+    {
+        [$workspace, $project, $owner, $member] = $this->workspaceWithMember();
+
+        $task = Task::create([
+            'project_id' => $project->id,
+            'title' => 'Locked task',
+            'status' => 'backlog',
+            'priority' => 'medium',
+        ]);
+
+        app(ResourceLockService::class)->acquire('task', $task->id, $owner->id);
+
+        $response = $this->actingAs($member)->getJson(
+            "/workspaces/{$workspace->slug}/projects/{$project->slug}/task-locks",
+        );
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('locks.' . $task->id, $owner->id);
+    }
+
     public function test_board_includes_active_task_locks_from_server(): void
     {
         [$workspace, $project, $owner, $member] = $this->workspaceWithMember();

@@ -331,6 +331,10 @@ Route::middleware("auth")->group(function () {
                 TaskController::class,
                 "lock",
             ])->name("tasks.lock");
+            Route::get("/projects/{project}/task-locks", [
+                TaskController::class,
+                "activeLocks",
+            ])->name("tasks.locks");
             Route::post("/projects/{project}/tasks/{task}/unlock", [
                 TaskController::class,
                 "unlock",

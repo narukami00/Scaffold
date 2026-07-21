@@ -257,6 +257,29 @@ class TaskController extends Controller
     }
 
     /**
+     * Return active edit/drag locks for all tasks in a project.
+     */
+    public function activeLocks(
+        Workspace $workspace,
+        Project $project,
+        ResourceLockService $locks,
+    ) {
+        if (!$workspace->members()->where("users.id", Auth::id())->exists()) {
+            abort(403);
+        }
+
+        if ((int) $project->workspace_id !== (int) $workspace->id) {
+            abort(404);
+        }
+
+        $taskIds = $project->tasks()->pluck('id')->all();
+
+        return response()->json([
+            'locks' => $locks->holdersFor('task', $taskIds),
+        ]);
+    }
+
+    /**
      * Delete a task immediately.
      */
     public function destroy(

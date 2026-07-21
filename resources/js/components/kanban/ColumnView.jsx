@@ -38,6 +38,7 @@ export default function ColumnView({
     recentTaskIds = [],
     deletingTaskIds = [],
     currentUserId = null,
+    onRefreshLocks = null,
 }) {
     const lockOwnerId = (taskId) =>
         locks[taskId] ?? locks[String(taskId)] ?? locks[Number(taskId)];
@@ -176,6 +177,7 @@ export default function ColumnView({
         } catch (error) {
             console.error("Failed to update task position", error);
             onTaskMove(draggableId, source.droppableId, source.index);
+            onRefreshLocks?.();
             axios.post(unlockUrl(draggableId)).catch(() => {});
         }
     };

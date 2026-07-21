@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import WorkspaceLayout from "@/layouts/WorkspaceLayout";
-import { Head, usePage } from "@inertiajs/react";
+import { Head, router, usePage } from "@inertiajs/react";
 import { LayoutGrid, Share2, Sliders } from "lucide-react";
 import ColumnView from "@/components/kanban/ColumnView";
 import axios from "axios";
@@ -79,6 +79,21 @@ const normalizeTaskLocks = (raw = {}) => {
     return next;
 };
 
+const mergeTaskLock = (locks, taskId, userId) => ({
+    ...locks,
+    [Number(taskId)]: Number(userId),
+});
+
+const clearTaskLock = (locks, taskId) => {
+    const next = { ...locks };
+    const normalizedId = Number(taskId);
+
+    delete next[normalizedId];
+    delete next[String(normalizedId)];
+
+    return next;
+};
+
 export default function Board({ workspace, project, members = [], taskLocks = {} }) {
     const { auth } = usePage().props;
     const currentUserId = auth?.user?.id;
@@ -129,10 +144,62 @@ export default function Board({ workspace, project, members = [], taskLocks = {}
     const [locks, setLocks] = useState(() => normalizeTaskLocks(taskLocks));
     const [presenceMembers, setPresenceMembers] = useState([]);
     const lastActivityRef = useRef(Date.now());
+    const locksRequestRef = useRef(0);
+
+    const taskLocksUrl = `/workspaces/${workspace.slug}/projects/${project.slug}/task-locks`;
+
+    const refreshLocks = useCallback(() => {
+        const requestId = ++locksRequestRef.current;
+
+        return axios
+            .get(taskLocksUrl, {
+                headers: {
+                    Accept: "application/json",
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+            })
+            .then(({ data }) => {
+                if (requestId !== locksRequestRef.current) {
+                    return;
+                }
+
+                setLocks(normalizeTaskLocks(data?.locks ?? {}));
+            })
+            .catch((error) => {
+                console.error("Failed to refresh task locks", error);
+            });
+    }, [taskLocksUrl]);
 
     useEffect(() => {
-        setLocks(normalizeTaskLocks(taskLocks));
-    }, [project.id]);
+        refreshLocks();
+    }, [refreshLocks]);
+
+    useEffect(() => {
+        const unsubscribe = router.on("success", (event) => {
+            const component =
+                event?.detail?.page?.component ?? event?.page?.component;
+
+            if (component === "Project/Board") {
+                refreshLocks();
+            }
+        });
+
+        return unsubscribe;
+    }, [refreshLocks]);
+
+    useEffect(() => {
+        const handleVisibility = () => {
+            if (document.visibilityState === "visible") {
+                refreshLocks();
+            }
+        };
+
+        document.addEventListener("visibilitychange", handleVisibility);
+
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibility);
+        };
+    }, [refreshLocks]);
 
     useEffect(() => {
         if (!isModalOpen) return;
@@ -164,11 +231,14 @@ export default function Board({ workspace, project, members = [], taskLocks = {}
 
     // --- REAL-TIME LISTENERS ---
     useEffect(() => {
+        refreshLocks();
+
         const channel = window.Echo.join(`project.${project.id}`);
 
         channel
             .here((users) => {
                 setPresenceMembers(users);
+                refreshLocks();
             })
             .joining((user) => {
                 setPresenceMembers((prev) => [...prev, user]);
@@ -208,14 +278,12 @@ export default function Board({ workspace, project, members = [], taskLocks = {}
                 );
             })
             .listen(".TaskLocked", (e) => {
-                setLocks((prev) => ({ ...prev, [e.taskId]: e.userId }));
+                setLocks((prev) =>
+                    mergeTaskLock(prev, e.taskId, e.userId),
+                );
             })
             .listen(".TaskUnlocked", (e) => {
-                setLocks((prev) => {
-                    const next = { ...prev };
-                    delete next[e.taskId];
-                    return next;
-                });
+                setLocks((prev) => clearTaskLock(prev, e.taskId));
             });
 
         return () => {
@@ -226,7 +294,7 @@ export default function Board({ workspace, project, members = [], taskLocks = {}
             channel.stopListening(".TaskUnlocked");
             window.Echo.leave(`project.${project.id}`);
         };
-    }, [project.id, currentUserId]);
+    }, [project.id, currentUserId, refreshLocks]);
 
     const handleTaskUpdated = useCallback((taskId, changes) => {
         flashTask(taskId);
@@ -437,6 +505,7 @@ export default function Board({ workspace, project, members = [], taskLocks = {}
                         recentTaskIds={recentTaskIds}
                         deletingTaskIds={deletingTaskIds}
                         currentUserId={currentUserId}
+                        onRefreshLocks={refreshLocks}
                     />
                 ) : (
                     <FlowView
