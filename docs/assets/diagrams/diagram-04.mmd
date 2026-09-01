@@ -1,0 +1,23 @@
+flowchart TB
+    subgraph Render
+        subgraph Docker[Docker container: php:8.2-apache]
+            Apache2[Apache :80<br/>docroot = /var/www/html/public]
+            Reverb[Reverb :8080<br/>reverb:start]
+            Q[queue:work]
+            S[schedule:work]
+            Apache2 -- ProxyPass /app --> Reverb
+            Apache2 -- ProxyPass /apps --> Reverb
+        end
+    end
+    Net((Public Internet)) -- HTTPS --> Apache2
+    Net -- WSS /app --> Reverb
+    subgraph External
+        NeonDB[(Neon Postgres<br/>serverless)]
+        GH[GitHub API]
+        GHWH[GitHub Webhooks]
+    end
+    Apache2 -- php artisan migrate + DB --> NeonDB
+    Q -- jobs --> NeonDB
+    S -- sync outbound --> NeonDB
+    S -- sync outbound --> GH
+    Apache2 -- /webhooks/github --> GHWH

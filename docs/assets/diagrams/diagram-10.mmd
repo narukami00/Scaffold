@@ -1,0 +1,13 @@
+flowchart TB
+    Thread[Thread<br/>title, body, tags, is_pinned]
+    R1[Reply A<br/>parent=null]
+    R2[Reply B<br/>parent=null]
+    R3[Reply C<br/>parent=A]
+    R4[Reply D<br/>parent=C]
+    R5[Solution Reply<br/>is_definitive=true]
+
+    Thread --> R1
+    Thread --> R2
+    Thread --> R3
+    R3 --> R4
+    Thread --> R5

@@ -1,0 +1,67 @@
+flowchart LR
+    subgraph Identity
+        users[users]
+        prt[password_reset_tokens]
+        sessions[sessions]
+        ws_members[workspace_members]
+        invitations[workspace_invitations]
+        notifications[notifications]
+    end
+    subgraph Workspaces
+        workspaces[workspaces]
+    end
+    subgraph Projects
+        projects[projects]
+        tasks[tasks]
+        task_comments[task_comments]
+        task_attachments[task_attachments]
+        task_dependencies[task_dependencies]
+        labels[labels]
+        label_task[label_task]
+    end
+    subgraph Discussions
+        threads[threads]
+        thread_replies[thread_replies]
+        reactions[reactions]
+        media[media]
+        wikis[wikis]
+    end
+    subgraph GitHubMirror
+        gh_installations[github_installations]
+        gh_repositories[github_repositories]
+        gh_issues[github_issues]
+        gh_prs[github_pull_requests]
+        gh_branches[github_branches]
+        gh_webhook_deliveries[github_webhook_deliveries]
+    end
+    subgraph System
+        cache[cache + cache_locks]
+        jobs[jobs + failed_jobs + job_batches]
+    end
+    users --> ws_members
+    workspaces --> ws_members
+    workspaces --> projects
+    projects --> tasks
+    tasks --> task_comments
+    tasks --> task_attachments
+    tasks --> task_dependencies
+    tasks --> label_task
+    labels --> label_task
+    projects --> labels
+    projects --> wikis
+    projects --> threads
+    threads --> thread_replies
+    thread_replies --> thread_replies
+    tasks --> reactions
+    thread_replies --> reactions
+    threads --> reactions
+    task_comments --> reactions
+    users --> media
+    users --> notifications
+    workspaces --> invitations
+    workspaces --> gh_installations
+    gh_installations --> gh_repositories
+    projects --> gh_repositories
+    gh_repositories --> gh_issues
+    gh_repositories --> gh_prs
+    gh_repositories --> gh_branches

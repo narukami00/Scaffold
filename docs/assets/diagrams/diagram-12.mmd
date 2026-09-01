@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant TaskModal
+    participant TaskObserver
+    participant Job as SyncOutboundGitHubIssueJob
+    participant GH as GitHub API
+    participant WH as /webhooks/github
+    participant Handler as ProcessGitHubWebhookJob
+
+    TaskModal->>TaskObserver: save task
+    TaskObserver->>Job: dispatch if needs_sync
+    Job->>GH: PATCH /repos/{f}/issues/{n}
+    GH->>WH: POST webhook (issues event)
+    WH->>Handler: dispatch (signature verified, deduped)
+    Handler->>Handler: md5 incoming content vs last_synced_hash
+    alt hashes match
+        Handler-->>Handler: skip (echo protection)
+    else
+        Handler->>TaskModal: broadcast TaskUpdated
+    end

@@ -1,0 +1,15 @@
+flowchart LR
+    Owner[Owner user]
+    Member1[Member user]
+    Member2[Member user]
+    WS[Workspace]
+    Projects[Project 1 / Project 2 / ...]
+    Invitation[WorkspaceInvitation<br/>token + email + expires_at]
+
+    Owner -- owns --> WS
+    Owner -- members pivot --> WS
+    Member1 -- members pivot --> WS
+    Member2 -. receives .-> Invitation
+    Member2 -- accept token --> WS
+    WS -- has many --> Projects
+    Invitation -- belongs to --> WS

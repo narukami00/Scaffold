@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "F:\__Projects\Web\DevSpace\devspace\docs\lab-report\_build_lab_report.py", line 596, in <module>
+    render()
+    ~~~~~~^^
+  File "F:\__Projects\Web\DevSpace\devspace\docs\lab-report\_build_lab_report.py", line 515, in render
+    flush_table()
+    ~~~~~~~~~~~^^
+  File "F:\__Projects\Web\DevSpace\devspace\docs\lab-report\_build_lab_report.py", line 470, in flush_table
+    add_table_from_md(doc, table_header, table_rows)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\__Projects\Web\DevSpace\devspace\docs\lab-report\_build_lab_report.py", line 427, in add_table_from_md
+    _set_cell_shading(cell, LIGHT_BLUE)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "F:\__Projects\Web\DevSpace\devspace\docs\lab-report\_build_lab_report.py", line 53, in _set_cell_shading
+    shd.set(qn("w:fill"), hex_color)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "src/lxml/etree.pyx", line 949, in lxml.etree._Element.set
+  File "src/lxml/apihelpers.pxi", line 595, in lxml.etree._setAttributeValue
+  File "src/lxml/apihelpers.pxi", line 1536, in lxml.etree._utf8
+TypeError: Argument must be bytes or unicode, got 'RGBColor'

@@ -1,0 +1,6 @@
+flowchart LR
+    app.css[resources/css/app.css] --> viteBuild[public/build/assets/app.css]
+    app.jsx[resources/js/app.jsx] --> viteBuild2[public/build/assets/app.js]
+    bootstrap[resources/js/bootstrap.js] --> app.jsx
+    echo[resources/js/echo.js] --> bootstrap
+    axios[axios + X-Requested-With] --> bootstrap

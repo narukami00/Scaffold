@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant A as Client A (Browser)
+    participant R as Reverb :8080
+    participant S as Laravel (event dispatcher)
+    participant DB as Postgres
+    participant B as Client B (Browser)
+
+    A->>S: PATCH /workspaces/w1/projects/p1/tasks/42
+    S->>DB: UPDATE tasks SET status = 'in_progress' WHERE id = 42
+    S->>S: cycle detection BFS over task_dependencies
+    S->>S: cascade revert if old status was 'done'
+    S-->>S: broadcast(new TaskUpdated($task))->toOthers()
+    S->>R: POST /apps/events { channel: presence-project.1, name: TaskUpdated, data: {...} }
+    R-->>B: WS push on presence-project.1 with TaskUpdated payload
+    B->>B: router.reload({ only: ['board'] })
+    A-->>A: original PATCH returns 302 redirect

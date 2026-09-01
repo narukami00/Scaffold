@@ -1,0 +1,24 @@
+flowchart LR
+    Browser[Browser<br/>React 19 + Inertia]
+    Apache[Apache :80<br/>Reverse proxy]
+    Laravel[PHP-FPM<br/>Laravel 11 + Inertia SSR]
+    Reverb[Reverb :8080<br/>WebSocket server]
+    Queue[queue:work<br/>PHP worker]
+    Schedule[schedule:work<br/>Outbound sync]
+    Neon[(Neon Postgres<br/>via PgBouncer)]
+    Storage[(storage/app/public<br/>avatars, uploads)]
+    GitHub[GitHub API<br/>REST + Apps JWT]
+
+    Browser -- HTTPS --> Apache
+    Browser -- WSS over /app --> Apache
+    Apache -- mod_proxy --> Reverb
+    Apache --> Laravel
+    Laravel --> Queue
+    Laravel --> Schedule
+    Laravel --> Neon
+    Laravel --> Storage
+    Queue --> Neon
+    Schedule --> GitHub
+    Laravel -- JWT / REST --> GitHub
+    GitHub -- webhooks --> Apache
+    Reverb <--> Browser

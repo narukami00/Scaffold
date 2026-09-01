@@ -1,0 +1,10 @@
+flowchart LR
+    Producer[Notifier::send<br/>or NotificationController::markRead]
+    DB[(notifications)]
+    Event[NotificationReceived event]
+    Reverb[Reverb]
+    UserPanel["NotificationPanel.jsx<br/>Echo.private App.Models.User.id"]
+    Producer --> DB
+    Producer -- broadcast --> Event
+    Event -- POST /apps/events --> Reverb
+    Reverb -- WS push --> UserPanel

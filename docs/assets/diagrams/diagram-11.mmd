@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant Owner as Workspace Owner
+    participant Browser
+    participant GH as github.com
+    participant Callback as /github/callback
+    participant TokenSvc as GitHubTokenService
+    participant DB as Postgres
+
+    Owner->>Browser: click "Connect GitHub"
+    Browser->>GH: redirect to https://github.com/apps/{slug}/installations/new?state={ws_slug}
+    GH-->>Owner: install UI (select org/repos)
+    Owner->>GH: confirm install
+    GH-->>Browser: redirect to /github/callback?installation_id=...&setup_action=install&state={ws_slug}
+    Browser->>Callback: GET /github/callback
+    Callback->>TokenSvc: generateAppJwt() — RS256, 10-min lifetime
+    TokenSvc->>GH: GET https://api.github.com/app/installations/{id} (Bearer JWT)
+    GH-->>TokenSvc: installation metadata (id, account, avatar)
+    Callback->>DB: GitHubInstallation::create([workspace_id, github_installation_id, account_login, account_type, avatar_url])
+    Callback-->>Browser: redirect /workspaces/{ws}?tab=integrations

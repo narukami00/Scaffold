@@ -1,6 +1,5 @@
 /.phpunit.cache
 /.puku-cli
-/docs
 /node_modules
 /public/hot
 /public/storage
@@ -23,6 +22,7 @@ yarn-error.log
 *.md
 !README.md
 *.txt
+*.py
 
 # Ignore local git test folder
 /git-feature-test

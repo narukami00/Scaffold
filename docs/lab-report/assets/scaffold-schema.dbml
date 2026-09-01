@@ -1,0 +1,453 @@
+// Scaffold database schema for dbdiagram.io
+// Paste this entire file into https://dbdiagram.io/d/new
+// Database engine: PostgreSQL
+
+Enum invitation_status {
+  pending
+  accepted
+  declined
+}
+
+Enum task_status {
+  backlog
+  in_progress
+  in_review
+  done
+}
+
+Enum task_priority {
+  low
+  medium
+  high
+  urgent
+}
+
+Table users {
+  id bigint [pk, increment]
+  name varchar(255) [not null]
+  email varchar(255) [not null, unique]
+  email_verified_at timestamp
+  password varchar(255) [not null]
+  title varchar(255)
+  bio text
+  avatar_path text
+  recovery_question varchar(255)
+  recovery_answer varchar(255)
+  remember_token varchar(100)
+  created_at timestamp
+  updated_at timestamp
+
+  Note: 'Authenticated users. Recovery answers are normalized and hashed.'
+}
+
+Table password_reset_tokens {
+  email varchar(255) [pk]
+  token varchar(255) [not null]
+  created_at timestamp
+}
+
+Table sessions {
+  id varchar(255) [pk]
+  user_id bigint
+  ip_address varchar(45)
+  user_agent text
+  payload text [not null]
+  last_activity int [not null]
+
+  indexes {
+    user_id
+    last_activity
+  }
+}
+
+Table workspaces {
+  id bigint [pk, increment]
+  name varchar(255) [not null]
+  slug varchar(255) [not null, unique]
+  owner_id bigint [not null]
+  created_at timestamp
+  updated_at timestamp
+
+  Note: 'Primary tenant and authorization boundary.'
+}
+
+Table workspace_members {
+  id bigint [pk, increment]
+  workspace_id bigint [not null]
+  user_id bigint [not null]
+  role varchar(255) [not null, default: 'member']
+  color varchar(255)
+  joined_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    (workspace_id, user_id) [unique]
+  }
+}
+
+Table workspace_invitations {
+  id bigint [pk, increment]
+  workspace_id bigint [not null]
+  email varchar(255) [not null]
+  token varchar(255) [not null, unique]
+  role varchar(255) [not null, default: 'member']
+  expires_at timestamp [not null]
+  inviter_id bigint
+  status invitation_status [not null, default: 'pending']
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table projects {
+  id bigint [pk, increment]
+  workspace_id bigint [not null]
+  name varchar(255) [not null]
+  slug varchar(255) [not null]
+  description text
+  git_repo_path varchar(255)
+  git_last_synced_commit varchar(255)
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    (workspace_id, slug) [unique]
+  }
+}
+
+Table tasks {
+  id bigint [pk, increment]
+  project_id bigint [not null]
+  assignee_id bigint
+  title varchar(255) [not null]
+  description text
+  checklist json
+  status task_status [not null, default: 'backlog']
+  priority task_priority [not null, default: 'medium']
+  position int [not null, default: 0]
+  x_pos int [not null, default: 0]
+  y_pos int [not null, default: 0]
+  due_date date
+  created_at timestamp
+  updated_at timestamp
+
+  Note: 'Core work item used by Kanban and dependency flow views.'
+}
+
+Table task_dependencies {
+  id bigint [pk, increment]
+  task_id bigint [not null]
+  depends_on_id bigint [not null]
+
+  indexes {
+    (task_id, depends_on_id) [unique]
+  }
+
+  Note: 'Self-referencing task graph. Application prevents circular dependencies.'
+}
+
+Table task_comments {
+  id bigint [pk, increment]
+  task_id bigint [not null]
+  user_id bigint [not null]
+  body text [not null]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table task_attachments {
+  id bigint [pk, increment]
+  task_id bigint [not null]
+  user_id bigint [not null]
+  file_path varchar(255) [not null]
+  file_name varchar(255) [not null]
+  file_type varchar(255) [not null]
+  file_size bigint [not null]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table labels {
+  id bigint [pk, increment]
+  project_id bigint [not null]
+  name varchar(255) [not null]
+  color varchar(255) [not null, default: '#4fffb0']
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table label_task {
+  label_id bigint [not null]
+  task_id bigint [not null]
+
+  indexes {
+    (label_id, task_id) [pk, unique]
+  }
+}
+
+Table wikis {
+  id bigint [pk, increment]
+  project_id bigint [not null]
+  user_id bigint
+  title varchar(255) [not null]
+  slug varchar(255) [not null]
+  content text [not null]
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    (project_id, slug) [unique]
+  }
+}
+
+Table threads {
+  id bigint [pk, increment]
+  project_id bigint [not null]
+  user_id bigint [not null]
+  title varchar(255)
+  body text [not null]
+  tags text
+  is_pinned boolean [not null, default: false]
+  edited_at timestamp
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table thread_replies {
+  id bigint [pk, increment]
+  thread_id bigint [not null]
+  user_id bigint [not null]
+  parent_id bigint
+  body text [not null]
+  is_definitive boolean [not null, default: false]
+  is_deleted boolean [not null, default: false]
+  edited_at timestamp
+  created_at timestamp
+  updated_at timestamp
+
+  Note: 'parent_id creates the nested reply tree.'
+}
+
+Table reactions {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  reactable_id bigint [not null]
+  reactable_type varchar(255) [not null]
+  emoji varchar(10) [not null]
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    (reactable_type, reactable_id)
+    (user_id, reactable_id, reactable_type, emoji) [unique, name: 'unique_reaction']
+  }
+
+  Note: 'Polymorphic: reactable may be a thread, reply, task, or task comment.'
+}
+
+Table media {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  project_id bigint
+  mediable_id bigint
+  mediable_type varchar(255)
+  file_path varchar(255) [not null]
+  file_name varchar(255) [not null]
+  file_type varchar(255)
+  file_size bigint [not null, default: 0]
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    (mediable_type, mediable_id)
+  }
+
+  Note: 'Polymorphic attachments with explicit project scoping.'
+}
+
+Table notifications {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  type varchar(255) [not null]
+  notifiable_type varchar(255)
+  notifiable_id bigint
+  data json [not null]
+  read_at timestamp
+  created_at timestamp
+  updated_at timestamp
+
+  Note: 'Persistent notifications; notifiable_type and notifiable_id are polymorphic.'
+}
+
+Table github_installations {
+  id bigint [pk, increment]
+  workspace_id bigint [not null]
+  github_installation_id bigint [not null, unique]
+  account_login varchar(255) [not null]
+  account_type varchar(255) [not null]
+  avatar_url varchar(255)
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table github_repositories {
+  id bigint [pk, increment]
+  project_id bigint [not null, unique]
+  github_installation_id bigint [not null]
+  github_repo_id bigint [not null]
+  full_name varchar(255) [not null]
+  default_branch varchar(255) [not null]
+  html_url varchar(255) [not null]
+  created_at timestamp
+  updated_at timestamp
+
+  Note: 'At most one linked GitHub repository per Scaffold project.'
+}
+
+Table github_issues {
+  id bigint [pk, increment]
+  task_id bigint [not null, unique]
+  github_repo_id bigint [not null]
+  github_issue_id bigint
+  issue_number int
+  html_url varchar(255)
+  last_synced_hash varchar(255)
+  needs_sync boolean [not null, default: false]
+  needs_sync_since timestamp
+  synced_at timestamp
+  created_at timestamp
+  updated_at timestamp
+
+  Note: 'Bidirectional task-to-issue synchronization state.'
+}
+
+Table github_pull_requests {
+  id bigint [pk, increment]
+  task_id bigint
+  github_repo_id bigint [not null]
+  pr_number int [not null]
+  title varchar(255) [not null]
+  state varchar(255) [not null]
+  head_branch varchar(255) [not null]
+  base_branch varchar(255) [not null]
+  html_url varchar(255) [not null]
+  is_draft boolean [not null, default: false]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table github_branches {
+  id bigint [pk, increment]
+  github_repo_id bigint [not null]
+  name varchar(255) [not null]
+  last_commit_sha varchar(255) [not null]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table github_webhook_deliveries {
+  delivery_id varchar(255) [pk]
+  event_type varchar(255) [not null]
+  processed_at timestamp [not null]
+
+  Note: 'GitHub delivery ID is the primary key for webhook deduplication.'
+}
+
+// Laravel queue/cache infrastructure (optional in a report diagram)
+Table cache {
+  key varchar(255) [pk]
+  value text [not null]
+  expiration int [not null]
+}
+
+Table cache_locks {
+  key varchar(255) [pk]
+  owner varchar(255) [not null]
+  expiration int [not null]
+}
+
+Table jobs {
+  id bigint [pk, increment]
+  queue varchar(255) [not null]
+  payload text [not null]
+  attempts int [not null]
+  reserved_at int
+  available_at int [not null]
+  created_at int [not null]
+
+  indexes {
+    queue
+  }
+}
+
+Table job_batches {
+  id varchar(255) [pk]
+  name varchar(255) [not null]
+  total_jobs int [not null]
+  pending_jobs int [not null]
+  failed_jobs int [not null]
+  failed_job_ids text [not null]
+  options text
+  cancelled_at int
+  created_at int [not null]
+  finished_at int
+}
+
+Table failed_jobs {
+  id bigint [pk, increment]
+  uuid varchar(255) [not null, unique]
+  connection text [not null]
+  queue text [not null]
+  payload text [not null]
+  exception text [not null]
+  failed_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+// ---------------------------------------------------------------------------
+// Foreign-key relationships
+// ---------------------------------------------------------------------------
+
+Ref: workspaces.owner_id > users.id [delete: cascade]
+Ref: workspace_members.workspace_id > workspaces.id [delete: cascade]
+Ref: workspace_members.user_id > users.id [delete: cascade]
+Ref: workspace_invitations.workspace_id > workspaces.id [delete: cascade]
+Ref: workspace_invitations.inviter_id > users.id [delete: cascade]
+Ref: projects.workspace_id > workspaces.id [delete: cascade]
+
+Ref: tasks.project_id > projects.id [delete: cascade]
+Ref: tasks.assignee_id > users.id [delete: set null]
+Ref: task_dependencies.task_id > tasks.id [delete: cascade]
+Ref: task_dependencies.depends_on_id > tasks.id [delete: cascade]
+Ref: task_comments.task_id > tasks.id [delete: cascade]
+Ref: task_comments.user_id > users.id [delete: cascade]
+Ref: task_attachments.task_id > tasks.id [delete: cascade]
+Ref: task_attachments.user_id > users.id [delete: cascade]
+Ref: labels.project_id > projects.id [delete: cascade]
+Ref: label_task.label_id > labels.id [delete: cascade]
+Ref: label_task.task_id > tasks.id [delete: cascade]
+
+Ref: wikis.project_id > projects.id [delete: cascade]
+Ref: wikis.user_id > users.id [delete: set null]
+Ref: threads.project_id > projects.id [delete: cascade]
+Ref: thread_replies.thread_id > threads.id [delete: cascade]
+Ref: thread_replies.parent_id > thread_replies.id [delete: set null]
+Ref: media.user_id > users.id [delete: cascade]
+Ref: media.project_id > projects.id [delete: cascade]
+Ref: notifications.user_id > users.id [delete: cascade]
+
+Ref: github_installations.workspace_id > workspaces.id [delete: cascade]
+Ref: github_repositories.project_id > projects.id [delete: cascade]
+Ref: github_repositories.github_installation_id > github_installations.id [delete: cascade]
+Ref: github_issues.task_id > tasks.id [delete: cascade]
+Ref: github_issues.github_repo_id > github_repositories.id [delete: cascade]
+Ref: github_pull_requests.task_id > tasks.id [delete: cascade]
+Ref: github_pull_requests.github_repo_id > github_repositories.id [delete: cascade]
+Ref: github_branches.github_repo_id > github_repositories.id [delete: cascade]
+
+// These links exist at application/model level but are not database FKs:
+// threads.user_id -> users.id
+// thread_replies.user_id -> users.id
+// reactions.user_id -> users.id
+// reactions.reactable_type + reactable_id -> supported content model
+// media.mediable_type + mediable_id -> supported content model
+// notifications.notifiable_type + notifiable_id -> supported model

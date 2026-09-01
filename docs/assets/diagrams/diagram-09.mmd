@@ -1,0 +1,18 @@
+stateDiagram-v2
+    [*] --> backlog: created
+    backlog --> in_progress: drag (no deps unmet)
+    backlog --> in_review: drag
+    backlog --> done: ONLY if all deps done
+    in_progress --> in_review: drag
+    in_progress --> done: ONLY if all deps done
+    in_progress --> backlog: drag back
+    in_review --> done: ONLY if all deps done
+    in_review --> in_progress: drag back
+    in_review --> backlog: drag back
+    done --> backlog: revert (cascades to dependents)
+    done --> in_progress: revert (cascades to dependents)
+    done --> in_review: revert (cascades to dependents)
+    done --> [*]: deleted
+    backlog --> [*]: deleted
+    in_progress --> [*]: deleted
+    in_review --> [*]: deleted
